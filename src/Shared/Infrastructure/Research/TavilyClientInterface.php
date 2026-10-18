@@ -1,0 +1,43 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Shared\Infrastructure\Research;
+
+/**
+ * Real-time web research contract, used to ground AI content generation in
+ * current trends/data instead of stale model knowledge (see Post module
+ * PostContentGeneratorPort). Cross-cutting — lives in Shared so a future module
+ * can reuse it without duplicating the HTTP client.
+ */
+interface TavilyClientInterface
+{
+    /**
+     * Run up to 4 queries and return their pooled, flattened results. Degrades
+     * to an empty array (never throws) so a research outage never blocks
+     * generation — callers simply fall back to the model's own knowledge.
+     *
+     * `$timeRange` (`day`|`week`|`month`|`year`) biases results toward recent
+     * sources; omitted, the request is exactly what it always was, so existing
+     * callers are unaffected.
+     *
+     * `$searchDepth` (`basic`|`advanced`) overrides the configured default for
+     * this call only — LeadScout uses `basic` to resolve a known company (1
+     * credit) and `advanced` for discovery (2 credits). Omitted or invalid,
+     * the configured default applies, so existing callers are unaffected.
+     *
+     * `$excludeDomains` (max 150) and `$country` travel to the provider when
+     * given; omitted, the request is exactly what it always was.
+     *
+     * @param list<string> $queries
+     * @param list<string>|null $excludeDomains
+     * @return list<array{title: string, url: string, content: string, score: float}>
+     */
+    public function search(
+        array $queries,
+        ?string $timeRange = null,
+        ?string $searchDepth = null,
+        ?array $excludeDomains = null,
+        ?string $country = null,
+    ): array;
+}

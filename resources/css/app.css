@@ -1,0 +1,145 @@
+@import 'tailwindcss';
+@import 'tailwindcss-primeui';
+@import './globals.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.vue';
+@source '../../src/**/*.vue';
+@source '../../src/**/*.ts';
+
+@theme {
+    --font-sans:
+        'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/*
+  Base chrome: themed scrollbars and honest pointer affordances.
+
+  Firefox gets the two-property standard form; Chromium/WebKit get the
+  `::-webkit-` pseudo-elements. The thumb is the primary hue at low alpha
+  over a transparent track, so the ambient glow keeps reading behind it
+  instead of being boxed in by a grey gutter. `background-clip: padding-box`
+  under a transparent border is what gives the thumb its inset — a real
+  margin is not available on these pseudo-elements.
+*/
+@layer base {
+    html {
+        scrollbar-color: var(--scrollbar-thumb) transparent;
+        scrollbar-width: thin;
+    }
+
+    ::-webkit-scrollbar {
+        width: var(--scrollbar-size);
+        height: var(--scrollbar-size);
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        border-radius: 999px;
+        transition: background-color 200ms ease;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-thumb-hover);
+    }
+
+    ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    /*
+      Tailwind v4's preflight sets `button { cursor: default }`, which loses
+      the affordance on every button in the app. Put it back for everything
+      that actually activates something, and mark the things that do not.
+
+      `:where()` keeps specificity at 0, so any component can still override.
+    */
+    :where(
+        a[href],
+        button,
+        summary,
+        label[for],
+        select,
+        [role='button'],
+        [role='option'],
+        [role='tab'],
+        [role='menuitem']
+    ) {
+        cursor: pointer;
+    }
+
+    :where(button, [role='button'], input, select, textarea):disabled,
+    :where([aria-disabled='true'], [data-disabled]) {
+        cursor: not-allowed;
+    }
+}
+
+/*
+  Cursor orb — a soft accent glow that follows the pointer anywhere on the
+  page.
+
+  `CursorOrb.vue` writes --cursor-x / --cursor-y on pointermove and adds
+  `--active` after the first move, so it never flashes at the 0,0 corner on
+  load. `pointer-events: none` means it never intercepts a click or a hover.
+
+  Three gradient stops, not two: a single linear ramp to `transparent` falls
+  off at a constant rate and reads as a flat disc with a visible rim; holding
+  most of the tint through the core and decaying late is what makes it read
+  as a light source.
+
+  The follow is animated with `translate` rather than `left`/`top` so it runs
+  on the compositor — no layout or repaint per frame.
+
+  z-index 60 rides above the app chrome (headers sit at z-40/z-50) and stays
+  below every PrimeVue overlay — dialogs, dropdowns and toasts mount at
+  z-1000+, managed by the ZIndex service — so the glow never lands on a modal.
+*/
+.cursor-orb {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 60;
+    width: var(--cursor-orb-size);
+    height: var(--cursor-orb-size);
+    border-radius: 50%;
+    background-image: radial-gradient(
+        circle,
+        var(--cursor-orb-tint) 0%,
+        color-mix(in oklab, var(--cursor-orb-tint) 55%, transparent) 40%,
+        transparent 72%
+    );
+    pointer-events: none;
+    opacity: 0;
+    translate: calc(var(--cursor-x, 0px) - 50%) calc(var(--cursor-y, 0px) - 50%);
+    transition:
+        translate 120ms ease-out,
+        opacity 400ms cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: translate;
+}
+
+.cursor-orb--active {
+    opacity: 1;
+}
+
+/*
+  A glow that chases a finger is meaningless on touch, and it is exactly the
+  kind of incidental motion WCAG 2.2 SC 2.3.3 asks us to drop. The component
+  also refuses to attach its listener in both cases — this is the belt to
+  that pair of braces.
+*/
+@media (pointer: coarse), (prefers-reduced-motion: reduce), print {
+    .cursor-orb {
+        display: none;
+    }
+}

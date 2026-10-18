@@ -1,0 +1,29 @@
+{
+  "$schema": "SKIPPED by batch (leading underscore). Copy to {name}.spec.json to run.",
+  "module": "Labels",
+  "entity": "Label",
+  "table": "labels",
+  "route": "labels",
+  "userOwned": true,
+  "softDeletes": true,
+  "bulk": true,
+  "api": true,
+  "exports": ["csv"],
+  "permissions": "LABELS",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "length": 120,
+      "required": true,
+      "unique": true,
+      "searchable": true
+    },
+    { "name": "color", "type": "string", "length": 7, "required": false },
+    { "name": "position", "type": "integer", "default": 0 },
+    { "name": "is_active", "type": "boolean", "default": true },
+    { "name": "starts_at", "type": "date", "nullable": true },
+    { "name": "notes", "type": "text", "required": false }
+  ],
+  "_foreign_example": "For a FK add { \"name\": \"category_id\", \"type\": \"foreign\", \"references\": \"categories\", \"nullable\": true } — the referenced table MUST already exist (migration order), else inserts fail."
+}

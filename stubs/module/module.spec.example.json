@@ -1,0 +1,32 @@
+{
+  "$schema": "FLAT simple-CRUD module spec — consumed by `npm run module:make -- <spec.json>`",
+  "module": "Labels",
+  "entity": "Label",
+  "table": "labels",
+  "route": "labels",
+  "lifespan": "module",
+  "userOwned": true,
+  "softDeletes": true,
+  "bulk": true,
+  "api": true,
+  "exports": ["csv", "xlsx", "pdf"],
+  "permissions": "LABELS",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "length": 120,
+      "required": true,
+      "unique": true,
+      "searchable": true
+    },
+    { "name": "color", "type": "string", "length": 7, "required": false },
+    { "name": "position", "type": "integer", "default": 0 },
+    { "name": "is_active", "type": "boolean", "default": true },
+    { "name": "starts_at", "type": "date", "nullable": true },
+    { "name": "notes", "type": "text", "required": false }
+  ],
+  "_lifespan_note": "REQUIRED in spirit, 'module' in practice. Declare it. 'module' opts into the full ceremony (Data, FilterData, ownership, 401/403/422, bulk pair). 'one-shot' is REFUSED by the generator with guidance: an Artisan command, a migration or a seeder is not a module, and giving it a module's ceremony is the speculative build YAGNI forbids. See PRINCIPLES/SKILL.md §6.",
+  "_exports_note": "csv | xlsx | pdf. All three are served by Shared\\Domain\\Ports\\ExportPort — the module only ships Exports/{Entity}ExportTransformer.php (columns + lazy owner-scoped rows) plus a thin controller. `pdf` also writes resources/views/exports/{table}.blade.php. An unknown format is a hard error.",
+  "_foreign_example": "For a FK add { \"name\": \"category_id\", \"type\": \"foreign\", \"references\": \"categories\", \"nullable\": true } — the referenced table MUST already exist (migration order), else inserts fail."
+}

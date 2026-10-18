@@ -1,0 +1,384 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Shared\Infrastructure\Company;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Shared\Domain\Ports\StoragePort;
+use Throwable;
+
+/**
+ * Single source of company branding for emails, the hero and the navbar.
+ *
+ * DB-first: reads the main `company_data` row so NO company-specific env vars
+ * are required. When the table is empty or unavailable (e.g. before the first
+ * migrate) it falls back to the app's own APP_NAME / APP_URL / MAIL_FROM_ADDRESS
+ * and the bundled logos shipped in `public/img`. Cached briefly to avoid a query
+ * per email/render.
+ *
+ * Uploaded logos live on Cloudflare R2 (public visibility); the stored column
+ * holds the R2 object key, resolved to a permanent public URL via StoragePort.
+ * A null column falls back to the bundled asset served from APP_URL. R2 failures
+ * degrade to the bundled asset rather than breaking every render.
+ *
+ * @phpstan-type CompanyArray array{name: string, description: ?string, url: ?string, logo_url: string, logo_white_url: string, mark_url: string, logo_email_url: string, logo_email_white_url: string, address: ?string, address_2: ?string, zip_code: ?string, city: ?string, state: ?string, country: ?string, country_code: ?string, phone: ?string, support_email: ?string, latitude: ?float, longitude: ?float, socials: array<string, string>}
+ */
+final class CompanyProfile
+{
+    private const string CACHE_KEY = 'company.profile';
+
+    /**
+     * Cache key for the public API payload served to the external landing sites.
+     *
+     * Declared here rather than inside the Company module so that the one place
+     * that flushes company caches — {@see forget()}, called by the model's
+     * `saved` / `deleted` hooks — is also the one place that names the keys.
+     * `CompanyServiceProvider` injects this into the query handler that fills it.
+     */
+    public const string PUBLIC_CACHE_KEY = self::CACHE_KEY.'.public';
+
+    public const string FALLBACK_LOGO = 'img/Logo.webp';
+
+    public const string FALLBACK_LOGO_WHITE = 'img/Logo-white.webp';
+
+    public const string FALLBACK_MARK = 'img/Mark.webp';
+
+    /**
+     * Invoice PDF header (dompdf) — deliberately the bundled asset, never the
+     * CRM-uploaded company logo.
+     *
+     * It shares a value with {@see FALLBACK_LOGO} and still gets its own name,
+     * because they answer different questions: this one is "what does an
+     * invoice header show", which is fixed, while the other is "what stands in
+     * for a logo nobody has uploaded yet", which is not. Collapsing them would
+     * silently hand the invoice header to the first tenant who uploads a mark.
+     *
+     * Dark-on-transparent, since the invoice renders on white paper.
+     */
+    private const string INVOICE_PDF_LOGO = self::FALLBACK_LOGO;
+
+    /**
+     * Email header logos — PNG, where everything else in this class is WebP.
+     *
+     * Outlook on Windows renders mail through Word's HTML engine, which has no
+     * WebP decoder and draws a broken-image box rather than degrading to the
+     * alt text. Every other surface here can take WebP: browsers have supported
+     * it for years, and dompdf decodes it through GD.
+     *
+     * Same two artworks as {@see FALLBACK_LOGO} and {@see FALLBACK_LOGO_WHITE},
+     * re-exported. The white one sits on the dark gradient header in
+     * `emails.layout`; the dark one on the light header in the appointment
+     * partial.
+     */
+    public const string EMAIL_FALLBACK_LOGO = 'img/logo-argenis-hub.png';
+
+    public const string EMAIL_FALLBACK_LOGO_WHITE = 'img/logo-argenis-hub-white.png';
+
+    /**
+     * @return CompanyArray
+     */
+    public static function data(): array
+    {
+        return Cache::remember(self::CACHE_KEY, now()->addMinutes(30), static function (): array {
+            $company = self::firstCompanyRow() ?? [];
+
+            return [
+                'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
+                // AI context for the Post module's topic ideation (never rendered
+                // in emails/hero — only consumed server-side, harmless addition).
+                'description' => self::stringOrNull($company, 'description'),
+                'url' => self::stringOrNull($company, 'website') ?: self::configString('app.url'),
+                'logo_url' => self::logoUrl(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
+                'logo_white_url' => self::logoUrl(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
+                'mark_url' => self::logoUrl(self::stringOrNull($company, 'mark_path'), self::FALLBACK_MARK),
+                'logo_email_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_path'), self::EMAIL_FALLBACK_LOGO),
+                'logo_email_white_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_white_path'), self::EMAIL_FALLBACK_LOGO_WHITE),
+                'address' => self::stringOrNull($company, 'address'),
+                'address_2' => self::stringOrNull($company, 'address_2'),
+                'zip_code' => self::stringOrNull($company, 'zip_code'),
+                'city' => self::stringOrNull($company, 'city'),
+                'state' => self::stringOrNull($company, 'state'),
+                'country' => self::stringOrNull($company, 'country'),
+                'country_code' => self::stringOrNull($company, 'country_code'),
+                'phone' => self::stringOrNull($company, 'phone'),
+                'support_email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
+                'latitude' => self::floatOrNull($company, 'latitude'),
+                'longitude' => self::floatOrNull($company, 'longitude'),
+                'socials' => array_filter([
+                    'linkedin' => self::stringOrNull($company, 'linkedin_link'),
+                    'twitter' => self::stringOrNull($company, 'twitter_link'),
+                    'instagram' => self::stringOrNull($company, 'instagram_link'),
+                    'facebook' => self::stringOrNull($company, 'facebook_link'),
+                    'tiktok' => self::stringOrNull($company, 'tiktok_link'),
+                    'github' => self::stringOrNull($company, 'github_link'),
+                ]),
+            ];
+        });
+    }
+
+    public static function forget(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::CACHE_KEY.'.pdf');
+        Cache::forget(self::PUBLIC_CACHE_KEY);
+    }
+
+    /**
+     * Base64 `data:` URI for the invoice PDF header only ({@see INVOICE_PDF_LOGO}).
+     * Does not affect {@see data()}, {@see pdfBranding()}, emails, or the CRM UI.
+     */
+    public static function invoiceLogoDataUri(): string
+    {
+        return self::bundledAssetDataUri(self::INVOICE_PDF_LOGO);
+    }
+
+    /**
+     * Branding payload for the corporate PDF export layout.
+     *
+     * dompdf renders with remote fetching disabled, so logos are pre-fetched and
+     * embedded as base64 `data:` URIs here rather than referenced by URL. The
+     * white logo sits on the coloured header band; the dark logo is exposed for
+     * light-background contexts. Contact fields feed the header/footer blocks.
+     *
+     * Single-invoice documents (`exports.pdf.invoice`) do **not** use these logo
+     * fields for the header — only {@see invoiceLogoDataUri()} via
+     * {@see DomPdfInvoiceRenderer}.
+     *
+     * @return array{name: string, legal_name: ?string, website: ?string, email: ?string, phone: ?string, address: ?string, country: ?string, country_code: ?string, nif_nipc: ?string, nie: ?string, bank_beneficiary: ?string, bank_iban: ?string, bank_bic: ?string, bank_name: ?string, invoice_notes: ?string, logo_data_uri: string, logo_dark_data_uri: string, socials: array<string, string>}
+     */
+    public static function pdfBranding(): array
+    {
+        return Cache::remember(self::CACHE_KEY.'.pdf', now()->addMinutes(30), static function (): array {
+            $company = self::firstCompanyRow() ?? [];
+
+            return [
+                'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
+                'legal_name' => self::stringOrNull($company, 'name'),
+                'website' => self::stringOrNull($company, 'website') ?: self::configString('app.url'),
+                'email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
+                'phone' => self::stringOrNull($company, 'phone'),
+                'address' => self::composeAddress($company),
+                'country' => self::stringOrNull($company, 'country'),
+                'country_code' => self::stringOrNull($company, 'country_code'),
+                'nif_nipc' => self::stringOrNull($company, 'nif_nipc'),
+                'nie' => self::stringOrNull($company, 'nie'),
+                'bank_beneficiary' => self::stringOrNull($company, 'bank_beneficiary'),
+                'bank_iban' => self::stringOrNull($company, 'bank_iban'),
+                'bank_bic' => self::stringOrNull($company, 'bank_bic'),
+                'bank_name' => self::stringOrNull($company, 'bank_name'),
+                'invoice_notes' => self::stringOrNull($company, 'invoice_notes'),
+                'logo_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
+                'logo_dark_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
+                'socials' => array_filter([
+                    'linkedin' => self::stringOrNull($company, 'linkedin_link'),
+                    'twitter' => self::stringOrNull($company, 'twitter_link'),
+                    'instagram' => self::stringOrNull($company, 'instagram_link'),
+                    'facebook' => self::stringOrNull($company, 'facebook_link'),
+                    'tiktok' => self::stringOrNull($company, 'tiktok_link'),
+                    'github' => self::stringOrNull($company, 'github_link'),
+                ]),
+            ];
+        });
+    }
+
+    /**
+     * Default document `<title>` for the guest/hero pages: the DB brand name
+     * joined with the env-driven tagline (`config('app.title_description')`).
+     */
+    public static function documentTitle(): string
+    {
+        return self::data()['name'].' — '.(string) config('app.title_description');
+    }
+
+    /**
+     * Resolve a stored logo reference to an absolute URL: an R2 object key →
+     * permanent public URL; otherwise the bundled asset served from APP_URL.
+     *
+     * Public so the Company module's storage adapter resolves logo URLs through
+     * the same rule this class applies to emails and PDF exports, instead of
+     * reimplementing the fallback and ending up one asset out of step.
+     */
+    public static function logoUrl(?string $key, string $fallback): string
+    {
+        if ($key === null || $key === '') {
+            return self::bundledUrl($fallback);
+        }
+
+        try {
+            return app(StoragePort::class)->publicUrl($key);
+        } catch (Throwable) {
+            return self::bundledUrl($fallback);
+        }
+    }
+
+    /**
+     * Like {@see logoUrl()}, but it will never hand an email client a format
+     * that client cannot draw.
+     *
+     * `CompanyLogoStorage::store()` re-encodes every upload to WebP, so an
+     * operator who uploads their own mark would otherwise put a broken-image
+     * box in the header of every email the app sends to Outlook — a regression
+     * caused by an action that looks entirely unrelated to email. Until an
+     * uploaded logo has an email-safe rendition, the bundled PNG wins.
+     *
+     * Written as a format test rather than as `return self::bundledUrl(...)`
+     * on purpose: the day storage keeps a PNG sibling, this starts preferring
+     * the operator's own artwork with no change here.
+     */
+    private static function emailSafeLogoUrl(?string $key, string $fallback): string
+    {
+        if ($key !== null && str_ends_with(strtolower($key), '.webp')) {
+            return self::bundledUrl($fallback);
+        }
+
+        return self::logoUrl($key, $fallback);
+    }
+
+    private static function bundledUrl(string $path): string
+    {
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($path, '/');
+    }
+
+    /**
+     * The main `company_data` row as a plain column map, or null when the
+     * table is missing, empty or unreadable (e.g. before the first migrate).
+     *
+     * Read through the query builder, not an Eloquent model: there is no
+     * `App\Models\CompanyData` in this codebase, and branding must degrade to
+     * the config fallbacks instead of fataling on a missing class.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function firstCompanyRow(): ?array
+    {
+        try {
+            if (! Schema::hasTable('company_data')) {
+                return null;
+            }
+
+            $record = DB::table('company_data')->orderBy('id')->first();
+
+            return $record === null ? null : (array) $record;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function stringOrNull(array $row, string $column): ?string
+    {
+        return array_key_exists($column, $row) && $row[$column] !== null ? (string) $row[$column] : null;
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private static function floatOrNull(array $row, string $column): ?float
+    {
+        if (! array_key_exists($column, $row) || $row[$column] === null || $row[$column] === '') {
+            return null;
+        }
+
+        return (float) $row[$column];
+    }
+
+    private static function configString(string $key): ?string
+    {
+        $value = config($key);
+
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Collapse the stored address columns into a single presentational line for
+     * the PDF header. Empty parts are dropped so no dangling commas appear.
+     *
+     * @param array<string, mixed> $company
+     */
+    private static function composeAddress(array $company): ?string
+    {
+        $cityLine = trim(implode(' ', array_filter([
+            self::stringOrNull($company, 'zip_code'),
+            self::stringOrNull($company, 'city'),
+        ])));
+
+        $parts = array_filter([
+            self::stringOrNull($company, 'address'),
+            $cityLine,
+            self::stringOrNull($company, 'state'),
+            self::stringOrNull($company, 'country'),
+        ]);
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
+
+    /**
+     * Resolve a logo reference to an embeddable base64 `data:` URI. Tries the
+     * uploaded object on the cloud disk first, then the bundled public asset,
+     * degrading to an empty string so the layout simply omits the image.
+     */
+    private static function logoDataUri(?string $key, string $fallback): string
+    {
+        if ($key !== null && $key !== '') {
+            try {
+                $disk = Storage::disk((string) config('filesystems.cloud', 'r2'));
+
+                if ($disk->exists($key)) {
+                    $bytes = $disk->get($key);
+
+                    if ($bytes !== null && $bytes !== '') {
+                        $mime = $disk->mimeType($key) ?: 'image/png';
+
+                        return 'data:'.$mime.';base64,'.base64_encode($bytes);
+                    }
+                }
+            } catch (Throwable) {
+            }
+        }
+
+        try {
+            $path = public_path($fallback);
+
+            if (is_file($path)) {
+                return self::bundledAssetDataUri($fallback);
+            }
+        } catch (Throwable) {
+        }
+
+        return '';
+    }
+
+    private static function bundledAssetDataUri(string $relativePath): string
+    {
+        try {
+            $path = public_path($relativePath);
+
+            if (! is_file($path)) {
+                return '';
+            }
+
+            $mime = self::mimeForPublicPath($relativePath);
+
+            return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($path));
+        } catch (Throwable) {
+            return '';
+        }
+    }
+
+    private static function mimeForPublicPath(string $relativePath): string
+    {
+        return match (strtolower(pathinfo($relativePath, PATHINFO_EXTENSION))) {
+            'webp' => 'image/webp',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            default => 'image/png',
+        };
+    }
+}

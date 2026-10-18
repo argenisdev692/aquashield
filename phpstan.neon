@@ -1,0 +1,29 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+        - src/Modules
+        - src/Shared
+        - database
+
+    # 5 is the highest level that stays useful without drowning real findings in
+    # generics noise. Raise it module by module, not globally.
+    level: 5
+
+    # src/volt holds .vue files only; PHPStan has nothing to check there.
+    #
+    # Module TESTS are excluded on purpose. Pest reaches TestCase through __get and
+    # __call, so `$this->user` and `$this->postJson()` are invisible to static
+    # analysis by construction — PHPStan cannot see them without either an ignore
+    # per line or a trust-everything setting, and both are worse than saying so.
+    # Module test files are still type-checked by the IDE and by any deliberate
+    # `phpstan analyse src/Modules/{M}/Tests` run; the gate checks module PRODUCTION
+    # code, which is the part that ships.
+    excludePaths:
+        - src/volt/*
+        - src/Modules/*/Tests/*
+
+    checkModelProperties: true
+    checkOctaneCompatibility: true

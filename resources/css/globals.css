@@ -1,0 +1,563 @@
+/*
+ * Design tokens consumed by tailwindcss-primeui (Volt components use
+ * bg-primary, text-primary-contrast, border-primary-200, p-*, etc.).
+ * Values mirror the official Volt defaults.
+ */
+
+:root {
+    /* Brand aqua, ramp built around --color-aq-accent (#00B5E2) at 500.
+       This is the ramp tailwindcss-primeui and every Volt component read, so
+       aligning it here is what makes the dashboard match the marketing hero.
+       A one-off emerald default next to an aqua brand reads as two products. */
+    --p-primary-50: #e8f8fd;
+    --p-primary-100: #c9f0f9;
+    --p-primary-200: #96e4f4;
+    --p-primary-300: #54d3ec;
+    --p-primary-400: #16bde5;
+    --p-primary-500: #00b5e2;
+    --p-primary-600: #0090bd;
+    --p-primary-700: #037a9f;
+    --p-primary-800: #0a607d;
+    --p-primary-900: #0d5066;
+    --p-primary-950: #073244;
+
+    /* AquaShield navy. This is the SCALE Volt/PrimeUI read, so it is the single
+       place the whole app's surface colour is decided: -950 is the void, -900
+       the page background, -800 the card, -700 the hover/overlay — matching
+       GUIDE/globals.css. A zinc scale under an aqua brand reads as a neutral
+       admin template with marketing pasted on top. */
+    --p-surface-0: #ffffff;
+    --p-surface-50: #f1f6fa;
+    --p-surface-100: #e2eaf1;
+    --p-surface-200: #c6d4e5;
+    --p-surface-300: #9db3cd;
+    --p-surface-400: #6b87a8;
+    --p-surface-500: #46708f;
+    --p-surface-600: #2f5480;
+    --p-surface-700: #244166;
+    --p-surface-800: #1a3a5c;
+    --p-surface-900: #0c2340;
+    --p-surface-950: #081829;
+
+    --p-content-border-radius: 6px;
+
+    --p-primary-color: var(--p-primary-500);
+    /* Navy, not white. White-on-aqua measures 2.4:1 and fails WCAG AA for text;
+       aqua-on-navy measures 6.5:1 and passes. A "primary" button nobody can
+       read is a bug that looks like a brand choice. */
+    --p-primary-contrast-color: #0c2340;
+    /* Hover/active LIGHTEN rather than darken. PrimeUI's default darkens the fill,
+       which is correct when the contrast colour is white; ours is navy, and
+       navy-on-aqua-600 measured 4.30:1 (a FAIL) and 3.22:1 at -700 — the button
+       text becomes unreadable exactly when the user is pressing it. Lightening
+       moves the pair the other way: 7.1:1 at -400. */
+    --p-primary-hover-color: var(--p-primary-400);
+    --p-primary-active-color: var(--p-primary-300);
+
+    /* Control borders sit at 3:1 (WCAG 1.4.11), which is where minimalist and
+       accessible genuinely pull apart: a -200 hairline reads elegant on a
+       light card and measures 1.24:1, so a form control's boundary disappears.
+       -500 is the lightest step that clears the bar without going heavy. */
+    --p-content-border-color: var(--p-surface-500);
+    --p-content-hover-background: var(--p-surface-100);
+    --p-content-hover-color: var(--p-surface-800);
+
+    --p-highlight-background: var(--p-primary-50);
+    /* -700 landed at 4.4951:1 against primary-50 — a pass by rounding, not by
+       margin. -800 buys real headroom. */
+    --p-highlight-color: var(--p-primary-800);
+    --p-highlight-focus-background: var(--p-primary-100);
+    --p-highlight-focus-color: var(--p-primary-800);
+
+    --p-text-color: var(--p-surface-700);
+    --p-text-hover-color: var(--p-surface-800);
+    /* -500 reads 4.35:1 on a card in light mode. -600 clears 4.5:1. */
+    --p-text-muted-color: var(--p-surface-600);
+    --p-text-hover-muted-color: var(--p-surface-700);
+}
+
+.dark {
+    --p-primary-color: var(--p-primary-400);
+    --p-primary-contrast-color: #0c2340;
+    --p-primary-hover-color: var(--p-primary-300);
+    --p-primary-active-color: var(--p-primary-200);
+
+    --p-content-border-color: var(--p-surface-400);
+    --p-content-hover-background: var(--p-surface-800);
+    --p-content-hover-color: var(--p-surface-0);
+
+    --p-highlight-background: color-mix(in srgb, var(--p-primary-400), transparent 84%);
+    --p-highlight-color: rgba(255, 255, 255, 0.87);
+    --p-highlight-focus-background: color-mix(in srgb, var(--p-primary-400), transparent 76%);
+    --p-highlight-focus-color: rgba(255, 255, 255, 0.87);
+
+    --p-text-color: var(--p-surface-50);
+    --p-text-hover-color: var(--p-surface-0);
+    /* -400 reads at 4.25:1 on a card (surface-900), under the 4.5:1 floor for
+       body text. -300 clears it and still sits well below the -50 body colour. */
+    --p-text-muted-color: var(--p-surface-300);
+    --p-text-hover-muted-color: var(--p-surface-200);
+}
+
+/*
+ * Inter ships tabular figures behind the `tnum` OpenType feature.
+ * Enable on data-dense surfaces (DataTable cells, currency, counters)
+ * so digits align vertically across rows.
+ */
+@utility tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   AquaShield brand layer
+
+   The Volt/PrimeUI palette above (--p-*) is the framework's neutral
+   default. These are the brand tokens the marketing surfaces are built
+   from — navy structure, aqua accent. Declared in `@theme` so Tailwind
+   emits real utilities (bg-aq-base, text-aq-ink, border-aq-line…)
+   instead of every call site reaching for an arbitrary value.
+   ══════════════════════════════════════════════════════════════════ */
+@theme {
+    --color-aq-void: #081829;
+    --color-aq-base: #0c2340;
+    --color-aq-elevated: #1a3a5c;
+    --color-aq-overlay: #244166;
+
+    --color-aq-accent: #00b5e2;
+    --color-aq-accent-soft: #33c4e8;
+    --color-aq-accent-deep: #0090b8;
+
+    --color-aq-ink: #f0eeff;
+    --color-aq-ink-soft: #b8c5d6;
+    --color-aq-ink-muted: #7a8fa8;
+    --color-aq-ink-disabled: #4d6b8a;
+
+    --color-aq-success: #10d988;
+    --color-aq-warning: #f59e0b;
+    --color-aq-danger: #f43f5e;
+
+    /* Specular sweep for a light-on-fill hover. Named so a `bg-white/45`
+       cannot creep back in at a call site — a sheen is a brand decision, and
+       the place to change it is here. */
+    --color-aq-sheen: #ffffff;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Third-party brand mark
+
+   Google's Identity guidelines fix the four "G" fills and forbid
+   recolouring them, so these are deliberately NOT derived from the aqua
+   ramp and never flip in .dark. Tokens instead of literals because the
+   architecture suite bans a raw hex in any .vue source.
+   ══════════════════════════════════════════════════════════════════ */
+@theme {
+    --color-google-red: #ea4335;
+    --color-google-blue: #4285f4;
+    --color-google-yellow: #fbbc05;
+    --color-google-green: #34a853;
+}
+
+:root {
+    /* Hairlines carry the accent, not grey — see --border-* in GUIDE/globals.css. */
+    --aq-line-soft: rgb(0 181 226 / 0.12);
+    --aq-line: rgb(0 181 226 / 0.22);
+    --aq-line-strong: rgb(0 181 226 / 0.4);
+
+    --aq-grad-primary: linear-gradient(135deg, #0c2340 0%, #00b5e2 100%);
+    --aq-grad-glow: linear-gradient(135deg, #00b5e2 0%, #33c4e8 100%);
+    /* Kinetic hero gradient: aqua → steel navy → signal green and back. The
+       navy stop is a lighter steel (#4a7fb5, 4.26:1 on aq-void) on purpose:
+       the real navy sits at ~2.3:1, so every letter would vanish as the pan
+       carried it underneath. */
+    --aq-grad-ink: linear-gradient(100deg, #00b5e2 0%, #4a7fb5 38%, #10d988 62%, #00b5e2 100%);
+
+    /* Restraint rule for glass: ONE blurred panel per view. A page where
+       every card is glass reads as noise, not as polish. */
+    --aq-glass: rgb(26 58 92 / 0.42);
+    --aq-glass-border: rgb(255 255 255 / 0.08);
+
+    /* Gradient-mesh field for the hero ambient layer: three soft radial tints
+       in aqua / steel navy / signal green. Radial falloff carries the softness
+       the old blur(140px) paid for — no filter, no repaint. */
+    --aq-mesh-aqua: rgb(0 181 226 / 0.14);
+    --aq-mesh-navy: rgb(74 127 181 / 0.12);
+    --aq-mesh-green: rgb(16 217 136 / 0.1);
+
+    /* ---- pointer chrome ----
+       Scrollbar thumb and the cursor orb, both drawn from the primary hue so
+       a palette change needs no second edit. Light mode runs them weaker for
+       the same reason the marketing glow is damped on light grounds: the
+       glow that reads as depth on the night navy eats contrast on a light
+       ground. */
+    --scrollbar-size: 10px;
+    --scrollbar-thumb: color-mix(in oklab, var(--p-primary-500) 40%, transparent);
+    --scrollbar-thumb-hover: color-mix(in oklab, var(--p-primary-400) 70%, var(--p-primary-500));
+
+    --cursor-orb-size: 340px;
+    --cursor-orb-tint: color-mix(in oklab, var(--p-primary-500) 20%, transparent);
+}
+
+.dark {
+    --scrollbar-thumb: color-mix(in oklab, var(--p-primary-400) 55%, transparent);
+    --cursor-orb-tint: color-mix(in oklab, var(--p-primary-400) 32%, transparent);
+}
+
+/* Registered so the runner-lap keyframe can interpolate it: an unregistered
+   custom property is treated as a token and would jump 0deg→360deg. */
+@property --aq-btn-runner-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@layer components {
+    .aq-grad-ink {
+        background-image: var(--aq-grad-ink);
+        /* The gradient is 2.2x the text box, so panning the position sweeps
+           the full aqua → navy → green range under the letters and back. */
+        background-size: 220% 100%;
+        background-position: 0% 50%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        animation: aq-grad-pan 9s ease-in-out infinite alternate;
+    }
+
+    .aq-grad-glow {
+        background-image: var(--aq-grad-glow);
+    }
+
+    .aq-glass {
+        background-color: var(--aq-glass);
+        border: 1px solid var(--aq-glass-border);
+        backdrop-filter: blur(16px) saturate(140%);
+    }
+
+    /* Faint blueprint grid — reads as structure, not as decoration. */
+    .aq-grid-overlay {
+        background-image:
+            linear-gradient(to right, var(--aq-line-soft) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--aq-line-soft) 1px, transparent 1px);
+        background-size: 72px 72px;
+        mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+    }
+
+    /* One soft field of the hero gradient mesh. Size, position and drift come
+       from the call site; hue and falloff live here. */
+    .aq-mesh-orb {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .aq-mesh-aqua {
+        background: radial-gradient(closest-side, var(--aq-mesh-aqua), transparent 72%);
+    }
+
+    .aq-mesh-navy {
+        background: radial-gradient(closest-side, var(--aq-mesh-navy), transparent 72%);
+    }
+
+    .aq-mesh-green {
+        background: radial-gradient(closest-side, var(--aq-mesh-green), transparent 72%);
+    }
+
+    /* ── CTA shine ─────────────────────────────────────────────────────
+       The one primary call to action on a view (login submit), ported from
+       argenis-hub's `btn-shine`. Two decorative layers ride the pill:
+       `::before` is a diagonal glare sweeping across every 5s — the 0%→62%
+       dead zone is what keeps one pass per ~5s instead of a strobe, well
+       under the WCAG 2.3.1 three-per-second line. `::after` is the runner
+       ring: a 1px conic comet lapped around the border once every 3s via
+       the registered angle property, masked down to a border-box ring
+       (content-box XOR border-box) so one gradient can paint an outline.
+       Fill is --aq-grad-glow under the navy label: white-on-aqua measures
+       2.4:1 and fails WCAG, navy-on-aqua passes at 6.5:1. The comet is cut
+       from the label colour — a light-on-light ring would vanish on aqua. */
+    .aq-btn-shine {
+        position: relative;
+        overflow: hidden;
+        background-image: var(--aq-grad-glow);
+        color: var(--p-primary-contrast-color);
+        box-shadow: 0 4px 20px color-mix(in oklab, var(--color-aq-accent) 35%, transparent);
+        transition:
+            box-shadow 240ms ease-in-out,
+            filter 240ms ease-in-out;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(
+                60deg,
+                transparent 30%,
+                color-mix(in oklab, var(--color-aq-sheen) 30%, transparent) 50%,
+                transparent 70%
+            );
+            translate: -100% 0;
+            animation: aq-btn-shine-sweep 5s ease-in-out infinite;
+        }
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            border-radius: inherit;
+            padding: 1px;
+            background: conic-gradient(
+                from var(--aq-btn-runner-angle),
+                transparent 0deg,
+                transparent 250deg,
+                color-mix(in oklab, var(--p-primary-contrast-color) 30%, transparent) 300deg,
+                color-mix(in oklab, var(--color-aq-accent) 55%, var(--p-primary-contrast-color))
+                    335deg,
+                color-mix(in oklab, var(--p-primary-contrast-color) 30%, transparent) 350deg,
+                transparent 360deg
+            );
+            mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            mask-composite: exclude;
+            -webkit-mask-composite: xor;
+            animation: aq-btn-runner-lap 3s linear infinite;
+        }
+
+        & > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        &:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 8px 32px color-mix(in oklab, var(--color-aq-accent) 50%, transparent);
+        }
+    }
+
+    /* ── Brand lockup shine ────────────────────────────────────────────
+       The brand mark — auth shell and welcome header — gets the same
+       two-layer treatment as the CTA, adapted for artwork instead of a
+       pill. `::before` is an aqua halo breathing behind the mark —
+       light under the waterline, not a spotlight. `::after` is a
+       specular sweep, masked to the artwork's own alpha (--aq-logo-art,
+       one URL per variant) so the glint rides the letters instead of
+       sliding a rectangle across the logo box, and tinted aqua because
+       a white sheen is invisible on a white mark. Same discipline as
+       the CTA: one pass every 7s with a 62% dead zone, far under the
+       WCAG 2.3.1 three-per-second line. */
+    .aq-logo-shine {
+        --aq-logo-art: url('/img/logo-white.webp');
+        position: relative;
+        display: inline-flex;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: -18%;
+            z-index: -1;
+            pointer-events: none;
+            background: radial-gradient(
+                closest-side,
+                color-mix(in oklab, var(--color-aq-accent) 38%, transparent),
+                transparent 72%
+            );
+            animation: aq-logo-breathe 6s ease-in-out infinite;
+        }
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: linear-gradient(
+                105deg,
+                transparent 40%,
+                color-mix(in oklab, var(--color-aq-accent) 55%, transparent) 50%,
+                transparent 60%
+            );
+            background-size: 300% 100%;
+            background-position: 180% 50%;
+            /* Load-bearing: at 300% the band tiles, and while it is
+               parked between passes the next tile's edge lands in the
+               box — a blue sliver at the mark's side as the cycle
+               restarts. Clip it so the dead zone is truly empty. */
+            background-repeat: no-repeat;
+            mask-image: var(--aq-logo-art);
+            mask-size: 100% 100%;
+            mask-repeat: no-repeat;
+            -webkit-mask-image: var(--aq-logo-art);
+            -webkit-mask-size: 100% 100%;
+            -webkit-mask-repeat: no-repeat;
+            animation: aq-logo-sweep 7s ease-in-out infinite;
+        }
+    }
+
+    /* The 102x146 header mark crops the lockup tighter than the 172x212
+       white logo, so the mask rides its own artwork. */
+    .aq-logo-shine-mark {
+        --aq-logo-art: url('/img/logo-mark.webp');
+    }
+}
+
+@keyframes aq-orb-drift {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.4;
+    }
+    50% {
+        transform: translate(28px, -22px) scale(1.14);
+        opacity: 0.58;
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.4;
+    }
+}
+
+/* Only the single text line repaints while this runs. The global
+   reduced-motion block freezes it on the base stop. */
+@keyframes aq-grad-pan {
+    from {
+        background-position: 0% 50%;
+    }
+    to {
+        background-position: 100% 50%;
+    }
+}
+
+/*
+ * The lift is real, not a `translateY` loop: the contact shadow tightens and
+ * darkens as the card rises and softens as it lands. Without that coupling a
+ * floating card reads as a stuck animation, not as an object above a surface.
+ */
+@keyframes aq-levitate {
+    0%,
+    100% {
+        transform: translateY(0);
+        box-shadow:
+            0 10px 22px -8px rgb(4 12 24 / 0.55),
+            0 2px 6px -2px rgb(4 12 24 / 0.4);
+    }
+    50% {
+        transform: translateY(-10px);
+        box-shadow:
+            0 22px 40px -12px rgb(4 12 24 / 0.72),
+            0 4px 10px -4px rgb(4 12 24 / 0.5);
+    }
+}
+
+@keyframes aq-shine {
+    from {
+        transform: translateX(-120%) skewX(-18deg);
+    }
+    to {
+        transform: translateX(220%) skewX(-18deg);
+    }
+}
+
+@keyframes aq-btn-shine-sweep {
+    0%,
+    62% {
+        translate: -100% 0;
+    }
+    100% {
+        translate: 220% 0;
+    }
+}
+
+@keyframes aq-btn-runner-lap {
+    to {
+        --aq-btn-runner-angle: 360deg;
+    }
+}
+
+/* The halo behind the auth brand mark. Opacity carries most of the
+   breath; the scale is clipped in so it reads as breathing in place. */
+@keyframes aq-logo-breathe {
+    0%,
+    100% {
+        opacity: 0.35;
+        transform: scale(0.96);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+}
+
+/* With background-size at 300% the band parks off-canvas at both ends,
+   so the jump back at the loop seam is never visible. */
+@keyframes aq-logo-sweep {
+    0%,
+    62% {
+        background-position: 180% 50%;
+    }
+    100% {
+        background-position: -80% 50%;
+    }
+}
+
+/* The global clamp below still lets one near-instant pass play and would park
+   the comet mid-ring; drop both decorative layers outright and keep the
+   gradient button. */
+@media (prefers-reduced-motion: reduce) {
+    .aq-btn-shine::before,
+    .aq-btn-shine::after {
+        animation: none;
+        display: none;
+    }
+}
+
+/* Same reasoning as the CTA layers: a clamped near-instant pass would park
+   the sweep mid-mark. Drop both and keep the mark itself. */
+@media (prefers-reduced-motion: reduce) {
+    .aq-logo-shine::before,
+    .aq-logo-shine::after {
+        animation: none;
+        display: none;
+    }
+}
+
+@keyframes aq-pulse-ring {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.85;
+    }
+    70%,
+    100% {
+        transform: scale(2.1);
+        opacity: 0;
+    }
+}
+
+@keyframes aq-scroll-cue {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.55;
+    }
+    50% {
+        transform: translateY(7px);
+        opacity: 1;
+    }
+}
+
+/* Ambient loops are decorative. Anyone who asked the OS to calm things down
+   gets the same layout with no motion at all — motion-v swaps transforms for
+   opacity, and CSS loops stop. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
