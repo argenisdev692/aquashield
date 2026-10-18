@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
 
 /**
  * 2027 entry template: text-only kinetic hero, the floating Why AquaShield
- * bar, the product band and the scroll-narrative paths.
+ * bar, the product band, the scroll-narrative paths and the page footer.
  *
  * Every section is lazy. `app.ts` resolves pages with an EAGER
  * `import.meta.glob` over the whole Pages tree, so anything a page imports
@@ -14,7 +15,9 @@ import CursorOrb from '@/Components/CursorOrb.vue';
  * `Components/`, not a page-private folder: a nested .vue under Pages is swept
  * into that eager glob and Vite reports `INEFFECTIVE_DYNAMIC_IMPORT`.
  * CursorOrb is the one static import: global chrome with no motion-v
- * dependency, so a chunk boundary would only add a flash of latency.
+ * dependency, so a chunk boundary would only add a flash of latency. The
+ * footer is lazy like the sections: it sits below the fold, so its chunk
+ * never races the first paint.
  *
  * Layout deviation, documented: the checklist's `defineOptions({ layout })`
  * is not used here on purpose. The other pages slot into AuthLayout/
@@ -28,6 +31,7 @@ const WelcomeHero = defineAsyncComponent(() => import('@/Components/WelcomeHero.
 const WelcomeWhy = defineAsyncComponent(() => import('@/Components/WelcomeWhy.vue'));
 const WelcomeMockup = defineAsyncComponent(() => import('@/Components/WelcomeMockup.vue'));
 const WelcomePaths = defineAsyncComponent(() => import('@/Components/WelcomePaths.vue'));
+const WelcomeFooter = defineAsyncComponent(() => import('@/Components/WelcomeFooter.vue'));
 
 /*
  * Absolute origin passed from routes/web.php. Hand-typed: the route prop is
@@ -78,6 +82,8 @@ const ogImage = computed(() => `${appUrl}/img/logo.webp`);
             <WelcomePaths />
         </main>
 
+        <WelcomeFooter />
+        <CookieConsentBanner />
         <CursorOrb />
     </div>
 </template>

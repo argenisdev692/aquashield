@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
 
@@ -62,6 +63,7 @@ defineProps<{
             </div>
         </main>
 
+        <CookieConsentBanner />
         <CursorOrb />
     </div>
 </template>

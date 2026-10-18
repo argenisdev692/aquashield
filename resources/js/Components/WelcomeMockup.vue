@@ -107,7 +107,11 @@ const onReveal = () => {
 <template>
     <section aria-labelledby="mockup-heading" class="relative bg-aq-void">
         <!-- Inherit the hero's blueprint grid so the band reads as the same
-             surface continuing downward, not a new page. -->
+             surface continuing downward, not a new page. Rhythm note: this
+             band opens the page's largest seam — Why bar (`py-16/20`) onto
+             this `pt`. `pt-16` leaves the seam at 144/128px (8pt multiples),
+             matched to the Paths seam below (112px) instead of the 192px
+             void `pt-28` opened after the page's smallest block. -->
         <div aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden">
             <div class="aq-grid-overlay absolute inset-0"></div>
         </div>
@@ -118,7 +122,7 @@ const onReveal = () => {
             :inViewOptions="{ once: true, margin: '-80px' }"
             :variants="entrance"
             @viewportEnter="onReveal"
-            class="relative mx-auto w-full max-w-5xl px-6 pt-28 pb-4 sm:px-8"
+            class="relative mx-auto w-full max-w-5xl px-6 pt-16 pb-4 sm:px-8"
         >
             <motion.h2
                 id="mockup-heading"

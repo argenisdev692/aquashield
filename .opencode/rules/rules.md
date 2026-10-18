@@ -263,7 +263,6 @@ While iterating:
 vendor/bin/pint --dirty        # in-flight formatter, modified files only
 composer analyse               # PHPStan alone
 npm run test:module -- Booking # only the module's tests
-composer test:tia              # Pest 5 TIA replay — see the note below
 npm run types:watch            # vue-tsc in watch mode
 npm run dev:async              # vite + vue-tsc together
 ```
@@ -282,24 +281,7 @@ deleting any symbol, route, or `implements` always does.
 
 **Never report a module complete on a partial run.** If a step fails, say so with the real output.
 
-### Pest 5 TIA — opt-in fast inner loop, never the gate (verified 2026-10-18)
-
-`composer test:tia` runs `vendor/bin/pest --tia`: the first run records which files each test
-touches, and every later run re-runs only the tests affected by your changes while replaying cached
-results for the rest. It is an **inner-loop** tool:
-
-- **The closing gate stays `php artisan test` — a full run.** Never put `--tia` in the gate or on a
-  CI command, and `pest()->tia()->locally()` is deliberately **not** set in `tests/Pest.php`: there is
-  no CI here, so "locally only" would include the gate.
-- **Currently inert on this machine — two prerequisites left (checked 2026-10-18).** The repo exists
-  (`git init`, branch `master`) but has **no commit yet**: Pest stops with `Tia mode requires at least
-one commit`, because the baseline is anchored to a revision. It also needs a coverage driver —
-  Herd's `…\herd\bin\php85\ext` ships no `xdebug.dll`/`pcov.dll` and `php.ini` loads neither. Until
-  both are in place, use `php artisan test`; nothing else depends on TIA.
-- **Storage is outside the repo:** `~/.pest/tia/<project-key>/`. After large refactors, re-record with
-  `vendor/bin/pest --tia --fresh`.
-
-### Known gate state — read this before blaming your change (as of 2026-09-28)
+### Known gate state — read this before blaming your change (as of 2026-10-18)
 
 The gate is **red on arrival**, for reasons that predate any module work:
 
@@ -308,7 +290,7 @@ The gate is **red on arrival**, for reasons that predate any module work:
 | `syn:check` · `format:check` · `types:check` · `build` · `doctor` | green                                                                |
 | `analyse` (PHPStan L5)                                            | **27 errors, all in `src/Shared/`**                                  |
 | `pint:test`                                                       | **23 files, all in `src/Shared/` + `resources/views/app.blade.php`** |
-| `php artisan test`                                                | green — 20 tests, 7 skipped (the module assertions)                  |
+| `php artisan test`                                                | green — 33 tests, 9 skipped (the module assertions)                  |
 
 The PHPStan errors are carried over from a previous application, not written here: a dangling
 `App\Models\CompanyData` that no longer exists, dead `catch (FailoverableException)` blocks, four
@@ -324,7 +306,7 @@ What that means for you:
 - Clearing the `src/Shared` backlog is a separate, deliberate task. Do not fold it into a module
   commit.
 - `tests/Architecture/` is a real testsuite (added 2026-09-28) and **was silently missing from
-  `php artisan test` before that** — which is why `7 skipped` is the honest count and not a
+  `php artisan test` before that** — which is why `9 skipped` is the honest count and not a
   regression. If a suite disappears from the count, check `phpunit.xml` before assuming green.
 
 # Working on the skills themselves

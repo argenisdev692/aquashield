@@ -17,6 +17,7 @@
  * centred over the panel, and the form below stays left-aligned. CursorOrb
  * rides along so the flow feels like the rest of the site.
  */
+import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
 
 /*
@@ -84,6 +85,7 @@ defineProps<{
             </div>
         </div>
 
+        <CookieConsentBanner />
         <CursorOrb />
     </main>
 </template>

@@ -93,10 +93,6 @@
       "@lint",
       "@php artisan test"
     ],
-    "test:tia": [
-      "@php artisan config:clear --ansi @no_additional_args",
-      "@php vendor/bin/pest --tia"
-    ],
     "analyse": [
       "@php vendor/bin/phpstan analyse --memory-limit=1G"
     ],

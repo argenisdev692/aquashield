@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Shared\Application\Queries\PendingCookieConsent;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -41,7 +42,10 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            //
+            // null whenever the visitor owes no decision, which is the common
+            // case: one shared prop, typed from `CookieConsentData` via
+            // `typescript:transform`, and the Vue banner renders nothing for it.
+            'cookieConsent' => app(PendingCookieConsent::class)($request),
         ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
+use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
 /*
  * `appUrl` feeds the canonical/OG head tags on the entry page: scrapers
@@ -30,3 +31,19 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->get('/dashboard', fn () => inertia('Dashboard', [
     'user' => auth()->user(),
 ]));
+
+/*
+    Cookie consent. Public and unauthenticated by necessity: the whole point is
+    to ask someone who has never signed in. It carries no payload, so there is
+    nothing to validate, and CSRF is inherited from the `web` group - the Vue
+    banner posts through Inertia's XHR client, which sends the XSRF header.
+
+    The throttle is 30/min against a cookie a visitor sets once, so it only
+    ever fires on abuse; the same reasoning as the Google handshake above.
+
+    `route()` resolves this name into the `cookieConsent` Inertia prop, so the
+    path is declared here exactly once.
+*/
+Route::post('/cookie-consent', AcceptCookieConsentController::class)
+    ->middleware('throttle:30,1')
+    ->name('cookie-consent.accept');
