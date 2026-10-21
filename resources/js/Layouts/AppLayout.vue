@@ -32,7 +32,9 @@ import {
 } from '@/lib/navigation';
 import { useTheme } from '@/lib/theme';
 import Avatar from '@/volt/Avatar.vue';
+import ConfirmDialog from '@/volt/ConfirmDialog.vue';
 import Menu from '@/volt/Menu.vue';
+import Toast from '@/volt/Toast.vue';
 
 defineProps<{
     title: string;
@@ -312,6 +314,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
             @hide="accountMenuOpen = false"
         />
         <CommandPalette v-model="paletteOpen" :commands="commands" />
+
+        <Toast position="bottom-right" />
+        <ConfirmDialog />
 
         <CookieConsentBanner />
         <CursorOrb />

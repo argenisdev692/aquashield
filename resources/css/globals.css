@@ -82,6 +82,10 @@
     --p-primary-hover-color: var(--p-primary-300);
     --p-primary-active-color: var(--p-primary-200);
 
+    /* See the light-mode declaration. Utilities read the variable, so the
+       same `text-aq-danger-strong` clears 5.7:1 on the navy card. */
+    --color-aq-danger-strong: #fb7185;
+
     --p-content-border-color: var(--p-surface-400);
     --p-content-hover-background: var(--p-surface-800);
     --p-content-hover-color: var(--p-surface-0);
@@ -136,6 +140,12 @@
     --color-aq-success: #10d988;
     --color-aq-warning: #f59e0b;
     --color-aq-danger: #f43f5e;
+
+    /* Destructive text needs a rung the icon colour cannot provide: #f43f5e
+       measures 3.7:1 on a light card — fine for a 16px glyph (3:1), a fail for
+       a button label (4.5:1). -strong is the text/action pair; .dark swaps it
+       for rose-400 because #be123c falls to ~2.4:1 on the navy card. */
+    --color-aq-danger-strong: #be123c;
 
     /* Specular sweep for a light-on-fill hover. Named so a `bg-white/45`
        cannot creep back in at a call site — a sheen is a brand decision, and
