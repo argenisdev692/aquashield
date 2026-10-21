@@ -154,7 +154,7 @@ const onReveal = () => {
                     <span class="flex min-w-0 items-center gap-2">
                         <span aria-hidden="true" class="relative flex size-2 shrink-0">
                             <span
-                                class="absolute inline-flex size-full rounded-full bg-aq-success [animation:aq-pulse-ring_2.4s_ease-out_infinite]"
+                                class="absolute inline-flex size-full rounded-full bg-aq-success animate-[aq-pulse-ring_2.4s_ease-out_infinite]"
                             ></span>
                             <span
                                 class="relative inline-flex size-2 rounded-full bg-aq-success"
@@ -183,7 +183,7 @@ const onReveal = () => {
                     class="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-aq-sheen/25 blur-md"
                     :class="
                         sheened
-                            ? 'opacity-100 [animation:aq-shine_1.4s_ease-out_1_forwards]'
+                            ? 'opacity-100 animate-[aq-shine_1.4s_ease-out_1_forwards]'
                             : 'opacity-0'
                     "
                 ></span>

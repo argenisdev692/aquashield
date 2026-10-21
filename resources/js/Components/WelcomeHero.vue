@@ -51,7 +51,7 @@
  * Motion budget: one entrance stagger, CTA micro-interactions, three ambient
  * mesh drifts and the kinetic gradient pan on the closing line. Everything
  * collapses to static under prefers-reduced-motion — the global kill block
- * freezes the pan on its base stop, `motion-reduce:[animation:none]` stops
+ * freezes the pan on its base stop, `motion-reduce:animate-none` stops
  * the mesh.
  */
 import { computed, onUnmounted, ref } from 'vue';
@@ -154,13 +154,13 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
              solid orb, without the per-frame filter bill. -->
         <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div
-                class="aq-mesh-orb aq-mesh-aqua -top-44 left-1/2 h-[38rem] w-[62rem] -translate-x-1/2 [animation:aq-orb-drift_26s_ease-in-out_infinite] motion-reduce:[animation:none]"
+                class="aq-mesh-orb aq-mesh-aqua -top-44 left-1/2 h-152 w-248 -translate-x-1/2 animate-[aq-orb-drift_26s_ease-in-out_infinite] motion-reduce:animate-none"
             ></div>
             <div
-                class="aq-mesh-orb aq-mesh-navy top-[16%] -right-44 h-[42rem] w-[42rem] [animation:aq-orb-drift_31s_ease-in-out_-14s_infinite_reverse] motion-reduce:[animation:none]"
+                class="aq-mesh-orb aq-mesh-navy top-[16%] -right-44 h-168 w-168 animate-[aq-orb-drift_31s_ease-in-out_-14s_infinite_reverse] motion-reduce:animate-none"
             ></div>
             <div
-                class="aq-mesh-orb aq-mesh-green -bottom-40 left-[6%] h-[30rem] w-[30rem] [animation:aq-orb-drift_37s_ease-in-out_-21s_infinite] motion-reduce:[animation:none]"
+                class="aq-mesh-orb aq-mesh-green -bottom-40 left-[6%] h-120 w-120 animate-[aq-orb-drift_37s_ease-in-out_-21s_infinite] motion-reduce:animate-none"
             ></div>
             <div class="aq-grid-overlay absolute inset-0"></div>
         </div>
@@ -181,7 +181,7 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
             >
                 <span class="relative flex size-2">
                     <span
-                        class="absolute inline-flex size-full rounded-full bg-aq-success [animation:aq-pulse-ring_2.4s_ease-out_infinite]"
+                        class="absolute inline-flex size-full rounded-full bg-aq-success animate-[aq-pulse-ring_2.4s_ease-out_infinite]"
                     ></span>
                     <span class="relative inline-flex size-2 rounded-full bg-aq-success"></span>
                 </span>
@@ -227,7 +227,7 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
                 >
                     <span
                         aria-hidden="true"
-                        class="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-aq-sheen/45 opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-100 group-hover:[animation:aq-shine_1.1s_ease-out] group-focus-visible:opacity-100 group-focus-visible:[animation:aq-shine_1.1s_ease-out]"
+                        class="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-aq-sheen/45 opacity-0 blur-sm transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-[aq-shine_1.1s_ease-out] group-focus-visible:opacity-100 group-focus-visible:animate-[aq-shine_1.1s_ease-out]"
                     ></span>
                     <svg
                         aria-hidden="true"
@@ -270,7 +270,7 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
             class="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center"
         >
             <span
-                class="[animation:aq-scroll-cue_2.6s_ease-in-out_infinite] motion-reduce:[animation:none]"
+                class="animate-[aq-scroll-cue_2.6s_ease-in-out_infinite] motion-reduce:animate-none"
             >
                 <svg
                     aria-hidden="true"

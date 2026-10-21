@@ -65,7 +65,7 @@ const reveal = computed(() => ({
                     <li
                         v-for="(badge, badgeIndex) in credentials"
                         :key="badge.label"
-                        class="flex items-center gap-2.5 rounded-xl border border-aq-line bg-aq-elevated/60 px-4 py-3 [animation:aq-levitate_6s_ease-in-out_infinite] motion-reduce:[animation:none]"
+                        class="flex items-center gap-2.5 rounded-xl border border-aq-line bg-aq-elevated/60 px-4 py-3 animate-[aq-levitate_6s_ease-in-out_infinite] motion-reduce:animate-none"
                         :style="{ animationDelay: `${badgeIndex * -2}s` }"
                     >
                         <svg

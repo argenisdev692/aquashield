@@ -145,7 +145,7 @@
     /* Hairlines, bridged to real utilities. The raw properties stay in :root
        (the grid overlay reads them without a utility), but the bridge is what
        lets a call site write `border-aq-line` instead of the arbitrary-value
-       escape `border-[var(--aq-line)]`. `var()` resolution is not order
+       escape `border-(--aq-line)`. `var()` resolution is not order
        dependent, so declaring the source below is safe. */
     --color-aq-line-soft: var(--aq-line-soft);
     --color-aq-line: var(--aq-line);

@@ -183,7 +183,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
             class="sticky top-0 z-40 border-b border-aq-shell-line bg-surface-0/75 backdrop-blur-xl dark:bg-surface-950/70"
         >
             <div
-                class="mx-auto flex h-16 w-full max-w-[96rem] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8"
+                class="mx-auto flex h-16 w-full max-w-384 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8"
             >
                 <button
                     type="button"
@@ -285,7 +285,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
             </div>
         </header>
 
-        <div class="mx-auto flex w-full max-w-[96rem] flex-1 items-stretch">
+        <div class="mx-auto flex w-full max-w-384 flex-1 items-stretch">
             <AppSidebar v-model:open="navOpen" :current-path="currentPath" :panel-id="navPanelId" />
 
             <div class="flex min-w-0 flex-1 flex-col">

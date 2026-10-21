@@ -87,7 +87,7 @@ const SOCIALS: readonly Social[] = [
     <footer class="relative bg-aq-void">
         <div
             aria-hidden="true"
-            class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-aq-accent/45 to-transparent"
+            class="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-aq-accent/45 to-transparent"
         ></div>
         <div class="mx-auto w-full max-w-6xl px-6 py-12 sm:px-8 lg:px-12">
             <div class="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
@@ -106,11 +106,11 @@ const SOCIALS: readonly Social[] = [
                          it. Copy is pulled exclusively from claims the page
                          already publishes in its SEO description. -->
                     <p
-                        class="mt-5 inline-flex items-center gap-2.5 rounded-full border border-aq-line bg-aq-accent/[0.06] px-3.5 py-1.5 text-xs font-medium text-aq-ink-soft"
+                        class="mt-5 inline-flex items-center gap-2.5 rounded-full border border-aq-line bg-aq-accent/6 px-3.5 py-1.5 text-xs font-medium text-aq-ink-soft"
                     >
                         <span aria-hidden="true" class="relative flex size-2">
                             <span
-                                class="absolute inline-flex size-full rounded-full bg-aq-success [animation:aq-pulse-ring_2.4s_ease-out_infinite]"
+                                class="absolute inline-flex size-full rounded-full bg-aq-success animate-[aq-pulse-ring_2.4s_ease-out_infinite]"
                             ></span>
                             <span
                                 class="relative inline-flex size-2 rounded-full bg-aq-success"
@@ -121,7 +121,7 @@ const SOCIALS: readonly Social[] = [
                     <a
                         href="tel:+17135876423"
                         aria-label="24/7 emergency line: (713) 587-6423"
-                        class="mt-3 inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-aq-line bg-aq-accent/[0.06] px-4 text-sm font-semibold text-aq-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-aq-line-strong hover:bg-aq-accent/[0.1] hover:shadow-[var(--aq-glow-accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none"
+                        class="mt-3 inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-aq-line bg-aq-accent/6 px-4 text-sm font-semibold text-aq-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-aq-line-strong hover:bg-aq-accent/10 hover:shadow-(--aq-glow-accent) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none"
                     >
                         <svg
                             aria-hidden="true"

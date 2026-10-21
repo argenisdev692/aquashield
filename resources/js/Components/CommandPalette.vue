@@ -169,7 +169,7 @@ onUnmounted(() => {
         >
             <div
                 v-if="open"
-                class="fixed inset-0 z-[80] bg-surface-950/50 backdrop-blur-sm"
+                class="fixed inset-0 z-80 bg-surface-950/50 backdrop-blur-sm"
                 @click.self="close"
             >
                 <Transition
