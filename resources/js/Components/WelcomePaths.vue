@@ -102,10 +102,10 @@ const reveal = computed(() => ({
                     :inViewOptions="{ once: true, margin: '-60px' }"
                     :variants="reveal"
                     :custom="cardIndex"
-                    class="group flex flex-col rounded-2xl border border-[var(--aq-line)] bg-aq-elevated/40 p-6 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-[var(--aq-line-strong)] hover:bg-aq-overlay/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transform-none motion-reduce:transition-none"
+                    class="group flex flex-col rounded-2xl border border-aq-line bg-aq-elevated/40 p-6 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-1 hover:border-aq-line-strong hover:bg-aq-overlay/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transform-none motion-reduce:transition-none"
                 >
                     <span
-                        class="inline-flex size-11 items-center justify-center rounded-xl border border-[var(--aq-line)] bg-aq-base/60 text-aq-accent transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
+                        class="inline-flex size-11 items-center justify-center rounded-xl border border-aq-line bg-aq-base/60 text-aq-accent transition-transform duration-300 group-hover:scale-105 motion-reduce:transform-none"
                     >
                         <svg
                             aria-hidden="true"

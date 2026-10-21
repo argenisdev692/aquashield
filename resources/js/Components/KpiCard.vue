@@ -71,7 +71,7 @@ const staggerDelay = (position: number): string => `${Math.min(position * 70, 28
 <template>
     <div class="aq-rise" :style="{ animationDelay: staggerDelay(index) }">
         <Card
-            class="group relative h-full overflow-hidden transition-[translate,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[0_20px_25px_-5px_rgb(0_0_0/0.10),0_8px_10px_-6px_rgb(0_0_0/0.10)] dark:hover:shadow-[0_20px_25px_-5px_rgb(255_255_255/0.06),0_8px_10px_-6px_rgb(255_255_255/0.06)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-[var(--aq-line)] before:opacity-60 hover:before:opacity-100 before:content-[''] before:transition-opacity before:duration-300 motion-reduce:before:transition-none"
+            class="group relative h-full overflow-hidden transition-[translate,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[var(--aq-shadow-lift)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-aq-line before:opacity-60 hover:before:opacity-100 before:content-[''] before:transition-opacity before:duration-300 motion-reduce:before:transition-none"
         >
             <template #title>
                 <span

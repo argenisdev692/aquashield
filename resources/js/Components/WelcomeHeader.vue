@@ -85,7 +85,7 @@ watch(menuOpen, (open) => {
         :class="[
             'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-out motion-reduce:transition-none',
             condensed || menuOpen
-                ? 'aq-glass border-b border-[var(--aq-line)] shadow-lg shadow-aq-void/30'
+                ? 'aq-glass border-b border-aq-line shadow-lg shadow-aq-void/30'
                 : 'border-b border-transparent bg-transparent',
         ]"
     >
@@ -164,7 +164,7 @@ watch(menuOpen, (open) => {
                 <button
                     ref="menuButton"
                     type="button"
-                    class="inline-flex size-10 items-center justify-center rounded-lg border border-[var(--aq-line)] text-aq-ink transition-colors duration-200 hover:bg-aq-elevated/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent md:hidden"
+                    class="inline-flex size-10 items-center justify-center rounded-lg border border-aq-line text-aq-ink transition-colors duration-200 hover:bg-aq-elevated/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent md:hidden"
                     :aria-expanded="menuOpen"
                     aria-controls="welcome-mobile-nav"
                     @click="toggleMenu"
@@ -195,7 +195,7 @@ watch(menuOpen, (open) => {
             <div
                 v-if="menuOpen"
                 id="welcome-mobile-nav"
-                class="border-t border-[var(--aq-line)] bg-aq-void/95 backdrop-blur-xl md:hidden"
+                class="border-t border-aq-line bg-aq-void/95 backdrop-blur-xl md:hidden"
             >
                 <nav aria-label="Mobile" class="mx-auto max-w-6xl px-6 py-4">
                     <ul class="flex flex-col gap-1">

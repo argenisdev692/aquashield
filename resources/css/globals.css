@@ -141,6 +141,24 @@
        cannot creep back in at a call site — a sheen is a brand decision, and
        the place to change it is here. */
     --color-aq-sheen: #ffffff;
+
+    /* Hairlines, bridged to real utilities. The raw properties stay in :root
+       (the grid overlay reads them without a utility), but the bridge is what
+       lets a call site write `border-aq-line` instead of the arbitrary-value
+       escape `border-[var(--aq-line)]`. `var()` resolution is not order
+       dependent, so declaring the source below is safe. */
+    --color-aq-line-soft: var(--aq-line-soft);
+    --color-aq-line: var(--aq-line);
+    --color-aq-line-strong: var(--aq-line-strong);
+
+    /* The neutral shell hairline (header bottom, rail edge, footer top). It is
+       the one line that flips with the theme, so it stays a separate token
+       from the aqua marketing hairlines above. */
+    --color-aq-shell-line: var(--aq-shell-line);
+
+    /* PrimeUI's control-border semantic, bridged for the same reason: chrome
+       controls need a 3:1 border and had no utility to reach for. */
+    --color-content-border: var(--p-content-border-color);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -184,6 +202,18 @@
     --aq-glass: rgb(26 58 92 / 0.42);
     --aq-glass-border: rgb(255 255 255 / 0.08);
 
+    /* Elevation. One property per state, not a literal shadow at the call
+       site: a lift has to change with the ground it sits on. On the night navy
+       a black blur disappears into the surface, so the dark rung raises the
+       card with a faint light halo instead. A `dark:` twin class is exactly
+       the duplication this token removes. */
+    --aq-shadow-lift: 0 20px 25px -5px rgb(4 12 24 / 0.1), 0 8px 10px -6px rgb(4 12 24 / 0.1);
+
+    /* Accent glow for the outlined primary CTA on the marketing footer. Same
+       reasoning as the CTA fill in `.aq-btn-shine`: the strength is a brand
+       decision, so it lives here and not in a bracket at one call site. */
+    --aq-glow-accent: 0 0 28px color-mix(in oklab, var(--color-aq-accent) 25%, transparent);
+
     /* Gradient-mesh field for the hero ambient layer: three soft radial tints
        in aqua / steel navy / signal green. Radial falloff carries the softness
        the old blur(140px) paid for — no filter, no repaint. */
@@ -211,6 +241,11 @@
 
     /* One rung up the navy ramp, matching the previous surface-800 edge. */
     --aq-shell-line: var(--p-surface-800);
+
+    /* Light halo on the dark ground — see the light-mode value for why this
+       is not the same shadow with a different alpha. */
+    --aq-shadow-lift:
+        0 20px 25px -5px rgb(255 255 255 / 0.06), 0 8px 10px -6px rgb(255 255 255 / 0.06);
 }
 
 /* Registered so the runner-lap keyframe can interpolate it: an unregistered

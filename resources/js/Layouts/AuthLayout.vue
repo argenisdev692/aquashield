@@ -69,7 +69,7 @@ defineProps<{
             </div>
 
             <div
-                class="rounded-2xl border border-[var(--aq-line)] bg-aq-elevated/35 p-6 text-aq-ink-soft shadow-xl backdrop-blur-xl sm:p-7"
+                class="rounded-2xl border border-aq-line bg-aq-elevated/35 p-6 text-aq-ink-soft shadow-xl backdrop-blur-xl sm:p-7"
             >
                 <div class="text-center">
                     <h1 class="text-xl font-semibold text-aq-ink">{{ title }}</h1>

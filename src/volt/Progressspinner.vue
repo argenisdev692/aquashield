@@ -20,7 +20,7 @@ defineProps<Props>();
 const theme = ref<ProgressSpinnerPassThroughOptions & { spin?: string }>({
     root: `relative mx-auto w-28 h-28 inline-block before:block before:pt-full`,
     spin: `absolute top-0 bottom-0 left-0 right-0 m-auto w-full h-full transform origin-center animate-spin`,
-    circle: `text-red-500 progress-spinner-circle`,
+    circle: `text-aq-danger progress-spinner-circle`,
 });
 </script>
 
@@ -54,20 +54,20 @@ const theme = ref<ProgressSpinnerPassThroughOptions & { spin?: string }>({
 @keyframes p-progress-spinner-color {
     100%,
     0% {
-        stroke: #ff5757;
+        stroke: var(--color-aq-danger);
     }
 
     40% {
-        stroke: #696cff;
+        stroke: var(--color-aq-accent-deep);
     }
 
     66% {
-        stroke: #1ea97c;
+        stroke: var(--color-aq-success);
     }
 
     80%,
     90% {
-        stroke: #cc8925;
+        stroke: var(--color-aq-warning);
     }
 }
 </style>

@@ -57,14 +57,14 @@ watch(isDesktop, (desktop) => {
 <template>
     <aside
         :id="railId"
-        class="sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 flex-col border-e border-[var(--aq-shell-line)] bg-surface-0/40 backdrop-blur-sm transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex dark:bg-surface-950/40"
+        class="sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 flex-col border-e border-aq-shell-line bg-surface-0/40 backdrop-blur-sm transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex dark:bg-surface-950/40"
         :class="collapsed ? 'w-18' : 'w-64'"
     >
         <div class="min-h-0 flex-1 overflow-y-auto p-3">
             <SidebarNav :groups="groups" :current-path="currentPath" :collapsed="collapsed" />
         </div>
 
-        <div class="border-t border-[var(--aq-shell-line)] p-2">
+        <div class="border-t border-aq-shell-line p-2">
             <button
                 type="button"
                 class="flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium text-surface-600 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"

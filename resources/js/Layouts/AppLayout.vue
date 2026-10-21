@@ -180,7 +180,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
         </a>
 
         <header
-            class="sticky top-0 z-40 border-b border-[var(--aq-shell-line)] bg-surface-0/75 backdrop-blur-xl dark:bg-surface-950/70"
+            class="sticky top-0 z-40 border-b border-aq-shell-line bg-surface-0/75 backdrop-blur-xl dark:bg-surface-950/70"
         >
             <div
                 class="mx-auto flex h-16 w-full max-w-[96rem] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8"
@@ -219,7 +219,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
                 <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
                     <button
                         type="button"
-                        class="hidden h-9 w-52 items-center gap-2 rounded-lg border border-[var(--p-content-border-color)] bg-surface-0 px-3 text-left text-sm text-surface-500 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:flex dark:bg-surface-800/60 dark:text-surface-300 dark:hover:bg-surface-800 motion-reduce:transition-none"
+                        class="hidden h-9 w-52 items-center gap-2 rounded-lg border border-content-border bg-surface-0 px-3 text-left text-sm text-surface-500 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:flex dark:bg-surface-800/60 dark:text-surface-300 dark:hover:bg-surface-800 motion-reduce:transition-none"
                         aria-label="Open command palette"
                         aria-keyshortcuts="Control+K Meta+K"
                         @click="paletteOpen = true"
@@ -235,7 +235,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
                     <button
                         type="button"
-                        class="grid size-9 place-items-center rounded-lg border border-[var(--p-content-border-color)] bg-surface-0 text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:hidden dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
+                        class="grid size-9 place-items-center rounded-lg border border-content-border bg-surface-0 text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:hidden dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
                         aria-label="Open command palette"
                         aria-keyshortcuts="Control+K Meta+K"
                         @click="paletteOpen = true"

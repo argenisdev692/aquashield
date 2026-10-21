@@ -12,7 +12,7 @@ const { isDark, toggleTheme } = useTheme();
 <template>
     <button
         type="button"
-        class="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--p-content-border-color)] bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
+        class="inline-flex size-9 items-center justify-center rounded-lg border border-content-border bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
         :aria-pressed="isDark"
         aria-label="Toggle dark mode"
         @click="toggleTheme"

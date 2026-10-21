@@ -37,7 +37,7 @@ const year = new Date().getFullYear();
 </script>
 
 <template>
-    <footer class="border-t border-[var(--aq-shell-line)]">
+    <footer class="border-t border-aq-shell-line">
         <div
             class="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-6 py-4 text-xs text-surface-500 sm:flex-row sm:px-8 dark:text-surface-400"
         >

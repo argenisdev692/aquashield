@@ -173,11 +173,16 @@ it('no call-site pt override outside src/volt', function () use ($appVue, $proje
 
 it('no hardcoded colour in vue sources', function () use ($appVue, $projectPath) {
     // The token-first rule, made greppable. A hex literal in a .vue file is always a
-    // bypass of globals.css and the PrimeUI bridge.
+    // bypass of globals.css and the PrimeUI bridge — but so is a colour function
+    // inside an arbitrary value. `hover:shadow-[0_20px_25px_-5px_rgb(0_0_0/0.10)]`
+    // shipped through the hex-only version of this check and painted a literal
+    // black over the navy card, because the guard could not see it. A call site
+    // that needs an elevation, a glow or a mix gets a token in globals.css, not a
+    // bracket here.
     $hits = vueFilesMatching(
         $appVue,
         $projectPath,
-        '~(?:#[0-9a-fA-F]{3,8}\b|-\[#[0-9a-fA-F])~',
+        '~(?:#[0-9a-fA-F]{3,8}\b|-\[#[0-9a-fA-F]|-\[[^\]\n]*(?:rgba?\(|hsla?\(|oklch?\(|oklab\(|lab\(|lch\(|color-mix\())~',
     );
 
     expect($hits)->toBe([], "Hardcoded colour — use var(--token) or a PrimeUI bridge class:\n  ".implode("\n  ", $hits));

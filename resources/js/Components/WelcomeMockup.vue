@@ -138,13 +138,13 @@ const onReveal = () => {
                  above the page rather than a flat image. -->
             <motion.div
                 :variants="settle"
-                class="relative mt-8 overflow-hidden rounded-2xl border border-[var(--aq-line)] bg-aq-base shadow-2xl shadow-aq-void/60 ring-1 ring-aq-accent/10"
+                class="relative mt-8 overflow-hidden rounded-2xl border border-aq-line bg-aq-base shadow-2xl shadow-aq-void/60 ring-1 ring-aq-accent/10"
             >
                 <!-- Chrome bar: three dots, one live status dot and a title,
                      drawn rather than screenshotted, so the swap stays a
                      single file change. -->
                 <div
-                    class="flex items-center gap-3 border-b border-[var(--aq-line)] bg-aq-elevated/40 px-4 py-3"
+                    class="flex items-center gap-3 border-b border-aq-line bg-aq-elevated/40 px-4 py-3"
                 >
                     <span class="flex shrink-0 items-center gap-1.5" aria-hidden="true">
                         <span class="size-2.5 rounded-full bg-aq-ink-disabled"></span>

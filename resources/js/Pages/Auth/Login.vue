@@ -112,14 +112,14 @@ const submit = () => {
 
         <div class="mt-5">
             <div class="flex items-center gap-3" aria-hidden="true">
-                <span class="h-px grow bg-[var(--aq-line)]"></span>
+                <span class="h-px grow bg-aq-line"></span>
                 <span class="text-xs tracking-wide text-aq-ink-muted">or</span>
-                <span class="h-px grow bg-[var(--aq-line)]"></span>
+                <span class="h-px grow bg-aq-line"></span>
             </div>
 
             <a
                 href="/auth/google"
-                class="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-[var(--aq-line)] bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-[var(--aq-line-strong)] hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
+                class="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-aq-line bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-aq-line-strong hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
             >
                 <svg aria-hidden="true" viewBox="0 0 48 48" class="size-4.5 shrink-0">
                     <path

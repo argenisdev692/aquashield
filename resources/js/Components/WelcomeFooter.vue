@@ -106,7 +106,7 @@ const SOCIALS: readonly Social[] = [
                          it. Copy is pulled exclusively from claims the page
                          already publishes in its SEO description. -->
                     <p
-                        class="mt-5 inline-flex items-center gap-2.5 rounded-full border border-[var(--aq-line)] bg-aq-accent/[0.06] px-3.5 py-1.5 text-xs font-medium text-aq-ink-soft"
+                        class="mt-5 inline-flex items-center gap-2.5 rounded-full border border-aq-line bg-aq-accent/[0.06] px-3.5 py-1.5 text-xs font-medium text-aq-ink-soft"
                     >
                         <span aria-hidden="true" class="relative flex size-2">
                             <span
@@ -121,7 +121,7 @@ const SOCIALS: readonly Social[] = [
                     <a
                         href="tel:+17135876423"
                         aria-label="24/7 emergency line: (713) 587-6423"
-                        class="mt-3 inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-[var(--aq-line)] bg-aq-accent/[0.06] px-4 text-sm font-semibold text-aq-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--aq-line-strong)] hover:bg-aq-accent/[0.1] hover:shadow-[0_0_28px_color-mix(in_oklab,var(--color-aq-accent)_25%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none"
+                        class="mt-3 inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-aq-line bg-aq-accent/[0.06] px-4 text-sm font-semibold text-aq-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-aq-line-strong hover:bg-aq-accent/[0.1] hover:shadow-[var(--aq-glow-accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none"
                     >
                         <svg
                             aria-hidden="true"
@@ -193,7 +193,7 @@ const SOCIALS: readonly Social[] = [
             </div>
 
             <div
-                class="mt-10 flex flex-col items-center justify-between gap-5 border-t border-[var(--aq-line)] pt-6 text-center sm:flex-row sm:text-left"
+                class="mt-10 flex flex-col items-center justify-between gap-5 border-t border-aq-line pt-6 text-center sm:flex-row sm:text-left"
             >
                 <p class="text-xs text-aq-ink-muted">
                     © {{ year }} AquaShield Restoration USA · Licensed &amp; insured · Direct
@@ -209,7 +209,7 @@ const SOCIALS: readonly Social[] = [
                     <span
                         v-for="social in SOCIALS"
                         :key="social.label"
-                        class="inline-flex size-9 items-center justify-center rounded-full border border-[var(--aq-line)] text-aq-ink-disabled opacity-70"
+                        class="inline-flex size-9 items-center justify-center rounded-full border border-aq-line text-aq-ink-disabled opacity-70"
                         :title="`${social.label} — profile coming soon`"
                     >
                         <svg viewBox="0 0 24 24" fill="currentColor" class="size-4">

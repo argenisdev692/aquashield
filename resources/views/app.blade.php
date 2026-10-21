@@ -16,7 +16,15 @@
     <link rel="manifest" href="/img/favicon/site.webmanifest" />
 
     {{-- Browser chrome (mobile address bar, PWA task switcher) follows the
-        active theme; the inline script below rewrites it on first paint. --}}
+        active theme; the inline script below rewrites it on first paint.
+
+        These two literals are the ONLY colours allowed to stand outside
+        globals.css, because they are read before the stylesheet exists: a
+        custom property cannot resolve until app.css has loaded, and the point
+        of this meta is the first paint. They must stay equal to
+        `--color-aq-void` (#081829) and `--p-surface-50` (#f1f6fa); the
+        post-load source is resources/js/lib/theme.ts, which reads those tokens
+        instead of repeating these hexes. Change the palette, change all three. --}}
     <meta name="theme-color" content="#081829" />
 
     <title inertia>{{ config('app.name', 'Laravel') }}</title>
