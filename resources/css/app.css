@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 @import 'tailwindcss-primeui';
+/* PrimeIcons font classes — without this the `pi pi-*` glyphs render empty. */
+@import 'primeicons/primeicons.css';
 @import './globals.css';
 
 @custom-variant dark (&:is(.dark *));

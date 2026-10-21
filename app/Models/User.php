@@ -67,6 +67,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutRole($roles, ?string $guard = null)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutTeam($teams)
  *
+ * @property-read int|null $media_count
+ *
  * @mixin \Eloquent
  */
 #[Fillable(['name', 'email', 'password', 'google_id'])]

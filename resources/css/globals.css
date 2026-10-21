@@ -164,6 +164,13 @@
     --aq-line: rgb(0 181 226 / 0.22);
     --aq-line-strong: rgb(0 181 226 / 0.4);
 
+    /* The one neutral hairline: header bottom, rail edge, footer top. The
+       shell frame is structure, not brand decoration — aqua is the state
+       signal (active row, focus ring), and spending it here would make the
+       frame compete with the selected row. Marketing surfaces keep --aq-line
+       above. Same computed colour the shell shipped before the token existed. */
+    --aq-shell-line: color-mix(in oklab, var(--p-surface-200) 80%, transparent);
+
     --aq-grad-primary: linear-gradient(135deg, #0c2340 0%, #00b5e2 100%);
     --aq-grad-glow: linear-gradient(135deg, #00b5e2 0%, #33c4e8 100%);
     /* Kinetic hero gradient: aqua → steel navy → signal green and back. The
@@ -201,6 +208,9 @@
 .dark {
     --scrollbar-thumb: color-mix(in oklab, var(--p-primary-400) 55%, transparent);
     --cursor-orb-tint: color-mix(in oklab, var(--p-primary-400) 32%, transparent);
+
+    /* One rung up the navy ramp, matching the previous surface-800 edge. */
+    --aq-shell-line: var(--p-surface-800);
 }
 
 /* Registered so the runner-lap keyframe can interpolate it: an unregistered
@@ -402,6 +412,69 @@
        white logo, so the mask rides its own artwork. */
     .aq-logo-shine-mark {
         --aq-logo-art: url('/img/logo-mark.webp');
+    }
+}
+
+/* ── Dashboard motion chassis ────────────────────────────────────────
+   Two small pieces for the CRM start screen:
+
+   1 `.aq-rise` — a once-per-mount rise-and-fade for sections that render
+   in place (KPI tiles, chart card, today rail). One keyframe serves the
+   whole stagger: the per-section delay is inline `animation-delay`. Fill
+   mode `backwards` holds the pre-state during every delay, so a section
+   never flashes before its turn.
+   2 `.kanban-*` — the native Vue `<TransitionGroup>` chassis for the
+   pipeline board. Reordering is FLIP (`move`), a dropped card fades in,
+   and the column it left fades out. Durations stay inside the file's
+   ≤0.4s animation rule for every transition this ships. */
+@layer components {
+    .aq-rise {
+        /* 0.4s is the file's own animation ceiling (SKILL §13) — the entrance
+           must end by then, not graze past it. */
+        animation: aq-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+
+    .kanban-move {
+        transition: transform 200ms ease;
+    }
+
+    .kanban-enter-active {
+        transition:
+            opacity 150ms ease,
+            transform 150ms ease;
+    }
+
+    .kanban-enter-from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+
+    .kanban-leave-active {
+        transition: opacity 120ms ease;
+    }
+
+    .kanban-leave-to {
+        opacity: 0;
+    }
+}
+
+@keyframes aq-rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* fill: backwards would still hide content for the leftover delay of a
+   clamped run, so the entrance is dropped outright — same reasoning as the
+   CTA and logo layers above. */
+@media (prefers-reduced-motion: reduce) {
+    .aq-rise {
+        animation: none;
     }
 }
 

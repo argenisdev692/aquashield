@@ -28,6 +28,12 @@ Route::middleware('guest')->group(function () {
         ->name('auth.google.callback');
 });
 
+/*
+ * Dashboard. Frontend-only placeholder for now: the page renders demo data
+ * from a mock set and touches no backend. The board's real data source
+ * (a leads pipeline) lands with the first module, and this route becomes an
+ * authorized controller then.
+ */
 Route::middleware('auth')->get('/dashboard', fn () => inertia('Dashboard', [
     'user' => auth()->user(),
 ]));

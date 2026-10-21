@@ -14,14 +14,19 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * The demo account the auth tests log in with lives in UserSeeder, so
+     * re-running the seeder on an existing local database stays idempotent.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+        ]);
+
+        $this->call([
+            UserSeeder::class,
         ]);
     }
 }

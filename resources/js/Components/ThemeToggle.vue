@@ -1,33 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { useTheme } from '@/lib/theme';
 
-const isDark = ref(false);
-
-const apply = () => {
-    document.documentElement.classList.toggle('dark', isDark.value);
-    document.documentElement.style.colorScheme = isDark.value ? 'dark' : 'light';
-    localStorage.setItem('app:theme', isDark.value ? 'dark' : 'light');
-
-    const chrome = getComputedStyle(document.documentElement)
-        .getPropertyValue(isDark.value ? '--color-aq-void' : '--p-surface-50')
-        .trim();
-
-    if (chrome !== '') {
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', chrome);
-    }
-};
-
-onMounted(() => {
-    const stored = localStorage.getItem('app:theme');
-    isDark.value = stored ? stored === 'dark' : true;
-    apply();
-});
-
-watch(isDark, apply);
-
-const toggle = () => {
-    isDark.value = !isDark.value;
-};
+/**
+ * Icon-only theme switch. State and persistence live in `useTheme` so the
+ * command palette's "switch to light/dark" entry can never disagree with the
+ * `aria-pressed` state rendered here.
+ */
+const { isDark, toggleTheme } = useTheme();
 </script>
 
 <template>
@@ -36,7 +15,7 @@ const toggle = () => {
         class="inline-flex size-9 items-center justify-center rounded-lg border border-[var(--p-content-border-color)] bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
         :aria-pressed="isDark"
         aria-label="Toggle dark mode"
-        @click="toggle"
+        @click="toggleTheme"
     >
         <svg
             v-if="isDark"

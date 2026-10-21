@@ -18,6 +18,7 @@
  * rides along so the flow feels like the rest of the site.
  */
 import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
+import AppFooter from '@/Components/AppFooter.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
 
 /*
@@ -35,7 +36,7 @@ defineProps<{
 
 <template>
     <main
-        class="dark relative isolate flex min-h-screen w-full items-center justify-center overflow-hidden bg-aq-void p-6 [color-scheme:dark]"
+        class="dark relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-aq-void p-6 [color-scheme:dark]"
     >
         <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div
@@ -84,6 +85,8 @@ defineProps<{
                 <slot name="footer" />
             </div>
         </div>
+
+        <AppFooter class="mt-6 w-full max-w-6xl" />
 
         <CookieConsentBanner />
         <CursorOrb />
