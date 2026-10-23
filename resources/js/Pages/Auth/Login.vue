@@ -11,18 +11,31 @@ import Password from '@/volt/Password.vue';
 const props = defineProps<{
     canResetPassword: boolean;
     status?: string;
+    demoCredentials?: {
+        email: string;
+        password: string;
+        name: string;
+    } | null;
 }>();
 
 const loginSchema = z.object({
     email: z.email('Enter a valid email address'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 const form = useForm({
-    email: '',
-    password: '',
+    email: props.demoCredentials?.email ?? '',
+    password: props.demoCredentials?.password ?? '',
     remember: false,
 });
+
+const fillDemo = () => {
+    if (props.demoCredentials) {
+        form.email = props.demoCredentials.email;
+        form.password = props.demoCredentials.password;
+        form.clearErrors();
+    }
+};
 
 const submit = () => {
     const result = loginSchema.safeParse({
@@ -55,6 +68,32 @@ const submit = () => {
 
     <AuthLayout title="Sign in" subtitle="Access your account">
         <Message v-if="status" severity="info" class="mb-4">{{ status }}</Message>
+
+        <div
+            v-if="demoCredentials"
+            class="mb-4 rounded-xl border border-aq-line bg-aq-elevated/60 p-4"
+        >
+            <div class="mb-2 flex items-center justify-between">
+                <span class="text-xs font-semibold tracking-wide text-aq-ink-muted uppercase"
+                    >Demo credentials</span
+                >
+                <button
+                    type="button"
+                    class="rounded-lg border border-aq-line px-3 py-1 text-xs font-medium text-aq-accent transition-colors hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
+                    @click="fillDemo"
+                >
+                    Fill &amp; Sign in
+                </button>
+            </div>
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt class="text-aq-ink-muted">Email</dt>
+                <dd class="font-mono text-aq-ink">{{ demoCredentials.email }}</dd>
+                <dt class="text-aq-ink-muted">Password</dt>
+                <dd class="font-mono text-aq-ink">{{ demoCredentials.password }}</dd>
+                <dt class="text-aq-ink-muted">Name</dt>
+                <dd class="font-mono text-aq-ink">{{ demoCredentials.name }}</dd>
+            </dl>
+        </div>
 
         <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
             <div class="flex flex-col gap-1">

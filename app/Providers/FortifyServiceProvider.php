@@ -41,6 +41,11 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn () => inertia('Auth/Login', [
             'canResetPassword' => Features::resetPasswords(),
             'status' => session('status'),
+            'demoCredentials' => app()->isLocal() ? [
+                'email' => 'demo@aquashield.test',
+                'password' => 'demo01=',
+                'name' => 'AquaShield Demo',
+            ] : null,
         ]));
         Fortify::registerView(fn () => inertia('Auth/Register'));
         Fortify::requestPasswordResetLinkView(fn () => inertia('Auth/ForgotPassword', [
