@@ -95,6 +95,39 @@ watch(isDesktop, (desktop) => {
         header="Navigation"
         class="w-80 max-w-[85vw]"
     >
-        <SidebarNav :groups="groups" :current-path="currentPath" @navigate="open = false" />
+        <SidebarNav
+            :groups="groups"
+            :current-path="currentPath"
+            :collapsed="collapsed"
+            @navigate="open = false"
+        />
+
+        <!-- Same control as the rail footer, not a second idea: the drawer is
+             the only navigation a phone sees, so the collapse arrow has to
+             exist there too. It drives the same persisted state, which means a
+             choice made on mobile is what the desktop rail opens with.
+
+             Deliberately in the default slot, not `#footer`: PrimeVue focuses
+             the first focusable element of the footer slot when the drawer
+             opens, which would land on "Collapse navigation" instead of the
+             close button. -->
+        <div class="mt-5 border-t border-aq-shell-line pt-3">
+            <button
+                type="button"
+                class="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-surface-600 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                :aria-expanded="!collapsed"
+                :aria-controls="panelId"
+                @click="collapsed = !collapsed"
+            >
+                <i
+                    class="pi shrink-0 text-base"
+                    :class="collapsed ? 'pi-angle-double-right' : 'pi-angle-double-left'"
+                    aria-hidden="true"
+                ></i>
+                <span class="truncate">
+                    {{ collapsed ? 'Expand navigation' : 'Collapse navigation' }}
+                </span>
+            </button>
+        </div>
     </Drawer>
 </template>

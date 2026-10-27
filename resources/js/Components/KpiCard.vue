@@ -17,6 +17,9 @@
  *   hover ceiling is best met by not scaling at all.
  * - A one-pixel crown hairline brightens on hover. It carries `--aq-line`,
  *   the accent token, so the tile reads as lifted light, not as a new colour.
+ * - The corner badge sits *in flow* at the end of the eyebrow row, never
+ *   absolutely positioned: an absolute badge lands on top of the label as soon
+ *   as the eyebrow wraps ("New leads · 7 days" already does on a narrow tile).
  * - The trend chip is state vocabulary: up / down / flat map onto the
  *   success / danger / muted tokens. Data, not decoration.
  *
@@ -74,22 +77,22 @@ const staggerDelay = (position: number): string => `${Math.min(position * 70, 28
             class="group relative h-full overflow-hidden transition-[translate,box-shadow] duration-200 ease-out motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-(--aq-shadow-lift) before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-aq-line before:opacity-60 hover:before:opacity-100 before:content-[''] before:transition-opacity before:duration-300 motion-reduce:before:transition-none"
         >
             <template #title>
-                <span
-                    class="text-xs font-semibold uppercase tracking-[0.14em] text-surface-500 dark:text-surface-400"
-                >
-                    {{ label }}
-                </span>
+                <div class="flex items-start justify-between gap-3">
+                    <span
+                        class="min-w-0 text-xs font-semibold uppercase tracking-[0.14em] text-surface-500 dark:text-surface-400"
+                    >
+                        {{ label }}
+                    </span>
+                    <span
+                        v-if="icon"
+                        class="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-100 text-xl text-aq-accent transition-colors duration-200 group-hover:bg-aq-accent/10 motion-reduce:transition-none dark:bg-surface-800"
+                        aria-hidden="true"
+                    >
+                        <i :class="icon" />
+                    </span>
+                </div>
             </template>
             <template #content>
-                <!-- The badge must live in a named slot: PrimeVue's Card has no
-                     default slot, so bare content is silently dropped. -->
-                <span
-                    v-if="icon"
-                    class="absolute top-5 right-5 grid size-10 place-items-center rounded-lg bg-surface-100 text-xl text-aq-accent transition-colors duration-200 group-hover:bg-aq-accent/10 motion-reduce:transition-none dark:bg-surface-800"
-                    aria-hidden="true"
-                >
-                    <i :class="icon" />
-                </span>
                 <p
                     class="text-3xl font-bold tracking-tight text-surface-900 tabular-nums dark:text-surface-0"
                 >

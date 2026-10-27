@@ -1,0 +1,58 @@
+/*
+ | FullCalendar's stock "Forma" palette, re-pointed at the AquaShield tokens.
+ |
+ | v7 keeps every theme colour in `--fc-forma-*` custom properties, so the stock
+ | palette stays imported (it is the contract with the theme) and only the
+ | values are replaced here with the same `p-*` / `aq-*` tokens every other
+ | surface reads.
+ |
+ | Two blocks, not one: `.dark` flips the semantic tokens, but the surface
+ | *scale* is shared by both schemes, so the background and grid lines need an
+ | explicit pair. FullCalendar only understands `[data-color-scheme]`, which is
+ | why the dark values hang off that attribute and not off `.dark`.
+ |
+ | Order matters: this file is imported after the palette and repeats its
+ | specificity, so these declarations win without `!important`.
+ */
+
+:root {
+    --fc-forma-primary: var(--p-primary-500);
+    --fc-forma-primary-over: var(--p-primary-400);
+    --fc-forma-primary-down: var(--p-primary-600);
+    --fc-forma-primary-foreground: var(--p-primary-contrast-color);
+
+    --fc-forma-event: var(--p-primary-500);
+    --fc-forma-event-contrast: var(--p-primary-contrast-color);
+    --fc-forma-background-event: var(--p-primary-500);
+    --fc-forma-highlight: color-mix(in oklab, var(--p-primary-500) 28%, transparent);
+
+    --fc-forma-background: var(--p-surface-0);
+    --fc-forma-foreground: var(--p-text-color);
+    --fc-forma-faint-foreground: var(--p-text-muted-color);
+    --fc-forma-muted-foreground: var(--p-text-muted-color);
+
+    --fc-forma-border: var(--p-surface-200);
+    --fc-forma-muted-border: var(--p-surface-100);
+    --fc-forma-strong-border: var(--p-surface-400);
+}
+
+[data-color-scheme='dark'] {
+    --fc-forma-primary: var(--p-primary-400);
+    --fc-forma-primary-over: var(--p-primary-300);
+    --fc-forma-primary-down: var(--p-primary-200);
+    --fc-forma-primary-foreground: var(--p-primary-contrast-color);
+
+    --fc-forma-event: var(--p-primary-400);
+    --fc-forma-event-contrast: var(--p-primary-contrast-color);
+    --fc-forma-background-event: var(--p-primary-400);
+    --fc-forma-highlight: color-mix(in oklab, var(--p-primary-400) 30%, transparent);
+
+    --fc-forma-background: var(--p-surface-900);
+    --fc-forma-foreground: var(--p-surface-50);
+    --fc-forma-faint-foreground: var(--p-surface-400);
+    --fc-forma-muted-foreground: var(--p-surface-300);
+
+    --fc-forma-border: var(--p-surface-700);
+    --fc-forma-muted-border: var(--p-surface-800);
+    --fc-forma-strong-border: var(--p-surface-500);
+}

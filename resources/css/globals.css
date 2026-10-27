@@ -340,9 +340,18 @@
         background-image: var(--aq-grad-glow);
         color: var(--p-primary-contrast-color);
         box-shadow: 0 4px 20px color-mix(in oklab, var(--color-aq-accent) 35%, transparent);
+        /* Volt's root ships `transition-colors`, a utility-layer rule: it wins
+           over anything declared in this components layer. Without the flag the
+           lift, the shadow and the brightness snap while only the colours
+           tween, which is exactly how the CTA "lost" its motion. The colour
+           pairs are listed so the colour part of that utility is preserved. */
         transition:
+            translate 180ms ease,
             box-shadow 240ms ease-in-out,
-            filter 240ms ease-in-out;
+            filter 240ms ease-in-out,
+            color 200ms ease,
+            background-color 200ms ease,
+            border-color 200ms ease !important;
 
         &::before {
             content: '';
@@ -393,8 +402,15 @@
         }
 
         &:hover {
+            /* Same 1px lift as the form sibling: the CTA is still a button, and
+               a CTA that does not move under the pointer reads as disabled. */
+            translate: 0 -1px;
             filter: brightness(1.08);
             box-shadow: 0 8px 32px color-mix(in oklab, var(--color-aq-accent) 50%, transparent);
+        }
+
+        &:active {
+            translate: 0 0;
         }
     }
 
@@ -406,10 +422,16 @@
        `prefers-reduced-motion`, and the lift is limited to 1px so a dense
        action row cannot jitter. */
     .aq-btn-hover {
+        /* Same reason as the CTA above: the primitive's `transition-colors`
+           utility outranks a components-layer shorthand, so the 1px lift and
+           the sheen timing need the important flag to run at all. */
         transition:
             transform 180ms ease,
             box-shadow 180ms ease,
-            filter 180ms ease;
+            filter 180ms ease,
+            color 200ms ease,
+            background-color 200ms ease,
+            border-color 200ms ease !important;
 
         &::before {
             content: '';
@@ -443,12 +465,17 @@
 
     @media (prefers-reduced-motion: reduce) {
         .aq-btn-hover,
-        .aq-btn-hover::before {
-            transition: none;
+        .aq-btn-hover::before,
+        .aq-btn-shine {
+            transition: none !important;
         }
 
         .aq-btn-hover:hover {
             transform: none;
+        }
+
+        .aq-btn-shine:hover {
+            translate: none;
         }
     }
 

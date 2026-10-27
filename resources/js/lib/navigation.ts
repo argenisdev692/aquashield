@@ -57,7 +57,7 @@ export const DASHBOARD_SECTIONS: readonly NavItem[] = [
         label: 'Pipeline',
         href: '#pipeline',
         icon: 'pi-objects-column',
-        keywords: 'kanban stages deals board drag',
+        keywords: 'kanban stages deals board drag calendar month appointments',
         anchor: true,
     },
     {

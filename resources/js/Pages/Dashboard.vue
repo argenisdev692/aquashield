@@ -19,10 +19,14 @@
  *   hover lift, crown hairline and entrance stagger live there), native CSS
  *   staggered entrance (no motion-v on this page — the bundle keeps its
  *   marketing budget for the welcome).
- * - Kanban board: full width, fixed-width columns, horizontal scroll.
- *   Drag is HTML5 native (desktop pointer); cards open a Detail drawer
- *   (Volt/PrimeVue Drawer, right side) on click for pointer AND keyboard
- *   users — the drawer's stage select is the accessible twin of drag.
+ * - Leads pipeline: one section, two views behind Volt `Tabs` —
+ *   · Kanban: full width, fixed-width columns, horizontal scroll. Drag is
+ *     HTML5 native (desktop pointer); cards open a Detail drawer
+ *     (Volt/PrimeVue Drawer, right side) on click for pointer AND keyboard
+ *     users — the drawer's stage select is the accessible twin of drag.
+ *   · Calendar: FullCalendar v7 month grid over the same appointments,
+ *     lazily imported (see `Dashboard/BoardCalendar.vue`) so the calendar
+ *     chunk never blocks the KPIs.
  * - Won-revenue chart: tree-shaken Chart.js, lazy-loaded from its own
  *   chunk on first draw, palette read from the design tokens and rebuilt
  *   on dark-mode change (ThemeToggle toggles `.dark` on <html>; a
@@ -31,6 +35,7 @@
  */
 import {
     computed,
+    defineAsyncComponent,
     onMounted,
     onUnmounted,
     onWatcherCleanup,
@@ -46,6 +51,19 @@ import Button from '@/volt/Button.vue';
 import Card from '@/volt/Card.vue';
 import Dialog from '@/volt/Dialog.vue';
 import Drawer from '@/volt/Drawer.vue';
+import Tab from '@/volt/Tab.vue';
+import TabList from '@/volt/TabList.vue';
+import TabPanel from '@/volt/TabPanel.vue';
+import TabPanels from '@/volt/TabPanels.vue';
+import Tabs from '@/volt/Tabs.vue';
+import type { CalendarAppointment } from './Dashboard/BoardCalendar.vue';
+
+/**
+ * FullCalendar is ~its own chunk: resolved the first time the Calendar tab
+ * opens, never on dashboard load. The `Suspense` boundary below paints the
+ * skeleton while that chunk lands.
+ */
+const BoardCalendar = defineAsyncComponent(() => import('./Dashboard/BoardCalendar.vue'));
 
 /* ------------------------------------------------------------- vocabulary */
 
@@ -636,6 +654,53 @@ const columns = computed(() =>
     }),
 );
 
+/* -------------------------------------------------------------- board views */
+
+/**
+ * Which view the pipeline section shows. `Tabs` models the active tab as
+ * `string | number`, so the state stays a plain string instead of a narrowed
+ * union the wrapper could not write back to.
+ */
+const boardView = ref<string>('kanban');
+
+/** The calendar's own vocabulary for a scheduled appointment. */
+const appointmentTone = (priority: LeadPriority): CalendarAppointment['tone'] => {
+    if (priority === 'EMERGENCY') {
+        return 'emergency';
+    }
+
+    return priority === 'HIGH' ? 'high' : 'normal';
+};
+
+/**
+ * Calendar projection of the board. Only leads with an appointment show up, so
+ * both tabs read the same `leads` ref — a drag, a stage change or a new lead is
+ * reflected in the grid without a second source of truth.
+ */
+const appointments = computed<CalendarAppointment[]>(() =>
+    leads.value.flatMap((lead) =>
+        lead.scheduledAt === null
+            ? []
+            : [
+                  {
+                      id: lead.id,
+                      title: lead.contactName,
+                      start: lead.scheduledAt,
+                      tone: appointmentTone(lead.priority),
+                  },
+              ],
+    ),
+);
+
+/** Calendar twin of `openLead`: an event id *is* a lead id. */
+const openCalendarLead = (id: string): void => {
+    const lead = leads.value.find((row) => row.id === id);
+
+    if (lead !== undefined) {
+        openLead(lead);
+    }
+};
+
 /* -------------------------------------------------------------- drag state */
 
 const dragging = ref<string | null>(null);
@@ -991,185 +1056,274 @@ onUnmounted(() => destroyChart());
             id="pipeline"
             class="aq-rise mt-8 scroll-mt-24"
             :style="{ animationDelay: '140ms' }"
-            aria-label="Pipeline board"
+            aria-label="Pipeline board and field calendar"
         >
-            <div class="mb-2 flex items-center justify-between gap-3">
+            <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
                     Leads pipeline
                 </h2>
                 <p class="text-xs text-surface-500 dark:text-surface-400">
-                    Drag a card to move it · scroll for more stages
+                    {{
+                        boardView === 'calendar'
+                            ? 'Click an appointment to open its lead'
+                            : 'Drag a card to move it · scroll for more stages'
+                    }}
                 </p>
             </div>
 
-            <!-- Empty board invitation, before any columns ship -->
-            <Card
-                v-if="leads.length === 0"
-                class="flex h-full items-center justify-center py-16 text-center"
+            <!-- Two views over one dataset. The boxed shell gives the tab strip
+                 and both panels the same surface. -->
+            <div
+                class="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-700 dark:bg-surface-900"
             >
-                <template #content>
-                    <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                        class="mx-auto size-10 text-aq-accent"
-                    >
-                        <path
-                            d="M9 3v3M15 3v3M9 21v3M15 21v3M3 9h3M3 15h3M18 9h3M18 15h3"
-                            stroke-linecap="round"
-                        />
-                        <rect x="5" y="5" width="14" height="14" rx="3" />
-                    </svg>
-                    <p class="mt-3 font-medium text-surface-900 dark:text-surface-0">
-                        Your board is empty
-                    </p>
-                    <p class="mt-1 max-w-sm text-sm text-surface-500 dark:text-surface-400">
-                        Log your first lead and it will travel this pipeline from first call to
-                        signed job.
-                    </p>
-                    <div class="mt-4 flex justify-center">
-                        <Button label="New lead" icon="pi pi-plus" @click="showCreate = true" />
-                    </div>
-                </template>
-            </Card>
-
-            <!-- Columns: horizontal scroll carries the sixth stage on any screen -->
-            <div v-else class="flex gap-3 overflow-x-auto pb-2">
-                <div
-                    v-for="column in columns"
-                    :key="column.stage"
-                    class="min-w-72 shrink-0 rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none"
-                    :class="[
-                        'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-900/60',
-                        isOver(column.stage)
-                            ? 'ring-2 ring-aq-accent/50 bg-surface-100 dark:bg-surface-800/80'
-                            : '',
-                    ]"
-                    :data-stage="column.stage"
-                    @dragover.prevent
-                    @dragenter.prevent="enterColumn(column.stage)"
-                    @dragleave="leaveColumn(column.stage)"
-                    @drop.prevent="dropOn(column.stage)"
-                >
-                    <header class="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
-                        <div class="flex items-center gap-2">
-                            <span
-                                aria-hidden="true"
-                                class="size-2 rounded-full"
-                                :class="column.dot"
-                            ></span>
-                            <h3 class="text-sm font-semibold text-surface-900 dark:text-surface-0">
-                                {{ column.label }}
-                            </h3>
-                            <span
-                                class="rounded-full bg-surface-200 px-2 py-px text-[11px] font-semibold tabular-nums text-surface-600 dark:bg-surface-700 dark:text-surface-300"
-                            >
-                                {{ column.leads.length }}
+                <Tabs v-model:value="boardView">
+                    <TabList>
+                        <Tab value="kanban">
+                            <span class="flex items-center gap-2">
+                                <i class="pi pi-th-large text-xs" aria-hidden="true"></i>
+                                Kanban
+                                <span
+                                    class="rounded-full bg-surface-100 px-2 py-px text-[11px] font-semibold tabular-nums text-surface-600 dark:bg-surface-800 dark:text-surface-300"
+                                >
+                                    {{ leads.length }}
+                                </span>
                             </span>
-                        </div>
-                        <span
-                            v-if="column.total > 0"
-                            class="text-xs font-medium tabular-nums text-surface-500 dark:text-surface-400"
-                        >
-                            {{ moneyCompact.format(column.total / 100) }}
-                        </span>
-                    </header>
+                        </Tab>
+                        <Tab value="calendar">
+                            <span class="flex items-center gap-2">
+                                <i class="pi pi-calendar text-xs" aria-hidden="true"></i>
+                                Calendar
+                                <span
+                                    class="rounded-full bg-surface-100 px-2 py-px text-[11px] font-semibold tabular-nums text-surface-600 dark:bg-surface-800 dark:text-surface-300"
+                                >
+                                    {{ appointments.length }}
+                                </span>
+                            </span>
+                        </Tab>
+                    </TabList>
 
-                    <TransitionGroup tag="ol" name="kanban" class="flex min-h-28 flex-col gap-2">
-                        <li v-for="lead in column.leads" :key="lead.id">
-                            <!-- Whole card = one button: click/Enter opens the drawer,
+                    <TabPanels>
+                        <TabPanel value="kanban">
+                            <!-- Empty board invitation, before any columns ship -->
+                            <Card
+                                v-if="leads.length === 0"
+                                class="flex h-full items-center justify-center py-16 text-center"
+                            >
+                                <template #content>
+                                    <svg
+                                        aria-hidden="true"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.5"
+                                        class="mx-auto size-10 text-aq-accent"
+                                    >
+                                        <path
+                                            d="M9 3v3M15 3v3M9 21v3M15 21v3M3 9h3M3 15h3M18 9h3M18 15h3"
+                                            stroke-linecap="round"
+                                        />
+                                        <rect x="5" y="5" width="14" height="14" rx="3" />
+                                    </svg>
+                                    <p
+                                        class="mt-3 font-medium text-surface-900 dark:text-surface-0"
+                                    >
+                                        Your board is empty
+                                    </p>
+                                    <p
+                                        class="mt-1 max-w-sm text-sm text-surface-500 dark:text-surface-400"
+                                    >
+                                        Log your first lead and it will travel this pipeline from
+                                        first call to signed job.
+                                    </p>
+                                    <div class="mt-4 flex justify-center">
+                                        <Button
+                                            label="New lead"
+                                            icon="pi pi-plus"
+                                            @click="showCreate = true"
+                                        />
+                                    </div>
+                                </template>
+                            </Card>
+
+                            <!-- Columns: horizontal scroll carries the sixth stage on any screen -->
+                            <div v-else class="flex gap-3 overflow-x-auto pb-2">
+                                <div
+                                    v-for="column in columns"
+                                    :key="column.stage"
+                                    class="min-w-72 shrink-0 rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none"
+                                    :class="[
+                                        'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-800/40',
+                                        isOver(column.stage)
+                                            ? 'ring-2 ring-aq-accent/50 bg-surface-100 dark:bg-surface-800/80'
+                                            : '',
+                                    ]"
+                                    :data-stage="column.stage"
+                                    @dragover.prevent
+                                    @dragenter.prevent="enterColumn(column.stage)"
+                                    @dragleave="leaveColumn(column.stage)"
+                                    @drop.prevent="dropOn(column.stage)"
+                                >
+                                    <header
+                                        class="flex items-center justify-between gap-2 px-2 pb-2 pt-1"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <span
+                                                aria-hidden="true"
+                                                class="size-2 rounded-full"
+                                                :class="column.dot"
+                                            ></span>
+                                            <h3
+                                                class="text-sm font-semibold text-surface-900 dark:text-surface-0"
+                                            >
+                                                {{ column.label }}
+                                            </h3>
+                                            <span
+                                                class="rounded-full bg-surface-200 px-2 py-px text-[11px] font-semibold tabular-nums text-surface-600 dark:bg-surface-700 dark:text-surface-300"
+                                            >
+                                                {{ column.leads.length }}
+                                            </span>
+                                        </div>
+                                        <span
+                                            v-if="column.total > 0"
+                                            class="text-xs font-medium tabular-nums text-surface-500 dark:text-surface-400"
+                                        >
+                                            {{ moneyCompact.format(column.total / 100) }}
+                                        </span>
+                                    </header>
+
+                                    <TransitionGroup
+                                        tag="ol"
+                                        name="kanban"
+                                        class="flex min-h-28 flex-col gap-2"
+                                    >
+                                        <li v-for="lead in column.leads" :key="lead.id">
+                                            <!-- Whole card = one button: click/Enter opens the drawer,
                                  drag moves the card. Nested-native behaviour without
                                  nesting interactive elements. -->
-                            <button
-                                type="button"
-                                draggable="true"
-                                class="w-full cursor-grab rounded-lg border border-surface-200 bg-surface-0 p-3 text-left shadow-sm transition-[opacity,box-shadow,border-color] duration-150 hover:shadow-md active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:border-surface-700 dark:bg-surface-800 motion-reduce:transition-none"
-                                :class="[
-                                    dragging === lead.id ? 'opacity-40' : '',
-                                    lead.priority === 'EMERGENCY'
-                                        ? 'border-s-2 border-s-aq-danger'
-                                        : '',
-                                ]"
-                                @dragstart="startDrag($event, lead)"
-                                @dragend="onDragEnd"
-                                @click="openLead(lead)"
-                            >
-                                <span class="flex items-start justify-between gap-2">
-                                    <span
-                                        class="text-sm font-semibold text-surface-900 dark:text-surface-0"
-                                    >
-                                        {{ lead.contactName }}
-                                    </span>
-                                    <span
-                                        v-if="lead.priority === 'EMERGENCY'"
-                                        class="shrink-0 rounded-md bg-aq-danger/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-aq-danger"
-                                    >
-                                        EMERGENCY
-                                    </span>
-                                    <span
-                                        v-else-if="lead.priority === 'HIGH'"
-                                        class="shrink-0 rounded-md bg-aq-warning/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-aq-warning"
-                                    >
-                                        HIGH
-                                    </span>
-                                </span>
+                                            <button
+                                                type="button"
+                                                draggable="true"
+                                                class="w-full cursor-grab rounded-lg border border-surface-200 bg-surface-0 p-3 text-left shadow-sm transition-[opacity,box-shadow,border-color] duration-150 hover:shadow-md active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:border-surface-700 dark:bg-surface-800 motion-reduce:transition-none"
+                                                :class="[
+                                                    dragging === lead.id ? 'opacity-40' : '',
+                                                    lead.priority === 'EMERGENCY'
+                                                        ? 'border-s-2 border-s-aq-danger'
+                                                        : '',
+                                                ]"
+                                                @dragstart="startDrag($event, lead)"
+                                                @dragend="onDragEnd"
+                                                @click="openLead(lead)"
+                                            >
+                                                <span
+                                                    class="flex items-start justify-between gap-2"
+                                                >
+                                                    <span
+                                                        class="text-sm font-semibold text-surface-900 dark:text-surface-0"
+                                                    >
+                                                        {{ lead.contactName }}
+                                                    </span>
+                                                    <span
+                                                        v-if="lead.priority === 'EMERGENCY'"
+                                                        class="shrink-0 rounded-md bg-aq-danger/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-aq-danger"
+                                                    >
+                                                        EMERGENCY
+                                                    </span>
+                                                    <span
+                                                        v-else-if="lead.priority === 'HIGH'"
+                                                        class="shrink-0 rounded-md bg-aq-warning/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-aq-warning"
+                                                    >
+                                                        HIGH
+                                                    </span>
+                                                </span>
 
-                                <span
-                                    class="mt-0.5 flex items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
-                                >
-                                    <span class="truncate">
-                                        {{ SERVICE_LABEL[lead.service] }} · {{ lead.city }}
-                                    </span>
-                                    <span
-                                        aria-hidden="true"
-                                        class="text-surface-300 dark:text-surface-600"
-                                    >
-                                        ·
-                                    </span>
-                                    <span class="shrink-0 tabular-nums">{{
-                                        ageInDays(lead.createdAt)
-                                    }}</span>
-                                </span>
+                                                <span
+                                                    class="mt-0.5 flex items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400"
+                                                >
+                                                    <span class="truncate">
+                                                        {{ SERVICE_LABEL[lead.service] }} ·
+                                                        {{ lead.city }}
+                                                    </span>
+                                                    <span
+                                                        aria-hidden="true"
+                                                        class="text-surface-300 dark:text-surface-600"
+                                                    >
+                                                        ·
+                                                    </span>
+                                                    <span class="shrink-0 tabular-nums">{{
+                                                        ageInDays(lead.createdAt)
+                                                    }}</span>
+                                                </span>
 
-                                <span class="mt-2 flex items-center justify-between gap-2 text-xs">
-                                    <span
-                                        class="font-semibold tabular-nums text-surface-900 dark:text-surface-100"
-                                    >
-                                        {{ formatCardMoney(lead.valueCents) }}
-                                    </span>
-                                    <span
-                                        v-if="lead.scheduledAt !== null"
-                                        class="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface-100 px-1.5 py-0.5 tabular-nums text-surface-600 dark:bg-surface-700 dark:text-surface-300"
-                                    >
-                                        <svg
-                                            aria-hidden="true"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            class="size-3"
-                                        >
-                                            <rect x="3" y="4" width="18" height="18" rx="2" />
-                                            <path d="M16 2v4M8 2v4M3 10h18" />
-                                        </svg>
-                                        {{ formatScheduled(lead.scheduledAt) }}
-                                    </span>
-                                </span>
-                            </button>
-                        </li>
-                    </TransitionGroup>
+                                                <span
+                                                    class="mt-2 flex items-center justify-between gap-2 text-xs"
+                                                >
+                                                    <span
+                                                        class="font-semibold tabular-nums text-surface-900 dark:text-surface-100"
+                                                    >
+                                                        {{ formatCardMoney(lead.valueCents) }}
+                                                    </span>
+                                                    <span
+                                                        v-if="lead.scheduledAt !== null"
+                                                        class="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface-100 px-1.5 py-0.5 tabular-nums text-surface-600 dark:bg-surface-700 dark:text-surface-300"
+                                                    >
+                                                        <svg
+                                                            aria-hidden="true"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            stroke-width="2"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            class="size-3"
+                                                        >
+                                                            <rect
+                                                                x="3"
+                                                                y="4"
+                                                                width="18"
+                                                                height="18"
+                                                                rx="2"
+                                                            />
+                                                            <path d="M16 2v4M8 2v4M3 10h18" />
+                                                        </svg>
+                                                        {{ formatScheduled(lead.scheduledAt) }}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    </TransitionGroup>
 
-                    <p
-                        v-if="column.leads.length === 0"
-                        class="rounded-lg border border-dashed border-surface-200 py-6 text-center text-xs text-surface-400 dark:border-surface-700 dark:text-surface-500"
-                    >
-                        Drop a card here
-                    </p>
-                </div>
+                                    <p
+                                        v-if="column.leads.length === 0"
+                                        class="rounded-lg border border-dashed border-surface-200 py-6 text-center text-xs text-surface-400 dark:border-surface-700 dark:text-surface-500"
+                                    >
+                                        Drop a card here
+                                    </p>
+                                </div>
+                            </div>
+                        </TabPanel>
+
+                        <TabPanel value="calendar">
+                            <Suspense>
+                                <BoardCalendar
+                                    v-if="boardView === 'calendar'"
+                                    :appointments="appointments"
+                                    :color-scheme="isDark ? 'dark' : 'light'"
+                                    @select="openCalendarLead"
+                                />
+                                <template #fallback>
+                                    <div class="flex flex-col gap-3" aria-hidden="true">
+                                        <div
+                                            class="h-8 w-48 animate-pulse rounded-lg bg-surface-100 motion-reduce:animate-none dark:bg-surface-800"
+                                        ></div>
+                                        <div
+                                            class="h-80 animate-pulse rounded-xl bg-surface-100 motion-reduce:animate-none dark:bg-surface-800"
+                                        ></div>
+                                    </div>
+                                </template>
+                            </Suspense>
+                        </TabPanel>
+                    </TabPanels>
+                </Tabs>
             </div>
         </section>
 

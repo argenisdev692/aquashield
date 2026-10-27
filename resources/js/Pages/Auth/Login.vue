@@ -138,7 +138,9 @@ const onSubmit = (): void => {
                 </Link>
             </div>
 
-            <AppButton type="submit" :loading="form.processing" class="w-full"> Sign in </AppButton>
+            <AppButton type="submit" shine :loading="form.processing" class="w-full">
+                Sign in
+            </AppButton>
         </form>
 
         <div class="mt-5">
