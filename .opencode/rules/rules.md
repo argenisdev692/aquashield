@@ -125,12 +125,42 @@ package's rules are the vendor's docs — say so rather than inventing a rule fo
 anything new.
 
 1. `codebase-memory-mcp` — symbols, callers/callees, impact, boundaries
-2. `Read` — only after the graph identified the file
+2. `Read` — only a file you will edit, or one the graph cannot address
 3. `grep` / `Glob` — exact text, or when the graph can't answer
 
-**Delegate the exploration, not the decision.** Graph payloads are large and are re-sent every request.
-Run them inside a subagent (`codebase-memory-scout` for orientation, `codebase-memory` for
-task-directed, `codebase-memory-auditor` for impact/dead code) so only the conclusion returns.
+## E1 — Retrieve by symbol, never by whole file
+
+`search_graph` → `trace_path` → `get_code_snippet` reads the 40-line function. `Read` on the same file
+pulls the 400 lines around it, and **every one of those lines is re-sent on every later turn** of the
+session. So:
+
+- `Read` is legal only for a file you are about to **edit**, or one the graph cannot address (Blade,
+  `routes/*.php`, config, `.md`).
+- Never `Read` a file to confirm what `get_code_snippet` or `trace_path` already answered.
+- Never page through a directory to find a symbol — `search_graph(name_pattern)` then `get_code_snippet`.
+- Ask for `fields: [...]` / `detail: "ids"` on `search_graph` when you only need names; check `has_more`
+  and page narrow rather than raising `limit`.
+
+## E2 — Delegate the exploration, not the decision
+
+Any exploration wider than one file you already have the path to runs in a subagent
+(`codebase-memory-scout` for orientation, `codebase-memory` for task-directed, `codebase-memory-auditor`
+for impact/dead code). In the parent, only the conclusion should survive: the child's graph payloads
+and file reads burn _its_ context, not yours, and your context is re-paid on every request. Pass the
+child the project name, tier, bounded scope and the question — never "look around and tell me".
+
+## E3 — Keep the index clean
+
+- **This repo's graph project is `C-Users-Lenovo-Herd-aquashield`** — the name `index_repository` derives
+  from the path, so never pass an explicit `name:` (that is how a second, stale project gets created).
+  Verify with `index_status` (`indexed_at`, `nodes`/`edges`) before trusting it; `list_projects` showing
+  two entries with the same `root_path` means exactly one of them is stale.
+- `.cbmignore` (repo root, gitignore syntax) lists what must **not** be indexed: generated output,
+  runtime state, superseded docs. Add an entry only for something no answer could ever need; churn in
+  `index_status.parse_partial` (compiled Blade cache, build output) is the usual signal.
+- After editing `.cbmignore` or adding/renaming/deleting symbols: `index_repository(mode: "full")`, then
+  confirm with `index_status`. A clean `parse_partial` list and the expected `not_indexed` entries are
+  the proof.
 
 Never invent modules, files, classes or routes. Coverage is best-effort — `check_index_coverage` for
 every cited path and re-verify with `grep` before any negative claim ("there is no X").

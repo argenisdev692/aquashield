@@ -53,6 +53,12 @@ anything new; delegate the exploration to a subagent (`codebase-memory-scout` fo
 `codebase-memory` for task-directed, `codebase-memory-auditor` for impact) so only the conclusion
 returns.
 
+Retrieve by symbol: `search_graph` → `trace_path` → `get_code_snippet`. `Read` is for a file you are
+about to edit or one the graph cannot address (Blade, `routes/*.php`, config, `.md`) — never to confirm
+what the graph already answered, and never as a way to find a symbol. `.cbmignore` (repo root) keeps
+generated output and superseded docs out of the graph; exactly one graph project per repository.
+Full rules: `.opencode/rules/rules.md` §E1–E3.
+
 Never invent modules, files, classes or routes. Coverage is best-effort — call
 `check_index_coverage` for every cited path and re-verify with `grep` before any negative claim.
 Routes are runtime closures the indexer cannot resolve: read `routes/*.php` directly. A Blade view is

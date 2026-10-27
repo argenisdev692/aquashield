@@ -1,0 +1,24 @@
+# codebase-memory-mcp — paths excluded from the knowledge graph.
+# Syntax: .gitignore. Excluded files never appear in search_graph / trace_path /
+# get_code_snippet, so only GENERATED output or SUPERSEDED documents belong here.
+# Anything an agent might need to answer a question stays INDEXED.
+#
+# After editing: index_repository(repo_path: "C:/Users/Lenovo/Herd/aquashield", mode: "full")
+# and confirm the new entries appear under `not_indexed` in index_status.
+
+# --- Generated / runtime state ------------------------------------------------
+# Compiled Blade templates: one file per rendered view, ~500 lines of parse noise
+# per file, and the indexer reports them as parse_partial every run.
+storage/framework/views/
+# Debug toolbar dumps and Inertia devtools snapshots (640+ JSON files).
+storage/debugbar/
+storage/inertia-devtools/
+# Application logs.
+storage/logs/
+# Vite production output.
+public/build/
+
+# --- Superseded documentation -------------------------------------------------
+# Deprecated 2026-08 snapshot of GUIDE/ (~350 kB). The live rules and skills in
+# .opencode/ supersede it; leaving it indexed lets an agent quote stale rules.
+docs/archive/GUIDE-2026-08/
