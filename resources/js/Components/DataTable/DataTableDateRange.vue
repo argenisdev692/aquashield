@@ -2,13 +2,17 @@
 /**
  * From/to date filters without a Date object in the wire contract.
  *
- * PrimeVue's Datepicker is the right control for a scheduling form; a table
+ * PrimeVue's DatePicker is the right control for a scheduling form; a table
  * filter only needs ISO `YYYY-MM-DD` strings, and the native date input is
  * keyboard-accessible, has a real picker, and serialises without a conversion
  * layer. The min/max attributes give the picker the rule; the inline alert is
  * the visible half of the same rule, and the page still validates server-side.
+ *
+ * The models are only written while the pair is valid. An inverted range is a
+ * draft state: showing it to the query would empty the table and make the error
+ * look like "no results".
  */
-import { computed, useId } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 
 interface Props {
     label?: string;
@@ -23,7 +27,38 @@ const fromId = useId();
 const toId = useId();
 const hintId = useId();
 
-const invalid = computed(() => from.value !== '' && to.value !== '' && from.value > to.value);
+const fromDraft = ref<string>(from.value);
+const toDraft = ref<string>(to.value);
+
+watch(from, (value) => {
+    if (value !== fromDraft.value) {
+        fromDraft.value = value;
+    }
+});
+
+watch(to, (value) => {
+    if (value !== toDraft.value) {
+        toDraft.value = value;
+    }
+});
+
+const invalid = computed(
+    () => fromDraft.value !== '' && toDraft.value !== '' && fromDraft.value > toDraft.value,
+);
+
+watch([fromDraft, toDraft], () => {
+    if (invalid.value) {
+        return;
+    }
+
+    if (from.value !== fromDraft.value) {
+        from.value = fromDraft.value;
+    }
+
+    if (to.value !== toDraft.value) {
+        to.value = toDraft.value;
+    }
+});
 
 const describedBy = computed(() => {
     const ids: string[] = [];
@@ -68,9 +103,9 @@ const inputClass = (isInvalid: boolean): string =>
                 </label>
                 <input
                     :id="fromId"
-                    v-model="from"
+                    v-model="fromDraft"
                     type="date"
-                    :max="to || undefined"
+                    :max="toDraft || undefined"
                     :aria-invalid="invalid"
                     :aria-describedby="describedBy"
                     :class="inputClass(invalid)"
@@ -86,9 +121,9 @@ const inputClass = (isInvalid: boolean): string =>
                 </label>
                 <input
                     :id="toId"
-                    v-model="to"
+                    v-model="toDraft"
                     type="date"
-                    :min="from || undefined"
+                    :min="fromDraft || undefined"
                     :aria-invalid="invalid"
                     :aria-describedby="describedBy"
                     :class="inputClass(invalid)"

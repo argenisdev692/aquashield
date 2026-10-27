@@ -1,23 +1,30 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue';
+import { defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
-import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
-import CursorOrb from '@/Components/CursorOrb.vue';
 
 /**
- * 2027 entry template: text-only kinetic hero, the floating Why AquaShield
- * bar, the product band, the scroll-narrative paths and the page footer.
+ * Entry screen for the internal operations workspace: text-only kinetic
+ * hero, the floating Why AquaShield bar, the product band, the shield's
+ * water moment, the scroll-narrative paths and the page footer.
+ *
+ * Audience is staff, not prospects. The root Blade is `noindex` and the
+ * head below is an operational title, not a marketing one — social
+ * previews on a staff tool are noise, and the old customer-facing OG block
+ * was invisible to non-JS scrapers anyway (Inertia SSR is off).
  *
  * Every section is lazy. `app.ts` resolves pages with an EAGER
  * `import.meta.glob` over the whole Pages tree, so anything a page imports
  * STATICALLY lands in the main bundle — and the hero, the why-bar, the
- * product band and the paths below pull in motion-v. They live in
- * `Components/`, not a page-private folder: a nested .vue under Pages is swept
- * into that eager glob and Vite reports `INEFFECTIVE_DYNAMIC_IMPORT`.
- * CursorOrb is the one static import: global chrome with no motion-v
- * dependency, so a chunk boundary would only add a flash of latency. The
- * footer is lazy like the sections: it sits below the fold, so its chunk
- * never races the first paint.
+ * product band, the brand moment and the paths below pull in motion-v. They
+ * live in `Components/`, not a page-private folder: a nested .vue under Pages
+ * is swept into that eager glob and Vite reports `INEFFECTIVE_DYNAMIC_IMPORT`.
+ *
+ * Two imports are deliberately off the static graph. CursorOrb is decorative
+ * chrome: it waits for an idle slot and is skipped on touch and
+ * reduced-motion. The cookie banner is async because it pulls the
+ * Volt/PrimeVue button chunk, and consent can wait one tick — it must not be
+ * a static dependency of the page chunk. The footer is lazy like the
+ * sections: it sits below the fold, so its chunk never races the first paint.
  *
  * Layout deviation, documented: the checklist's `defineOptions({ layout })`
  * is not used here on purpose. The other pages slot into AuthLayout/
@@ -30,47 +37,50 @@ const WelcomeHeader = defineAsyncComponent(() => import('@/Components/WelcomeHea
 const WelcomeHero = defineAsyncComponent(() => import('@/Components/WelcomeHero.vue'));
 const WelcomeWhy = defineAsyncComponent(() => import('@/Components/WelcomeWhy.vue'));
 const WelcomeMockup = defineAsyncComponent(() => import('@/Components/WelcomeMockup.vue'));
+const WelcomeBrandMoment = defineAsyncComponent(
+    () => import('@/Components/WelcomeBrandMoment.vue'),
+);
 const WelcomePaths = defineAsyncComponent(() => import('@/Components/WelcomePaths.vue'));
 const WelcomeFooter = defineAsyncComponent(() => import('@/Components/WelcomeFooter.vue'));
+const CookieConsentBanner = defineAsyncComponent(
+    () => import('@/Components/CookieConsentBanner.vue'),
+);
+const CursorOrb = defineAsyncComponent(() => import('@/Components/CursorOrb.vue'));
 
 /*
- * Absolute origin passed from routes/web.php. Hand-typed: the route prop is
- * a plain closure return, not a Spatie Data class, so `typescript:transform`
- * has nothing to generate for it. Scrapers require absolute URLs in
- * canonical/OG tags; a client-computed origin would bake in whatever host
- * rendered the page, so the server decides once.
+ * The orb is chrome, not content. On a phone it paints nothing (the
+ * component refuses to attach a pointer listener), and for anyone who asked
+ * the OS to calm motion it is noise. Gate it here and let the chunk arrive
+ * after the hero has had its idle time.
  */
-const { appUrl } = defineProps<{ appUrl: string }>();
+const orbReady = ref(false);
+let cancelOrb = (): void => {};
 
-const ogImage = computed(() => `${appUrl}/img/logo.webp`);
+onMounted(() => {
+    if (window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches) {
+        return;
+    }
+
+    const show = (): void => {
+        orbReady.value = true;
+    };
+
+    if (window.requestIdleCallback) {
+        const handle = window.requestIdleCallback(show, { timeout: 2_000 });
+        cancelOrb = () => window.cancelIdleCallback(handle);
+    } else {
+        const handle = window.setTimeout(show, 1_200);
+        cancelOrb = () => window.clearTimeout(handle);
+    }
+});
+
+onUnmounted(() => {
+    cancelOrb();
+});
 </script>
 
 <template>
-    <Head title="AquaShield Restoration USA | 24/7 Water Damage & Roofing, Houston TX">
-        <meta
-            name="description"
-            content="24/7 emergency water damage mitigation, roofing and full restoration across Texas. On site within 60 minutes, licensed and insured, direct insurance billing."
-        />
-        <link rel="canonical" :href="appUrl" />
-        <meta name="robots" content="index, follow, max-image-preview:large" />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="AquaShield Restoration USA" />
-        <meta property="og:locale" content="en_US" />
-        <meta property="og:url" :content="appUrl" />
-        <meta
-            property="og:title"
-            content="AquaShield Restoration USA | 24/7 Water Damage & Roofing, Houston TX"
-        />
-        <meta
-            property="og:description"
-            content="Emergency water damage mitigation, roofing and reconstruction across Texas. 60-minute response, 24/7."
-        />
-        <meta property="og:image" :content="ogImage" />
-        <meta property="og:image:width" content="684" />
-        <meta property="og:image:height" content="724" />
-        <meta property="og:image:alt" content="AquaShield Restoration USA logo" />
-        <meta name="twitter:card" content="summary" />
-    </Head>
+    <Head title="AquaShield Operations" />
 
     <div class="min-h-screen bg-aq-void">
         <WelcomeHeader />
@@ -79,11 +89,12 @@ const ogImage = computed(() => `${appUrl}/img/logo.webp`);
             <WelcomeHero />
             <WelcomeWhy />
             <WelcomeMockup />
+            <WelcomeBrandMoment />
             <WelcomePaths />
         </main>
 
         <WelcomeFooter />
         <CookieConsentBanner />
-        <CursorOrb />
+        <CursorOrb v-if="orbReady" />
     </div>
 </template>

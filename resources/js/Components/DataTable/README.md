@@ -334,22 +334,23 @@ Rules:
 Required models: `v-model:page` and `v-model:per-page`. Optional models:
 `v-model:search`, `v-model:sort`, `v-model:selection`.
 
-| Prop                | Default                | Purpose                                          |
-| ------------------- | ---------------------- | ------------------------------------------------ |
-| `rows`              | —                      | Current page only.                               |
-| `total`             | —                      | Filtered total, not page length.                 |
-| `loading`           | `false`                | Disables controls and shows the table mask.      |
-| `data-key`          | `'id'`                 | Stable row identity for selection.               |
-| `title`             | —                      | Rendered as the section heading.                 |
-| `description`       | —                      | Supporting line under the title.                 |
-| `label`             | `'Data table'`         | Accessible name when no title is given.          |
-| `search-min-length` | `2`                    | Below this, the search clears.                   |
-| `filter-count`      | `0`                    | Active count shown on the filter trigger.        |
-| `per-page-options`  | `[10, 15, 25, 50]`     | Current value is always included.                |
-| `export-formats`    | `['csv','xlsx','pdf']` | Menu entries.                                    |
-| `export-href`       | —                      | `(format) => string \| undefined`.               |
-| `can-restore`       | `false`                | Shows Restore in the bulk bar.                   |
-| `empty-*`           | auto copy              | Title, description and icon for the empty state. |
+| Prop                 | Default                | Purpose                                                            |
+| -------------------- | ---------------------- | ------------------------------------------------------------------ |
+| `rows`               | —                      | Current page only.                                                 |
+| `total`              | —                      | Filtered total, not page length.                                   |
+| `loading`            | `false`                | Disables controls and shows the table mask.                        |
+| `data-key`           | `'id'`                 | Stable row identity for selection.                                 |
+| `title`              | —                      | Rendered as the section heading.                                   |
+| `description`        | —                      | Supporting line under the title.                                   |
+| `label`              | `'Data table'`         | Accessible name when no title is given.                            |
+| `search-min-length`  | `2`                    | Below this, the search clears.                                     |
+| `filter-count`       | `0`                    | Active count shown on the filter trigger.                          |
+| `has-active-filters` | `false`                | Truth for the empty-state copy when the page cannot count filters. |
+| `per-page-options`   | `[10, 15, 25, 50]`     | Current value is always included.                                  |
+| `export-formats`     | `['csv','xlsx','pdf']` | Menu entries.                                                      |
+| `export-href`        | —                      | `(format) => string \| undefined`.                                 |
+| `can-restore`        | `false`                | Shows Restore in the bulk bar.                                     |
+| `empty-*`            | auto copy              | Title, description and icon for the empty state.                   |
 
 Events: `export(format)`, `bulk-delete`, `bulk-restore`, `reset-filters`.
 
@@ -368,7 +369,9 @@ Filters apply live; **Done** only closes the panel, so there is no second
 apply/commit model. The count is a count of non-empty filter values, so a date
 range with both ends set reports `2`; override `filter-count` on the kit if a
 screen wants to count groups instead. Pass the count (the example uses
-`activeFilterCount`) or the badge stays at zero and Reset stays disabled.
+`activeFilterCount`) or the badge stays at zero and Reset stays disabled. If a
+page cannot produce a count, pass `has-active-filters` so the empty state still
+distinguishes “no records yet” from “nothing matched”.
 
 `DataTableFilterField` supplies the label, hint and id wiring:
 
@@ -380,14 +383,17 @@ screen wants to count groups instead. Pass the count (the example uses
 
 `DataTableDateRange` emits ISO `YYYY-MM-DD` strings through `v-model:from` and
 `v-model:to`. It never puts a `Date` on the wire, and it shows an inline error
-when `from > to`; the server still validates the range.
+when `from > to`. The models are only written while the pair is valid: an
+inverted range stays a local draft, so it cannot empty the table and make the
+error look like “no results”. The server still validates the range.
 
 ### Search
 
 `DataTableSearch` owns a local draft and commits only after the debounce window,
 so a query key never changes on every keystroke. `onWatcherCleanup` cancels the
-pending timer on the next keystroke or on unmount. It is composed by the kit and
-not part of the public import surface; import it only to build a custom toolbar.
+pending timer on the next keystroke or on unmount. It is composed by the kit but
+is exported for a custom toolbar. Below `minLength` the helper line becomes
+visible, so a sighted user sees why one character is not filtering.
 
 | Prop          | Default     | Purpose                                        |
 | ------------- | ----------- | ---------------------------------------------- |
@@ -511,9 +517,14 @@ general-purpose button: branded calls to action should use Volt's `Button`.
 ## Create and edit dialog
 
 `CrudDialog` is the create/edit shell for a list screen. It owns the dialog
-chrome, the native form and the submit/cancel wiring; the page owns the fields,
+chrome, the form element and the submit/cancel wiring; the page owns the fields,
 the schema and the endpoint. Delete and restore are **not** form operations —
 use the row-action `confirm` block (see “Soft delete and restore”) instead.
+
+The form itself comes from the form kit (`useZodForm` + the field components), so
+there is one validation path for pages and dialogs. The native `<form>` exists
+for Enter-to-submit and the footer button's `form` attribute; it is
+`novalidate`, because browser bubbles are not the error contract.
 
 ```vue
 <CrudDialog
@@ -521,15 +532,15 @@ use the row-action `confirm` block (see “Soft delete and restore”) instead.
   title="New member"
   description="People with access to this workspace."
   submit-label="Create member"
-  :busy="isSaving"
+  :busy="form.processing"
+  :dirty="form.isDirty"
+  :errors="errors"
   size="md"
-  @submit="onSubmit"
+  @submit="submit(() => form.post('/members'))"
   @cancel="resetForm"
 >
-  <div class="flex flex-col gap-4">
-    <label for="name" class="text-sm font-medium">Name</label>
-    <InputText id="name" v-model="form.name" autocomplete="off" />
-  </div>
+  <TextField v-model="form.name" name="name" label="Name" required :error="errors.name" />
+  <PhoneField v-model="form.phone" name="phone" label="Phone" :error="errors.phone" />
 </CrudDialog>
 ```
 
@@ -542,30 +553,37 @@ use the row-action `confirm` block (see “Soft delete and restore”) instead.
 | `busy`        | `false`    | Disables every control and blocks dismissal.        |
 | `size`        | `'md'`     | `sm` 24rem · `md` 32rem · `lg` 42rem.               |
 | `dismissible` | `true`     | Close icon, Escape and mask. `busy` forces `false`. |
+| `dirty`       | `false`    | Confirms before discarding unsaved edits.           |
+| `errors`      | `{}`       | Error map rendered in `FormErrorSummary`.           |
 
 Events: `submit`, `cancel`.
 
 Slots: `default({ formId, busy })`, `form({ formId, busy })`,
 `footer({ formId, busy, cancel })`.
 
-The default slot is wrapped in a native `<form>`, so Enter submits and browser
-constraint validation is free. A page that needs its own form component (the
-module's PrimeVue Forms + Zod setup) overrides the `form` slot and keeps the
-same `formId`, so the footer submit button still targets it. The footer slot is
-the escape hatch for a fully custom action row.
+The default slot is wrapped in a native `<form>` (`novalidate`). A page that
+needs to own the form element overrides the `form` slot and keeps the same
+`formId`, so the footer submit button still targets it. The footer slot is the
+escape hatch for a fully custom action row.
 
 ## Accessibility notes
 
 - Search, filters and pagination all have real labels; the search hint and date
-  errors are wired with `aria-describedby`.
-- The selected-row count is a polite live region; the pagination summary is
+  errors are wired with `aria-describedby`. The min-length hint is visible while
+  it applies, not screen-reader-only.
+- The selected-row count is a polite live region; the bulk bar is a
+  `role="toolbar"` named “Bulk actions”; the pagination summary is
   `aria-live="polite"`; the empty state is `role="status"`.
+- The filter panel is a non-modal `role="dialog"` labelled by its heading, and
+  the trigger points at it with `aria-controls`.
 - Icon-only controls carry `aria-label`; tooltips are supplementary, never the
   only name.
 - Pagination marks the current page with `aria-current="page"`.
 - `ConfirmDialog` traps focus and returns it to the triggering control, so the
-  delete/restore modals are keyboard-operable; `CrudDialog` is modal and
-  blocks scroll while open.
+  delete/restore modals are keyboard-operable; `CrudDialog` is modal, blocks
+  scroll while open, and confirms a dirty close before discarding edits.
+- Form errors render inline and in `FormErrorSummary`; a failed submit focuses
+  the first `[aria-invalid="true"]` control.
 - Targets are at least 24×24 CSS px (WCAG 2.2 SC 2.5.8); the default controls
   are 32–36 px.
 - Every hover/focus state includes a transition and respects

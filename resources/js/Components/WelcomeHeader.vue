@@ -2,11 +2,11 @@
 /**
  * Slim entry header for the 2027 welcome template.
  *
- * It points at real destinations only: the services anchor, the phone,
- * sign in and registration. The old "Free estimate" entry dialled the same
- * number the emergency line already covers, so its slot carries the sign-in
- * entry and "Create account" (/register) takes the last slot — every auth
- * destination renders through Fortify's guest-only views.
+ * It points at real destinations only: the workspace anchor, the dispatch
+ * line, sign in and registration. The old "Free estimate" entry dialled the
+ * same number the dispatch line already covers, so its slot carries the
+ * sign-in entry and "Create account" (/register) takes the last slot — every
+ * auth destination renders through Fortify's guest-only views.
  *
  * Transparent over the hero, condensed to glass once the page moves. The
  * open mobile panel forces the glass state too: a disclosure floating over
@@ -38,8 +38,8 @@ interface HeaderLink {
 }
 
 const links: readonly HeaderLink[] = [
-    { href: 'tel:+17135876423', label: 'Emergency? Call now', inApp: false },
-    { href: '#paths-heading', label: 'Services', inApp: false },
+    { href: 'tel:+17135876423', label: 'Dispatch line', inApp: false },
+    { href: '#paths-heading', label: 'Workspace', inApp: false },
     { href: '/login', label: 'Sign in', inApp: true },
     { href: '/register', label: 'Create account', inApp: true },
 ];
@@ -151,7 +151,7 @@ watch(menuOpen, (open) => {
                     href="#paths-heading"
                     class="hidden items-center rounded-lg px-3 py-2 text-sm font-medium text-aq-ink-soft transition-colors duration-200 hover:bg-aq-elevated/50 hover:text-aq-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent md:inline-flex"
                 >
-                    Services
+                    Workspace
                 </a>
 
                 <Link

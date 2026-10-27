@@ -12,7 +12,7 @@ description: Directory tree, layer boundaries and file placement for the Vue 3 +
 
 ```
 src/
-├── volt/                    50 Volt primitives + utils.ts   ← CODE-OWNERSHIP, committed
+├── volt/                    51 Volt primitives + utils.ts   ← CODE-OWNERSHIP, committed
 ├── Modules/                 empty — one folder per domain when the backend module lands
 └── Shared/                  PHP only: ports, adapters, DTOs (see backend-php/SKILL-ARCHITECTURE.md §5)
 
@@ -22,16 +22,23 @@ resources/
 │   └── globals.css          ALL design tokens + the PrimeUI variable bridge
 ├── js/
 │   ├── app.ts               createInertiaApp — Pinia, Colada, PrimeVue, services
-│   ├── Components/          app-wide, non-page components
-│   ├── Layouts/             AuthLayout (AppLayout/GuestLayout are expected, not present yet)
-│   ├── lib/utils.ts         cn() — the class-merge helper
+│   ├── Components/
+│   │   ├── DataTable/       server-first table kit + CrudDialog
+│   │   └── Forms/           useZodForm field kit, buttons, dropzones (README.md)
+│   ├── Layouts/             AppLayout + AuthLayout (present)
+│   ├── lib/
+│   │   ├── utils.ts         cn() — the class-merge helper
+│   │   ├── forms.ts         useZodForm — Inertia + Zod, error merge + focus
+│   │   ├── files.ts         file validation and byte formatting
+│   │   ├── phone.ts         libphonenumber-js formatting + phoneSchema
+│   │   ├── table.ts         one query contract for table + export
+│   │   └── theme.ts         the single useColorMode store
 │   ├── Pages/               Inertia pages — the ONLY layer using usePage()/useForm()
 │   │   ├── Auth/            Login, Register, ForgotPassword, ResetPassword,
 │   │   │                    VerifyEmail, ConfirmPassword, TwoFactorChallenge
 │   │   ├── Dashboard/
 │   │   └── {Context}/       Index, Show, Create, Edit (+ page-private components/)
-│   └── generated/           generated.d.ts from `typescript:transform` — .gitkeep only until
-│                            the first Data class exists
+│   └── generated/           generated.d.ts + transformer manifest from `typescript:transform`
 └── views/
     ├── app.blade.php        Inertia root — @inertia, @inertiaHead, @vite
     └── errors/
@@ -145,12 +152,12 @@ them and they are committed. The CLI is an alpha; expect drift.
 
 ## 6. Where state lives
 
-| State             | Home                                         | Never                                            |
-| ----------------- | -------------------------------------------- | ------------------------------------------------ |
-| Server state      | Pinia Colada `useQuery` / `useMutation`      | mirrored into a Pinia store                      |
-| Client state (UI) | Pinia setup store in `Modules/{ctx}/stores/` | inside `Pages/`, `common/`, or an inline factory |
-| Form draft        | `@primevue/forms` + Zod                      | a Pinia store                                    |
-| Theme / sidebar   | `Modules/app/stores/useThemeStore.ts`        | anywhere else                                    |
+| State             | Home                                               | Never                                            |
+| ----------------- | -------------------------------------------------- | ------------------------------------------------ |
+| Server state      | Pinia Colada `useQuery` / `useMutation`            | mirrored into a Pinia store                      |
+| Client state (UI) | Pinia setup store in `Modules/{ctx}/stores/`       | inside `Pages/`, `common/`, or an inline factory |
+| Form draft        | `lib/forms.ts` (`useZodForm`) + `Components/Forms` | a Pinia store, a second form state owner         |
+| Theme / sidebar   | `lib/theme.ts` (`useColorMode`)                    | anywhere else                                    |
 
 Network composables live in `Modules/{ctx}/composables/`: one file per concern
 (`useEntities.ts` list, `useEntity.ts` single, `useEntityMutations.ts` write). **Pages never call

@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { useTemplateRef } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
 import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
-import Button from '@/volt/Button.vue';
-import Checkbox from '@/volt/Checkbox.vue';
-import Inputtext from '@/volt/Inputtext.vue';
+import {
+    AppButton,
+    CheckboxField,
+    FormErrorSummary,
+    PasswordField,
+    TextField,
+} from '@/Components/Forms';
 import Message from '@/volt/Message.vue';
-import Password from '@/volt/Password.vue';
+import { useZodForm } from '@/lib/forms';
 
 const props = defineProps<{
     canResetPassword: boolean;
@@ -21,45 +26,39 @@ const props = defineProps<{
 const loginSchema = z.object({
     email: z.email('Enter a valid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
+    remember: z.boolean(),
 });
 
-const form = useForm({
-    email: props.demoCredentials?.email ?? '',
-    password: props.demoCredentials?.password ?? '',
-    remember: false,
+const loginForm = useTemplateRef<HTMLFormElement>('loginForm');
+
+const { form, formEl, errors, submit, touch, clearError } = useZodForm({
+    initial: {
+        email: props.demoCredentials?.email ?? '',
+        password: props.demoCredentials?.password ?? '',
+        remember: false,
+    },
+    schema: loginSchema,
+    formEl: loginForm,
 });
 
-const fillDemo = () => {
-    if (props.demoCredentials) {
-        form.email = props.demoCredentials.email;
-        form.password = props.demoCredentials.password;
-        form.clearErrors();
-    }
-};
-
-const submit = () => {
-    const result = loginSchema.safeParse({
-        email: form.email,
-        password: form.password,
-    });
-
-    if (!result.success) {
-        for (const issue of result.error.issues) {
-            const field = issue.path[0];
-
-            if (field === 'email' || field === 'password') {
-                form.setError(field, issue.message);
-            }
-        }
-
+const fillDemo = (): void => {
+    if (!props.demoCredentials) {
         return;
     }
 
-    form.clearErrors('email', 'password');
+    form.email = props.demoCredentials.email;
+    form.password = props.demoCredentials.password;
+    form.clearErrors();
+    clearError('email');
+    clearError('password');
+};
 
-    form.post('/login', {
-        onFinish: () => form.reset('password'),
-    });
+const onSubmit = (): void => {
+    submit(() =>
+        form.post('/login', {
+            onFinish: () => form.reset('password'),
+        }),
+    );
 };
 </script>
 
@@ -79,10 +78,10 @@ const submit = () => {
                 >
                 <button
                     type="button"
-                    class="rounded-lg border border-aq-line px-3 py-1 text-xs font-medium text-aq-accent transition-colors hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
+                    class="rounded-lg border border-aq-line px-3 py-1 text-xs font-medium text-aq-accent transition-colors hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
                     @click="fillDemo"
                 >
-                    Fill &amp; Sign in
+                    Fill demo credentials
                 </button>
             </div>
             <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
@@ -95,58 +94,51 @@ const submit = () => {
             </dl>
         </div>
 
-        <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
-            <div class="flex flex-col gap-1">
-                <label for="email" class="text-sm font-medium">Email</label>
-                <Inputtext
-                    id="email"
-                    v-model="form.email"
-                    type="email"
-                    autocomplete="username"
-                    required
-                    autofocus
-                    :invalid="!!form.errors.email"
-                    @update:model-value="form.clearErrors('email')"
-                />
-                <span v-if="form.errors.email" class="text-sm text-aq-danger">{{
-                    form.errors.email
-                }}</span>
-            </div>
+        <form ref="loginForm" class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
+            <FormErrorSummary :errors="errors" :form-el="formEl" />
 
-            <div class="flex flex-col gap-1">
-                <label for="password" class="text-sm font-medium">Password</label>
-                <Password
-                    input-id="password"
-                    v-model="form.password"
-                    autocomplete="current-password"
-                    toggle-mask
-                    :feedback="false"
-                    required
-                    :invalid="!!form.errors.password"
-                    @update:model-value="form.clearErrors('password')"
-                />
-                <span v-if="form.errors.password" class="text-sm text-aq-danger">{{
-                    form.errors.password
-                }}</span>
-            </div>
+            <TextField
+                v-model="form.email"
+                name="email"
+                label="Email"
+                type="email"
+                autocomplete="username"
+                required
+                autofocus
+                :error="errors.email"
+                @update:model-value="clearError('email')"
+                @blur="touch('email')"
+            />
+
+            <PasswordField
+                v-model="form.password"
+                name="password"
+                label="Password"
+                autocomplete="current-password"
+                required
+                :error="errors.password"
+                @update:model-value="clearError('password')"
+                @blur="touch('password')"
+            />
 
             <div class="flex items-center justify-between gap-4">
-                <div class="flex items-center gap-2">
-                    <Checkbox v-model="form.remember" input-id="remember" binary />
-                    <label for="remember" class="text-sm">Remember me</label>
-                </div>
+                <CheckboxField
+                    v-model="form.remember"
+                    name="remember"
+                    label="Remember me"
+                    :error="errors.remember"
+                />
+
                 <Link
                     v-if="props.canResetPassword"
                     href="/forgot-password"
-                    class="text-sm text-aq-accent transition-colors hover:text-aq-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
+                    class="text-sm text-aq-accent transition-colors hover:text-aq-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
                 >
                     Forgot password?
                 </Link>
             </div>
 
-            <Button type="submit" :loading="form.processing" class="aq-btn-shine w-full">
-                <span>Sign in</span>
-            </Button>
+            <AppButton type="submit" :loading="form.processing" class="w-full"> Sign in </AppButton>
         </form>
 
         <div class="mt-5">
@@ -158,7 +150,7 @@ const submit = () => {
 
             <a
                 href="/auth/google"
-                class="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-aq-line bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-aq-line-strong hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent"
+                class="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-aq-line bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-aq-line-strong hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
             >
                 <svg aria-hidden="true" viewBox="0 0 48 48" class="size-4.5 shrink-0">
                     <path

@@ -61,11 +61,12 @@ about this app.
 
 ## 5. Current state (read before assuming a module exists)
 
-`src/Modules/` is **empty** — no domain module is implemented yet, so the architecture suite in
-`tests/Architecture/` is intentionally vacuous and `resources/js/generated/` holds only a `.gitkeep`.
-`src/Shared/` is populated (ports, adapters, DTOs). `app/` is the framework shell: Fortify actions,
-`User`, the Inertia middleware, service providers. Do not assume any module, screen or DTO exists
-because a skill describes it.
+`src/Modules/` is **empty** — no domain module is implemented yet, so the domain side of
+`tests/Architecture/` is still vacuous. The frontend layers are not: `resources/js/Components/DataTable`
+(the server-first table kit) and `resources/js/Components/Forms` (the Zod form kit, buttons and
+dropzones) exist, and `resources/js/generated/generated.d.ts` is present. `src/Shared/` is populated
+(ports, adapters, DTOs). `app/` is the framework shell: Fortify actions, `User`, the Inertia middleware,
+service providers. Do not assume a domain module, screen or DTO exists because a skill describes it.
 
 ## 6. Working on the skills themselves
 

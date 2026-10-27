@@ -7,20 +7,19 @@ import PrimeVue from 'primevue/config';
 import ToastService from 'primevue/toastservice';
 import ConfirmationService from 'primevue/confirmationservice';
 import Tooltip from 'primevue/tooltip';
-import { zodResolver } from '@primevue/forms/resolvers/zod';
 
 type PageModule = { default: DefineComponent };
 
 createInertiaApp({
     resolve: (name) => {
-        const pages = import.meta.glob<PageModule>('./Pages/**/*.vue', { eager: true });
+        const pages = import.meta.glob<PageModule>('./Pages/**/*.vue');
         const page = pages[`./Pages/${name}.vue`];
 
         if (!page) {
             throw new Error(`Inertia page not found: ${name}`);
         }
 
-        return page;
+        return page().then((module) => module.default);
     },
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
@@ -31,7 +30,6 @@ createInertiaApp({
                 unstyled: true,
                 ripple: false,
                 license: import.meta.env.VITE_PRIMEUI_LICENSE,
-                form: { resolver: zodResolver },
             })
             .use(ToastService)
             .use(ConfirmationService)

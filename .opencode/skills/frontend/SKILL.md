@@ -10,8 +10,9 @@ description: Vue 3.5 + Inertia 3 + strict TypeScript rules — mandatory 3.5 API
 
 **Stack (verified 2026-09-28):** Vue **3.5.43** (floor) · Inertia **3.7.1** (client) / 3.4.0 (server) ·
 TypeScript **6.0.3** strict · Tailwind **4.3.3** + `tailwindcss-primeui` · PrimeVue **5.0.1** unstyled +
-Volt **50** components in `src/volt/` · Pinia **4.0.3** + Colada **1.4.6** · `@primevue/forms` 5.0.1 +
-Zod **4.6.5** · FullCalendar **7.1.0** · `motion-v` **2.5.0** · Vite **8.3.1** · Inter via Bunny Fonts.
+Volt **51** components in `src/volt/` · Pinia **4.0.3** + Colada **1.4.6** · Zod **4.6.5** + Inertia
+`useForm` via `lib/forms.ts` · FullCalendar **7.1.0** · `motion-v` **2.5.0** · Vite **8.3.1** · Inter
+via Bunny Fonts.
 
 > **Vue version policy.** 3.5 is the floor and 3.5 APIs are mandatory. Vue **3.6 is still a release
 > candidate** (as of 2026-09-28) — do not pin an exact `-rc.N` string in rules, they move weekly.
@@ -97,14 +98,20 @@ Every page declares its layout with `defineOptions({ layout })`. State is explic
 ```ts
 createInertiaApp({
   resolve: (name) => {
-    const pages = import.meta.glob<PageModule>('./Pages/**/*.vue', { eager: true });
-    return pages[`./Pages/${name}.vue`];
+    const pages = import.meta.glob<PageModule>('./Pages/**/*.vue');
+    const page = pages[`./Pages/${name}.vue`];
+    if (!page) throw new Error(`Inertia page not found: ${name}`);
+    return page().then((module) => module.default);
   },
   setup({ el, App, props, plugin }) {
     /* Pinia, Colada, PrimeVue, services */
   },
 });
 ```
+
+Never use `eager: true` for page globs. It puts every page in the entry chunk; the production
+build collapses from ~790 kB to ~257 kB once pages resolve lazily. The page module is
+`{ default: DefineComponent }`, so resolve the default export.
 
 Navigation is `<Link>`. Optimistic updates are `router.optimistic(page => ({...}))` before the post.
 Deferred props use `Inertia::defer(fn () => ...)` on the server and `deferred` props on the page.
@@ -140,7 +147,6 @@ without the bundle throws on the first render.
     unstyled: true,
     ripple: false,
     license: import.meta.env.VITE_PRIMEUI_LICENSE,   // required, see below
-    form: { resolver: zodResolver },
 })
 .use(ToastService)
 .use(ConfirmationService)
@@ -188,9 +194,14 @@ removed in v6. This project uses `chart.js` directly — never install a PRO pac
 > (`primevue.org/migration/v5`) and the CHANGELOG. Context7 stays useful for Tailwind, Zod, Pinia
 > and Inertia.
 
-**The Volt catalogue** is 50 components (plus `utils.ts`) and grows when `volt-vue` adds one. Never
+**The Volt catalogue** is 51 components (plus `utils.ts`) and grows when `volt-vue` adds one. Never
 trust a hardcoded count — run `ls src/volt` before importing. Not in the CLI: `Column` (comes from
 `primevue/column`), `AutoComplete`, `Tooltip` (directive), `ScrollPanel`, `InputGroup`, `IconField`.
+`InputPassword.vue` is a local wrapper added for the v5 replacement; it is not a CLI output.
+
+**`Password` is deprecated.** New screens use `InputPassword` (wrapped as
+`src/volt/InputPassword.vue`) or, better, the kit's `PasswordField`. Do not build on
+`src/volt/Password.vue`; it exists only for compatibility and disappears in v6.
 
 ## 7. Pinia Colada — all server state
 
@@ -239,9 +250,29 @@ Errors are `severity: 'error'` with a message the user can act on, not the excep
 
 ## 11. Forms
 
-`@primevue/forms` + Zod v4, wired through the `zodResolver` above. Schemas live in
-`Modules/{ctx}/schemas/` and export the schema plus a `z.infer<>` type. Never hand-roll validation in a
-`submit` handler. Field-level errors render through the Volt `Message` component.
+One path: `useZodForm` from `@/lib/forms` + the field components from `@/Components/Forms`.
+Inertia owns the request and the 422 bag; Zod owns the client schema; `errors` merges
+both (server wins). `@primevue/forms` is installed but **not registered** — a second form
+state owner is how the old pages drifted.
+
+```ts
+const { form, formEl, errors, submit, touch, clearError } = useZodForm({
+  initial: { email: '', remember: false },
+  schema,
+  formEl: useTemplateRef<HTMLFormElement>('form'),
+});
+```
+
+- Schemas live in `Modules/{ctx}/schemas/` and export the schema plus a `z.infer<>` type.
+- Use a kit field (`TextField`, `PasswordField`, `SelectField`, `DateField`, `PhoneField`,
+  `NumberField`, `TextareaField`, `CheckboxField`) rather than a bare Volt input: it wires
+  `label for`, `aria-describedby`, `aria-invalid` and a `role="alert"` error.
+- Put `FormErrorSummary` at the top of the form. `submit(action)` validates, focuses the
+  first `[aria-invalid="true"]` control, and only then runs the Inertia call.
+- Never hand-roll `safeParse` in a submit handler, and never rely on browser bubbles.
+- Uploads: `FileDropzone`, `ImageDropzone`, `ImagesDropzone`. They revoke object URLs and the
+  gallery reorders with native drag **and** keyboard buttons. `vuedraggable@2` is Vue 2-only.
+- `AppButton` is the submit control: hover sheen + 1px lift, `prefers-reduced-motion` safe.
 
 ## 12. FullCalendar 7
 
@@ -277,6 +308,9 @@ never re-wrap them.
 - Load it per route with `defineAsyncComponent` — it is ~125 kB raw / ~42 kB gzip.
 - Never animate `background-color` or `font-size` — transition the token in CSS.
 - Never exceed 0.4 s. Never scale past 1.04 on hover.
+- Form submits use `AppButton` / `.aq-btn-hover`: one hover-only sheen and a 1px lift, both
+  removed under `prefers-reduced-motion`. Do not put the infinite `.aq-btn-shine` loop on
+  every button — it is the one primary CTA per view.
 - The export is `AnimatePresence`, not `Presence`.
 - Respect `prefers-reduced-motion`.
 
@@ -317,14 +351,21 @@ extracted from the Vite manifest — **not** `'unsafe-inline'`. Document any dev
 
 ```html
 <script @cspNonce>
-  const t = localStorage.getItem('theme');
-  if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches))
-    document.documentElement.classList.add('dark');
+  var stored = localStorage.getItem('app:theme');
+  var theme = stored || 'dark';
+  if (theme === 'dark') document.documentElement.classList.add('dark');
+  document.documentElement.style.colorScheme = theme;
 </script>
 ```
 
 The canonical copy lives in `resources/views/app.blade.php` — `@cspNonce`, not
-`csp_nonce()` (no such helper in spatie/laravel-csp v3).
+`csp_nonce()` (no such helper in spatie/laravel-csp v3). The storage key is `app:theme`,
+matching `useColorMode` in `resources/js/lib/theme.ts`; a `theme` key is a different store
+and will not persist.
+
+**Dark-first is the project policy:** no stored preference means dark. Do not switch the
+default to system without changing the blade first-paint script and the VueUse initial value
+together, or the page flashes.
 
 Persist through the VueUse `useColorMode` store. Never `data-theme`, never `.light`, and never a
 second persistence layer on top.
@@ -337,6 +378,9 @@ second persistence layer on top.
 - [ ] Server state through Colada with `staleTime` + `gcTime`; no store mirroring
 - [ ] DataTable is `:lazy`; the browser does not sort or paginate
 - [ ] Destructive action confirmed via `Dialog`; both delete and restore shipped
+- [ ] Forms use `useZodForm` + the kit; every error is wired with `aria-describedby`
+      and `role="alert"`
+- [ ] Uploads use the dropzone kit; object URLs are revoked; reorder is keyboard reachable
 - [ ] No hardcoded colours; no inline classes overriding a Volt `pt`
 - [ ] Keyboard reachable, labelled, focus ring intact
 - [ ] `npm run types:check` and `npm run format:check` clean

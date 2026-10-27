@@ -47,7 +47,7 @@ final class SecurityHeaders
             match (true) {
                 $this->isApiDocsRequest($request) => $this->apiDocsContentSecurityPolicy(),
                 $this->isMonitoringRequest($request) => $this->monitoringContentSecurityPolicy(),
-                default => $this->contentSecurityPolicy($nonce),
+                default => $this->contentSecurityPolicy($nonce, $request),
             },
         );
 
@@ -187,9 +187,11 @@ final class SecurityHeaders
      * PrimeVue Volt inject runtime `<style>` tags and `style=""` attributes
      * that cannot carry the per-request nonce. Putting a nonce on `style-src`
      * makes browsers ignore `'unsafe-inline'` (see the console error the SPA
-     * hits otherwise). Local development also relaxes scripts for Vite HMR.
+     * hits otherwise). Local development also allows the Vite dev-server
+     * origin for scripts, styles, fonts and HMR; HTTPS responses add
+     * `upgrade-insecure-requests` as a mixed-content safety net.
      */
-    private function contentSecurityPolicy(string $nonce): string
+    private function contentSecurityPolicy(string $nonce, Request $request): string
     {
         $isLocal = app()->environment('local');
 
@@ -205,9 +207,21 @@ final class SecurityHeaders
         $styleSrcAttr = ["'unsafe-inline'"];
 
         if ($isLocal) {
-            $scriptSrc[] = "'unsafe-eval'";
-            $connectSrc[] = 'ws:';
-            $connectSrc[] = 'wss:';
+            // Vite dev serves the HMR client, lazily imported modules, CSS and
+            // the self-hosted Bunny fonts from its own origin. Without these
+            // entries `npm run dev` renders an unstyled, font-less page even
+            // though the built assets work.
+            // Vite is pinned to 127.0.0.1 in vite.config.js. An IPv6 literal
+            // (`http://[::1]:5173`) is not a valid CSP host-source — the
+            // browser ignores it and logs a policy error — so the server must
+            // not write that origin into public/hot.
+            $viteOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
+            $scriptSrc = [...$scriptSrc, "'unsafe-eval'", ...$viteOrigins];
+            $connectSrc = [...$connectSrc, 'ws:', 'wss:', ...$viteOrigins];
+            $imgSrc = [...$imgSrc, ...$viteOrigins];
+            $fontSrc = [...$fontSrc, ...$viteOrigins];
+            $styleSrcElem = [...$styleSrcElem, ...$viteOrigins];
         }
 
         $directives = [
@@ -219,13 +233,23 @@ final class SecurityHeaders
             'img-src' => $imgSrc,
             'font-src' => $fontSrc,
             'script-src' => $scriptSrc,
+            'style-src' => $styleSrcElem,
             'style-src-elem' => $styleSrcElem,
             'style-src-attr' => $styleSrcAttr,
             'connect-src' => $connectSrc,
         ];
 
-        return collect($directives)
+        $policy = collect($directives)
             ->map(static fn (array $sources, string $name): string => $name.' '.implode(' ', $sources))
             ->implode('; ');
+
+        // HTTPS-only defence in depth: any hard-coded `http://` subresource is
+        // rewritten before the mixed-content blocker sees it. Skipped on plain
+        // HTTP so local `php artisan serve` keeps working.
+        if ($request->isSecure()) {
+            $policy .= '; upgrade-insecure-requests';
+        }
+
+        return $policy;
     }
 }

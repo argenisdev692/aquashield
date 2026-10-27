@@ -1,26 +1,47 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { useTemplateRef } from 'vue';
+import { Head } from '@inertiajs/vue3';
+import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
-import Button from '@/volt/Button.vue';
-import Inputtext from '@/volt/Inputtext.vue';
-import Password from '@/volt/Password.vue';
+import { AppButton, FormErrorSummary, PasswordField, TextField } from '@/Components/Forms';
+import { useZodForm } from '@/lib/forms';
 
 const props = defineProps<{
     email: string;
     token: string;
 }>();
 
-const form = useForm({
-    token: props.token,
-    email: props.email,
-    password: '',
-    password_confirmation: '',
+const schema = z
+    .object({
+        token: z.string().min(1),
+        email: z.email('Enter a valid email address'),
+        password: z.string().min(8, 'Use at least 8 characters'),
+        password_confirmation: z.string(),
+    })
+    .refine((values) => values.password === values.password_confirmation, {
+        path: ['password_confirmation'],
+        message: 'Passwords do not match',
+    });
+
+const resetForm = useTemplateRef<HTMLFormElement>('resetForm');
+
+const { form, formEl, errors, submit, touch, clearError } = useZodForm({
+    initial: {
+        token: props.token,
+        email: props.email,
+        password: '',
+        password_confirmation: '',
+    },
+    schema,
+    formEl: resetForm,
 });
 
-const submit = () => {
-    form.post('/reset-password', {
-        onFinish: () => form.reset('password', 'password_confirmation'),
-    });
+const onSubmit = (): void => {
+    submit(() =>
+        form.post('/reset-password', {
+            onFinish: () => form.reset('password', 'password_confirmation'),
+        }),
+    );
 };
 </script>
 
@@ -28,53 +49,47 @@ const submit = () => {
     <Head title="Reset password" />
 
     <AuthLayout title="Reset password" subtitle="Choose a new password">
-        <form class="flex flex-col gap-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-1">
-                <label for="email" class="text-sm font-medium">Email</label>
-                <Inputtext
-                    id="email"
-                    v-model="form.email"
-                    type="email"
-                    autocomplete="username"
-                    required
-                />
-                <span v-if="form.errors.email" class="text-sm text-aq-danger">{{
-                    form.errors.email
-                }}</span>
-            </div>
+        <form ref="resetForm" class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
+            <FormErrorSummary :errors="errors" :form-el="formEl" />
 
-            <div class="flex flex-col gap-1">
-                <label for="password" class="text-sm font-medium">New password</label>
-                <Password
-                    input-id="password"
-                    v-model="form.password"
-                    autocomplete="new-password"
-                    toggle-mask
-                    :feedback="false"
-                    required
-                />
-                <span v-if="form.errors.password" class="text-sm text-aq-danger">{{
-                    form.errors.password
-                }}</span>
-            </div>
+            <TextField
+                v-model="form.email"
+                name="email"
+                label="Email"
+                type="email"
+                autocomplete="username"
+                required
+                :error="errors.email"
+                @update:model-value="clearError('email')"
+                @blur="touch('email')"
+            />
 
-            <div class="flex flex-col gap-1">
-                <label for="password_confirmation" class="text-sm font-medium"
-                    >Confirm password</label
-                >
-                <Password
-                    input-id="password_confirmation"
-                    v-model="form.password_confirmation"
-                    autocomplete="new-password"
-                    toggle-mask
-                    :feedback="false"
-                    required
-                />
-            </div>
+            <PasswordField
+                v-model="form.password"
+                name="password"
+                label="New password"
+                autocomplete="new-password"
+                required
+                hint="At least 8 characters."
+                :error="errors.password"
+                @update:model-value="clearError('password')"
+                @blur="touch('password')"
+            />
 
-            <Button type="submit" :loading="form.processing" class="w-full">
-                <span>Reset password</span>
-            </Button>
+            <PasswordField
+                v-model="form.password_confirmation"
+                name="password_confirmation"
+                label="Confirm password"
+                autocomplete="new-password"
+                required
+                :error="errors.password_confirmation"
+                @update:model-value="clearError('password_confirmation')"
+                @blur="touch('password_confirmation')"
+            />
+
+            <AppButton type="submit" :loading="form.processing" class="w-full">
+                Reset password
+            </AppButton>
         </form>
     </AuthLayout>
 </template>

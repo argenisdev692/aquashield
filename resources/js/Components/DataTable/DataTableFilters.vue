@@ -27,6 +27,7 @@ const emit = defineEmits<{ reset: [] }>();
 defineSlots<{ default(): unknown }>();
 
 const titleId = useId();
+const contentId = useId();
 const open = ref(false);
 
 const panel = useTemplateRef<{ toggle: (event: Event) => void; hide: () => void }>('panel');
@@ -57,6 +58,7 @@ const reset = (): void => {
             :aria-label="accessibleLabel"
             aria-haspopup="dialog"
             :aria-expanded="open"
+            :aria-controls="contentId"
             :disabled="props.disabled"
             @click="toggle"
         >
@@ -74,8 +76,15 @@ const reset = (): void => {
             />
         </TableButton>
 
-        <Popover ref="panel" :aria-labelledby="titleId" @show="open = true" @hide="open = false">
-            <div class="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-4" @keydown.esc="hide">
+        <Popover ref="panel" @show="open = true" @hide="open = false">
+            <div
+                :id="contentId"
+                role="dialog"
+                aria-modal="false"
+                :aria-labelledby="titleId"
+                class="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-4"
+                @keydown.esc="hide"
+            >
                 <div class="flex items-center justify-between gap-3">
                     <h2
                         :id="titleId"
@@ -87,6 +96,7 @@ const reset = (): void => {
                     <TableButton
                         variant="ghost"
                         size="sm"
+                        aria-label="Reset filters"
                         :disabled="(props.activeCount ?? 0) === 0"
                         @click="reset"
                     >

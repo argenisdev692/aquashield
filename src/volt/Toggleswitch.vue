@@ -32,7 +32,7 @@ const theme = ref<ToggleSwitchPassThroughOptions>({
         transition-colors duration-200
         peer-enabled:peer-hover:bg-surface-400 dark:peer-enabled:peer-hover:bg-surface-600
         p-checked:bg-primary peer-enabled:peer-hover:p-checked:bg-primary-emphasis
-        p-invalid:border-red-400 dark:p-invalid:border-red-300
+        p-invalid:border-aq-danger
         p-disabled:bg-surface-200 dark:p-disabled:bg-surface-600
         peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary`,
     handle: `absolute top-1/2 flex justify-center items-center

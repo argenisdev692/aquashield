@@ -27,7 +27,12 @@
         instead of repeating these hexes. Change the palette, change all three. --}}
     <meta name="theme-color" content="#081829" />
 
-    <title inertia>{{ config('app.name', 'Laravel') }}</title>
+    {{-- Internal staff surface. The title is server-rendered because
+        Inertia SSR is off: a non-JS crawler (and every link preview) would
+        otherwise read the framework default. `noindex` is the audience
+        decision, and it is the one meta tag that must survive without JS. --}}
+    <title inertia>AquaShield Operations</title>
+    <meta name="robots" content="noindex, nofollow, noarchive" />
 
     @fonts
 

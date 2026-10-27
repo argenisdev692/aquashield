@@ -30,7 +30,9 @@ return [
             'script_src' => [],
             // Pusher/Reverb, CDNs: same-origin is default, extend here.
             'connect_src' => [],
-            'img_src' => [],
+            // PrimeVue/Volt draw their icon set as inline `data:image/svg+xml`
+            // URIs. Without `data:` every icon in the app is blocked by CSP.
+            'img_src' => ['data:'],
             'font_src' => [],
         ],
     ],

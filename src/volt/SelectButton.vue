@@ -25,7 +25,7 @@ defineProps<Props>();
 
 const theme = ref<SelectButtonPassThroughOptions>({
     root: `inline-flex select-none rounded-md
-        p-invalid:outline p-invalid:outline-offset-0 p-invalid:outline-red-400 dark:p-invalid:outline-red-300`,
+        p-invalid:outline p-invalid:outline-offset-0 p-invalid:outline-aq-danger`,
     pcToggleButton: {
         root: `inline-flex items-center justify-center overflow-hidden relative cursor-pointer select-none grow
             border border-surface-100 dark:border-surface-950
@@ -38,7 +38,7 @@ const theme = ref<SelectButtonPassThroughOptions>({
             disabled:cursor-default
             disabled:bg-surface-200 disabled:border-surface-200 disabled:text-surface-500
             disabled:dark:bg-surface-700 disabled:dark:border-surface-700 disabled:dark:text-surface-400
-            p-invalid:border-red-400 dark:p-invalid:border-red-300
+            p-invalid:border-aq-danger
             transition-colors duration-200
             p-1 p-small:text-sm p-large:text-lg
         `,

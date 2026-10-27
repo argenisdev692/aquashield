@@ -1,20 +1,37 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, useTemplateRef } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
-import Button from '@/volt/Button.vue';
-import Inputtext from '@/volt/Inputtext.vue';
+import { AppButton, FormErrorSummary, TextField } from '@/Components/Forms';
 import Message from '@/volt/Message.vue';
 import Tabs from '@/volt/Tabs.vue';
+import { useZodForm } from '@/lib/forms';
 
 const props = defineProps<{ status?: string }>();
 
-const form = useForm({ code: '', recovery_code: '' });
+const schema = z
+    .object({
+        code: z.string(),
+        recovery_code: z.string(),
+    })
+    .refine((values) => values.code.trim() !== '' || values.recovery_code.trim() !== '', {
+        path: ['code'],
+        message: 'Enter an authenticator or recovery code.',
+    });
+
+const twoFactorForm = useTemplateRef<HTMLFormElement>('twoFactorForm');
+
+const { form, formEl, errors, submit, touch, clearError } = useZodForm({
+    initial: { code: '', recovery_code: '' },
+    schema,
+    formEl: twoFactorForm,
+});
 
 const activeTab = ref('code');
 
-const submit = () => {
-    form.post('/two-factor-challenge');
+const onSubmit = (): void => {
+    submit(() => form.post('/two-factor-challenge'));
 };
 </script>
 
@@ -24,10 +41,12 @@ const submit = () => {
     <AuthLayout title="Two-factor authentication" subtitle="Confirm your identity">
         <Message v-if="props.status" severity="info" class="mb-4">{{ props.status }}</Message>
 
-        <form class="flex flex-col gap-4" @submit.prevent="submit">
+        <form ref="twoFactorForm" class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
             <Message severity="warn">
                 After several failed attempts your account will be temporarily locked.
             </Message>
+
+            <FormErrorSummary :errors="errors" :form-el="formEl" />
 
             <Tabs v-model:value="activeTab">
                 <TabList>
@@ -36,44 +55,40 @@ const submit = () => {
                 </TabList>
                 <TabPanels>
                     <TabPanel value="code">
-                        <div class="flex flex-col gap-1 pt-2">
-                            <label for="code" class="text-sm font-medium">Code</label>
-                            <Inputtext
-                                id="code"
+                        <div class="pt-2">
+                            <TextField
                                 v-model="form.code"
-                                type="text"
+                                name="code"
+                                label="Code"
                                 inputmode="numeric"
                                 autocomplete="one-time-code"
                                 autofocus
+                                :error="errors.code"
+                                @update:model-value="clearError('code')"
+                                @blur="touch('code')"
                             />
-                            <span v-if="form.errors.code" class="text-sm text-aq-danger">{{
-                                form.errors.code
-                            }}</span>
                         </div>
                     </TabPanel>
 
                     <TabPanel value="recovery">
-                        <div class="flex flex-col gap-1 pt-2">
-                            <label for="recovery_code" class="text-sm font-medium"
-                                >Recovery code</label
-                            >
-                            <Inputtext
-                                id="recovery_code"
+                        <div class="pt-2">
+                            <TextField
                                 v-model="form.recovery_code"
-                                type="text"
+                                name="recovery_code"
+                                label="Recovery code"
                                 autocomplete="one-time-code"
+                                :error="errors.recovery_code"
+                                @update:model-value="clearError('recovery_code')"
+                                @blur="touch('recovery_code')"
                             />
-                            <span v-if="form.errors.recovery_code" class="text-sm text-aq-danger">
-                                {{ form.errors.recovery_code }}
-                            </span>
                         </div>
                     </TabPanel>
                 </TabPanels>
             </Tabs>
 
-            <Button type="submit" :loading="form.processing" class="w-full">
-                <span>Continue</span>
-            </Button>
+            <AppButton type="submit" :loading="form.processing" class="w-full">
+                Continue
+            </AppButton>
         </form>
 
         <template #footer>

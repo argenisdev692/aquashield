@@ -60,6 +60,8 @@ const askRestore = (): void => {
 
 <template>
     <div
+        role="toolbar"
+        aria-label="Bulk actions"
         class="flex flex-wrap items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 dark:border-primary-800 dark:bg-primary-950/40"
     >
         <p

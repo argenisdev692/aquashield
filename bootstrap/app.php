@@ -20,6 +20,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway terminates TLS at its edge proxy and forwards the original
+        // scheme in X-Forwarded-Proto. Without trusting that proxy Laravel
+        // believes every request is plain HTTP, so @vite/asset() emit
+        // `http://...` URLs on an HTTPS page: mixed content blocks the JS and
+        // CSP `'self'` no longer matches the assets (black screen). The
+        // container is only reachable through the platform edge, so trusting
+        // the forwarded headers is safe and survives Railway's dynamic IPs.
+        $middleware->trustProxies(at: '*');
+
         // SecurityHeaders FIRST: nonce sync (Vite) + CSP/OWASP headers must
         // exist before HandleInertiaRequests renders the root view.
         $middleware->web(prepend: [

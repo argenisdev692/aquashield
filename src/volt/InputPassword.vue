@@ -1,0 +1,51 @@
+<template>
+    <InputPassword
+        unstyled
+        :pt="theme"
+        :ptOptions="{
+            mergeProps: ptViewMerge,
+        }"
+    />
+</template>
+
+<script setup lang="ts">
+import InputPassword, {
+    type InputPasswordPassThroughOptions,
+    type InputPasswordProps,
+} from 'primevue/inputpassword';
+import { ref } from 'vue';
+import { ptViewMerge } from './utils';
+
+/**
+ * Volt wrapper for PrimeVue 5's `InputPassword`.
+ *
+ * `Password` is deprecated in v5 and removed in v6, so the form kit builds on
+ * this instead. The right padding leaves room for the show/hide control the
+ * kit adds in `PasswordField.vue`.
+ */
+
+interface Props extends /* @vue-ignore */ InputPasswordProps {}
+defineProps<Props>();
+
+const theme = ref<InputPasswordPassThroughOptions>({
+    root: `relative flex w-full`,
+    pcInputText: {
+        root: `appearance-none rounded-md outline-hidden
+            bg-surface-0 dark:bg-surface-950
+            p-filled:bg-surface-50 dark:p-filled:bg-surface-800
+            text-surface-700 dark:text-surface-0
+            placeholder:text-surface-500 dark:placeholder:text-surface-400
+            border border-surface-300 dark:border-surface-700
+            enabled:hover:border-surface-400 dark:enabled:hover:border-surface-600
+            enabled:focus:border-primary
+            disabled:bg-surface-200 disabled:text-surface-500
+            dark:disabled:bg-surface-700 dark:disabled:text-surface-400
+            p-invalid:border-aq-danger
+            p-invalid:placeholder:text-aq-danger-strong
+            px-3 py-2 pe-11 p-fluid:w-full
+            p-small:text-sm p-small:px-[0.625rem] p-small:py-[0.375rem]
+            p-large:text-lg p-large:px-[0.875rem] p-large:py-[0.625rem]
+            transition-colors duration-200 shadow-[0_1px_2px_0_rgba(18,18,23,0.05)]`,
+    },
+});
+</script>

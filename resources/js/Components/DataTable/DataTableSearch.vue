@@ -7,7 +7,7 @@
  * pending timer when the next keystroke or unmount arrives — the pattern the
  * frontend skill makes mandatory for debounced filters.
  */
-import { onBeforeUnmount, onWatcherCleanup, ref, useId, watch } from 'vue';
+import { computed, onBeforeUnmount, onWatcherCleanup, ref, useId, watch } from 'vue';
 import TableButton from './TableButton.vue';
 
 interface Props {
@@ -24,6 +24,11 @@ const model = defineModel<string>({ default: '' });
 const uid = useId();
 const hintId = useId();
 const draft = ref<string>(model.value);
+
+const minLength = computed<number>(() => props.minLength ?? 2);
+const showHint = computed<boolean>(
+    () => draft.value.trim().length > 0 && draft.value.trim().length < minLength.value,
+);
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -101,12 +106,20 @@ onBeforeUnmount(cancelPending);
             autocomplete="off"
             spellcheck="false"
             :placeholder="props.placeholder ?? 'Search…'"
-            :aria-describedby="(props.minLength ?? 2) > 1 ? hintId : undefined"
+            :aria-describedby="minLength > 1 ? hintId : undefined"
             class="h-9 w-full rounded-md border border-content-border bg-surface-0 py-2 ps-9 pe-9 text-sm text-surface-700 shadow-sm transition-colors duration-150 placeholder:text-surface-500 hover:border-surface-400 focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-surface-900 dark:text-surface-0 dark:placeholder:text-surface-300 dark:hover:border-surface-600 motion-reduce:transition-none"
         />
 
-        <p v-if="(props.minLength ?? 2) > 1" :id="hintId" class="sr-only">
-            Search needs at least {{ props.minLength ?? 2 }} characters.
+        <p
+            v-if="minLength > 1"
+            :id="hintId"
+            :class="[
+                'px-1 text-xs text-surface-600 dark:text-surface-300',
+                showHint ? '' : 'sr-only',
+            ]"
+            aria-live="polite"
+        >
+            Type at least {{ minLength }} characters to search.
         </p>
 
         <i

@@ -16,10 +16,6 @@
             "version": "v3.1.2",
             "hash": "tree-v2:b2205e6585db200cdde2b11f5f6443f01de1dc53380eab8344355495e86e076f"
         },
-        "bepsvpt/secure-headers": {
-            "version": "9.1.1",
-            "hash": "tree-v2:8f0d02326810825faa7dae1857e6b0a2870c426e89110d97eadc1f41c91a0a6d"
-        },
         "brick/math": {
             "version": "1.0.0",
             "hash": "tree-v2:18a4e0a903e82f19128a2a8679c0305e66f104438f01caa4b63b1cec2c6ba4dd"
@@ -293,8 +289,8 @@
             "hash": "tree-v2:fcaeea1d393eb6f504e9015130b065667381e6449d0c321d1b2d5a5f124becb4"
         },
         "phpstan/phpdoc-parser": {
-            "version": "2.3.6",
-            "hash": "tree-v2:871a2c3e3fce5505337233418c37cdac1515c9824110bf602cbb8216b4fab7cb"
+            "version": "2.3.8",
+            "hash": "tree-v2:dbb255682f16068426c33322172d405a482d3d3d0786a299f6409572a78228b5"
         },
         "pragmarx/google2fa": {
             "version": "v9.1.0",
@@ -759,8 +755,8 @@
             "hash": "tree-v2:937038b0d056a8bcf7697a75ce737986eccb501a325645cf05d679e7befcf39e"
         },
         "pestphp/pest": {
-            "version": "v5.3.3",
-            "hash": "tree-v2:282a1d68f97ba24322751c3854f5e9201c52d9b6d2efa212734292d012d73a45"
+            "version": "v5.3.4",
+            "hash": "tree-v2:3671a502caafb4b6bc60f0af9076455452e49b022408570366787e0880bbe125"
         },
         "pestphp/pest-plugin": {
             "version": "v5.0.0",
@@ -823,8 +819,8 @@
             "hash": "tree-v2:8eefb702abb01e63c627bc14e0d4c0c8d111f701c45d2dba2790ab3fcee24774"
         },
         "phpunit/phpunit": {
-            "version": "13.4.3",
-            "hash": "tree-v2:efb478b8e4b237d86ccc45e72d7ab5a51179d2e2528576d8b71f7853ac62894b"
+            "version": "13.4.5",
+            "hash": "tree-v2:33e66ef6d97bbc736beec4e19c5a4d29e10a9bef6fd3a7856871012428be125d"
         },
         "rector/rector": {
             "version": "2.7.0",

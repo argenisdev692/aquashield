@@ -28,7 +28,7 @@ const theme = ref<ListboxPassThroughOptions>({
     root: `group bg-surface-0 dark:bg-surface-950 text-surface-700 dark:text-surface-0
         border border-surface-300 dark:border-surface-700 rounded-md
         p-disabled:bg-surface-200 p-disabled:text-surface-500 dark:p-disabled:bg-surface-700 dark:p-disabled:text-surface-400 p-disabled:pointer-events-none
-        p-invalid:border-red-400 dark:p-invalid:border-red-300
+        p-invalid:border-aq-danger
         shadow-[0_1px_2px_0_rgba(18,18,23,0.05)] transition-colors duration-200`,
     header: `pt-2 pb-1 px-4`,
     pcFilterContainer: {

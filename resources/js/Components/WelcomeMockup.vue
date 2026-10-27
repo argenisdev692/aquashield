@@ -122,7 +122,7 @@ const onReveal = () => {
             :inViewOptions="{ once: true, margin: '-80px' }"
             :variants="entrance"
             @viewportEnter="onReveal"
-            class="relative mx-auto w-full max-w-5xl px-6 pt-16 pb-4 sm:px-8"
+            class="relative mx-auto w-full max-w-5xl px-6 pt-10 pb-4 sm:px-8"
         >
             <motion.h2
                 id="mockup-heading"

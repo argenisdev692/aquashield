@@ -23,10 +23,10 @@
  * The dispatch chip reuses the hero/mockup liveness pulse verbatim
  * (`aq-pulse-ring`; globals.css stops every CSS loop under
  * `prefers-reduced-motion`, so no per-call-site modifier). Its copy quotes
- * only claims this page already publishes in its SEO description — 24/7,
- * on site within 60 minutes — so the footer and the metadata never disagree.
+ * the company's dispatch promise — 24/7, on site within 60 minutes — which
+ * staff can verify against the board.
  *
- * The phone stays a real `tel:` action; the social chips below stay
+ * The dispatch line stays a real `tel:` action; the social chips below stay
  * non-interactive until the profiles exist (see the note above SOCIALS).
  */
 const year = new Date().getFullYear();
@@ -99,7 +99,7 @@ const SOCIALS: readonly Social[] = [
                         </span>
                     </p>
                     <p class="mt-3 text-sm leading-relaxed text-aq-ink-muted">
-                        24/7 emergency water damage mitigation, roofing and full restoration.
+                        Internal operations workspace for AquaShield Restoration USA.
                     </p>
                     <!-- Dispatch status chip: the contact block answers "are they
                          reachable right now" before the call action, not after
@@ -120,7 +120,7 @@ const SOCIALS: readonly Social[] = [
                     </p>
                     <a
                         href="tel:+17135876423"
-                        aria-label="24/7 emergency line: (713) 587-6423"
+                        aria-label="Dispatch line: (713) 587-6423"
                         class="mt-3 inline-flex min-h-11 items-center gap-2.5 rounded-xl border border-aq-line bg-aq-accent/6 px-4 text-sm font-semibold text-aq-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-aq-line-strong hover:bg-aq-accent/10 hover:shadow-(--aq-glow-accent) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none"
                     >
                         <svg

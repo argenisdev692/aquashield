@@ -55,8 +55,8 @@ const theme = ref<PasswordPassThroughOptions>({
         enabled:focus:border-primary
         disabled:bg-surface-200 disabled:text-surface-500
         dark:disabled:bg-surface-700 dark:disabled:text-surface-400
-        p-invalid:border-red-400 dark:p-invalid:border-red-300
-        p-invalid:placeholder:text-red-600 dark:p-invalid:placeholder:text-red-400
+        p-invalid:border-aq-danger
+        p-invalid:placeholder:text-aq-danger-strong
         px-3 py-2 w-full p-has-e-icon:pe-10
         p-small:text-sm p-small:px-[0.625rem] p-small:py-[0.375rem]
         p-large:text-lg p-large:px-[0.875rem] p-large:py-[0.625rem]
@@ -71,7 +71,7 @@ const theme = ref<PasswordPassThroughOptions>({
     content: `flex flex-col gap-2`,
     meter: `h-3 bg-surface-200 dark:bg-surface-700 rounded-md`,
     meterLabel: `h-full w-0 transition-[width] duration-1000 ease-in-out rounded-md
-        p-weak:bg-red-500 dark:p-weak:bg-red-400
+        p-weak:bg-aq-danger
         p-medium:bg-amber-500 dark:p-medium:bg-amber-400
         p-strong:bg-green-500 dark:p-strong:bg-green-400`,
     meterText: ``,

@@ -36,6 +36,12 @@ interface Props {
     searchPlaceholder?: string;
     searchMinLength?: number;
     filterCount?: number;
+    /**
+     * Pages with filters they cannot count in `filterCount` can pass the truth
+     * directly. Without one of the two, the empty state cannot tell "no records
+     * yet" from "nothing matched".
+     */
+    hasActiveFilters?: boolean;
     perPageOptions?: readonly number[];
     exportFormats?: readonly ExportFormat[];
     exportHref?: (format: ExportFormat) => string | undefined;
@@ -89,7 +95,12 @@ const first = computed(() => Math.max(0, (page.value - 1) * perPage.value));
 const pageCount = computed(() => Math.max(1, Math.ceil(props.total / Math.max(1, perPage.value))));
 const sortField = computed(() => sort.value?.field);
 const sortOrder = computed(() => sort.value?.order);
-const filtered = computed(() => (props.filterCount ?? 0) > 0 || search.value.trim() !== '');
+const filtered = computed(
+    () =>
+        props.hasActiveFilters === true ||
+        (props.filterCount ?? 0) > 0 ||
+        search.value.trim() !== '',
+);
 
 const resolvedEmptyTitle = computed(() => {
     if (props.emptyTitle !== undefined) {
@@ -204,7 +215,7 @@ defineExpose({ clearSelection });
                 </h2>
                 <p
                     v-if="props.description"
-                    class="mt-0.5 text-sm text-surface-500 dark:text-surface-300"
+                    class="mt-0.5 text-sm text-surface-600 dark:text-surface-300"
                 >
                     {{ props.description }}
                 </p>
@@ -247,10 +258,10 @@ defineExpose({ clearSelection });
         </header>
 
         <Transition
-            enter-active-class="transition duration-150 ease-out"
+            enter-active-class="transition duration-150 ease-out motion-reduce:transition-none"
             enter-from-class="opacity-0 -translate-y-1"
             enter-to-class="opacity-100 translate-y-0"
-            leave-active-class="transition duration-100 ease-in"
+            leave-active-class="transition duration-100 ease-in motion-reduce:transition-none"
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-1"
         >

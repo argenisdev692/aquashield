@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +30,13 @@ class AppServiceProvider extends ServiceProvider
             Model::handleLazyLoadingViolationUsing(function ($model, $relation): void {
                 logger()->warning('Lazy loading ['.$relation.'] on ['.get_class($model).']');
             });
+
+            // Belt-and-braces for Railway: even if a request reaches PHP
+            // without X-Forwarded-Proto (queue worker, health probe, a proxy
+            // change), every generated URL stays on HTTPS. Mixed content is
+            // therefore impossible, and CSP `'self'` keeps matching @vite,
+            // font preloads and redirects.
+            URL::forceScheme('https');
         }
 
     }

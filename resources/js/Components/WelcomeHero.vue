@@ -31,7 +31,12 @@
  *     invented public-facing claims ("430 projects restored").
  *
  * What stays, and why:
- *   - the live Houston clock — real client-side data, proves the page is on
+ *   - the shield mark — the brand's own silhouette, not a stock hero image.
+ *     It carries a CSS tide (`aq-mark`) that rises inside the artwork's
+ *     mask; no canvas, no JS, and the still mark is the reduced-motion state
+ *   - the live Houston clock — real client-side data, proves the page is on.
+ *     Clock and greeting read the SAME reactive instant, so the greeting
+ *     cannot go stale at noon while the minute hand keeps moving
  *   - the word-by-word kinetic reveal — the one motion moment of the page
  *   - a three-field gradient mesh (aqua / steel navy / signal green) + the
  *     blueprint grid + the bottom fade (structure, not decoration; the old
@@ -49,10 +54,10 @@
  * intent the app does not have.
  *
  * Motion budget: one entrance stagger, CTA micro-interactions, three ambient
- * mesh drifts and the kinetic gradient pan on the closing line. Everything
- * collapses to static under prefers-reduced-motion — the global kill block
- * freezes the pan on its base stop, `motion-reduce:animate-none` stops
- * the mesh.
+ * mesh drifts, the mark's tide and a ONE-PASS gradient pan on the closing
+ * line. Everything collapses to static under prefers-reduced-motion — the
+ * global kill block freezes the pan on its base stop, `motion-reduce:animate-none`
+ * stops the mesh, and `.aq-mark__water` holds full instead of parking empty.
  */
 import { computed, onUnmounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -76,15 +81,24 @@ const houstonHour = new Intl.DateTimeFormat('en-US', {
     timeZone: HOUSTON,
 });
 
-const hour = Number(houstonHour.format(new Date()));
+/* One reactive instant feeds both the greeting and the readout. The old
+ * pair froze the greeting at setup and only moved the clock, so a tab left
+ * open across noon read "Good morning" next to a 12:04 time. Fifteen
+ * seconds keeps the displayed minute from lagging more than a quarter of
+ * its own resolution. */
+const now = ref(new Date());
 
-const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+const greeting = computed(() => {
+    const hour = Number(houstonHour.format(now.value));
 
-const houstonTime = ref(houstonClock.format(new Date()));
+    return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+});
+
+const houstonTime = computed(() => houstonClock.format(now.value));
 
 const clock = window.setInterval(() => {
-    houstonTime.value = houstonClock.format(new Date());
-}, 30_000);
+    now.value = new Date();
+}, 15_000);
 
 onUnmounted(() => {
     window.clearInterval(clock);
@@ -170,11 +184,20 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
         ></div>
 
         <motion.div
-            class="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 pt-32 pb-24 text-center sm:px-8"
+            class="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-6 pt-28 pb-24 text-center sm:px-8"
             :variants="entrance"
             initial="hidden"
             animate="show"
         >
+            <!-- The shield itself, at the one size where the tide reads as
+                 water rather than as a loading bar. Decorative: the brand
+                 name is in the header and the headline is next. -->
+            <motion.div :variants="rise" class="mb-8 flex justify-center" aria-hidden="true">
+                <span class="aq-mark aspect-[102/146] h-18">
+                    <span class="aq-mark__water"></span>
+                </span>
+            </motion.div>
+
             <motion.p
                 :variants="rise"
                 class="inline-flex items-center gap-2.5 text-xs font-medium tracking-wide text-aq-ink-muted sm:text-sm"
@@ -185,12 +208,17 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
                     ></span>
                     <span class="relative inline-flex size-2 rounded-full bg-aq-success"></span>
                 </span>
-                {{ greeting }} — workspace online · Houston {{ houstonTime }}
+                <span>
+                    {{ greeting }} — workspace online ·
+                    <span class="whitespace-nowrap"
+                        >Houston <span class="tabular-nums">{{ houstonTime }}</span></span
+                    >
+                </span>
             </motion.p>
 
             <h1
                 id="welcome-heading"
-                class="mt-8 text-[clamp(3rem,9vw,7rem)] leading-[0.98] font-bold tracking-[-0.04em] text-aq-ink"
+                class="mt-6 text-[clamp(2.5rem,min(9vw,10vh),7rem)] leading-[0.98] font-bold tracking-[-0.04em] text-aq-ink"
             >
                 <span class="sr-only">{{ headline.join(' ') }}</span>
                 <motion.span
@@ -203,7 +231,7 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
                     <motion.span
                         v-for="(token, tokenIndex) in line.split(' ')"
                         :key="`${lineIndex}-${tokenIndex}`"
-                        class="mr-[0.24em] inline-block last:mr-0 will-change-transform"
+                        class="mr-[0.24em] inline-block last:mr-0"
                         :class="lineIndex === 2 ? 'aq-grad-ink' : ''"
                         :variants="word"
                     >
@@ -214,13 +242,13 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
 
             <motion.p
                 :variants="rise"
-                class="mt-7 max-w-xl text-base leading-relaxed text-pretty text-aq-ink-soft sm:text-lg"
+                class="mt-6 max-w-xl text-base leading-relaxed text-pretty text-aq-ink-soft sm:text-lg"
             >
                 The internal workspace for AquaShield operations — dispatch, jobs, customers,
                 invoicing and insurance claims in one place.
             </motion.p>
 
-            <motion.div :variants="rise" class="mt-10 flex justify-center">
+            <motion.div :variants="rise" class="mt-8 flex justify-center">
                 <Link
                     href="/dashboard"
                     class="group relative inline-flex h-13 items-center justify-center gap-2 overflow-hidden rounded-xl bg-aq-accent px-8 text-sm font-semibold text-aq-void shadow-lg shadow-aq-accent/25 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-aq-accent/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none"
@@ -248,43 +276,31 @@ const headline = ['Water wins', 'every minute', 'you wait.'];
                 </Link>
             </motion.div>
 
+            <!-- Hidden on phones: the subhead already lists the same five
+                 surfaces, and a four-item line under a fixed consent bar is
+                 the first thing to lose. The separators ride their item so a
+                 wrap can never strand a `·` at the end of a line. -->
             <motion.p
                 :variants="rise"
-                class="mt-12 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-aq-ink-muted"
+                class="mt-9 hidden flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-sm text-aq-ink-muted sm:flex"
             >
                 <template v-for="(capability, capabilityIndex) in CAPABILITIES" :key="capability">
-                    <span
-                        v-if="capabilityIndex > 0"
-                        aria-hidden="true"
-                        class="text-aq-ink-disabled"
-                    >
-                        ·
+                    <span class="inline-flex items-center gap-3 whitespace-nowrap">
+                        <span
+                            v-if="capabilityIndex > 0"
+                            aria-hidden="true"
+                            class="text-aq-ink-disabled"
+                        >
+                            ·
+                        </span>
+                        <span>{{ capability }}</span>
                     </span>
-                    <span>{{ capability }}</span>
                 </template>
             </motion.p>
         </motion.div>
 
-        <div
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-x-0 bottom-5 flex justify-center"
-        >
-            <span
-                class="animate-[aq-scroll-cue_2.6s_ease-in-out_infinite] motion-reduce:animate-none"
-            >
-                <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    class="size-4 text-aq-ink-muted"
-                >
-                    <path d="m6 9 6 6 6-6" />
-                </svg>
-            </span>
-        </div>
+        <!-- No scroll cue: on a page that fits the fold it collided with the
+             capability line, and on a short viewport it sat under the consent
+             bar. The section's own continuation is the cue. -->
     </section>
 </template>

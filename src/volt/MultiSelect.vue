@@ -48,7 +48,7 @@ const theme = ref<MultiSelectPassThroughOptions>({
         border border-surface-300 hover:border-surface-400 dark:border-surface-600 dark:hover:border-surface-700
         p-focus:border-primary
         p-filled:bg-surface-50 dark:p-filled:bg-surface-800
-        p-invalid:border-red-400 dark:p-invalid:border-red-300
+        p-invalid:border-aq-danger
         p-disabled:bg-surface-200 p-disabled:text-surface-500 dark:p-disabled:bg-surface-700 dark:p-disabled:text-surface-400 p-disabled:pointer-events-none
         shadow-[0_1px_2px_0_rgba(18,18,23,0.05)]
         transition-colors duration-200`,

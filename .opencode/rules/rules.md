@@ -92,7 +92,8 @@ package's rules are the vendor's docs — say so rather than inventing a rule fo
 - Audit trail: `Spatie\Activitylog\Models\Concerns\LogsActivity` with explicit `logOnly([...])` +
   `logOnlyDirty()` + `dontLogEmptyChanges()`. Never `logAll()`, never log secrets/PII.
 - When the UI exposes row selection, ship **both** bulk delete and bulk restore, with matching routes.
-- Argon2id hashing. CSP via `spatie/laravel-csp`. Headers via `bepsvpt/secure-headers`.
+- Argon2id hashing. CSP + OWASP headers via `Shared\Infrastructure\Http\Middleware\SecurityHeaders`
+  (spatie/laravel-csp supplies only the nonce binding/directive; there is no second header emitter).
 
 # [MUST] Frontend
 

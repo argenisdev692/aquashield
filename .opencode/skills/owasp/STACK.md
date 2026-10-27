@@ -55,7 +55,7 @@ $middleware->alias([
 
 ## §4 — Secrets, encryption, cookies
 
-- `APP_URL=https://…`, `FORCE_HTTPS=true`, HSTS via SecurityHeaders (§5).
+- `APP_URL=https://…` and `URL::forceScheme('https')` in production (`AppServiceProvider`); HSTS via SecurityHeaders (§5).
 - `Crypt::encryptString()` for at-rest sensitive fields.
 - Secrets via `.env` + placeholders in `.env.example` only; CI/prod from the platform secret store.
 - Audit: Spatie `LogsActivity` (`Spatie\Activitylog\Models\Concerns\LogsActivity` + `Spatie\Activitylog\Support\LogOptions` — the v4 namespaces fatal) with explicit `logOnly([...])` + `logOnlyDirty()` + `dontLogEmptyChanges()`. Never `logAll()`, never secrets/PII.
@@ -63,9 +63,10 @@ $middleware->alias([
 ## §5 — Headers, CSP, CORS, build
 
 - `SecurityHeaders` middleware (`Shared\Infrastructure\Http\Middleware\`) is **prepended** ahead of Inertia in `bootstrap/app.php`: OWASP headers + nonce-based CSP + per-request Vite nonce sync. Single owner — never duplicate the sync.
+- TLS-terminating proxies (Railway): `$middleware->trustProxies(at: '*')` in `bootstrap/app.php` makes `X-Forwarded-Proto: https` authoritative, so `@vite`/`asset()`/font preloads emit HTTPS URLs. Without it the page loads over HTTPS but references `http://` assets (mixed content + CSP `'self'` blocks them).
 - CSP nonce: spatie/laravel-csp v3 exposes **only** the `@cspNonce` Blade directive and the `csp-nonce` container binding — there is **NO `csp_nonce()` helper**. Never re-bind `csp-nonce` (shadow splits header/view nonces). `style-src` uses the CSP3 split (`style-src-elem`/`style-src-attr`) because Volt overlays inject runtime styles; scoped relaxations exist ONLY for Scramble docs UI and Horizon/Telescope dashboards (gated pages).
 - CORS (`config/cors.php`): explicit `allowed_origins` list, never `['*']` on authenticated endpoints; wildcard subdomains via `allowed_origins_patterns` regex.
-- bepsvpt/secure-headers installed; the active emitter is the Shared middleware (see deviation note in verification §17).
+- Single header/CSP emitter is the Shared middleware; `bepsvpt/secure-headers` was removed (it was never registered, and a second CSP would intersect with this one).
 - Vite prod: minified, `build.sourcemap: false`, only `VITE_*` keys exposed — never secrets. **One documented exception:** `VITE_PRIMEUI_LICENSE` is NOT a secret (PrimeUI terms: no sensitive data, dev-only notice) — must NOT be reported as a leak.
 
 ## §6 — Supply chain
@@ -193,7 +194,7 @@ Consequences for the gate:
 
 ### Known deviations from the portable core (documented, not hidden)
 
-1. CSP emitter is the custom `SecurityHeaders` middleware, not spatie's `AddCspHeaders` / bepsvpt defaults (both installed; custom one owns nonce sync + scoped docs/monitoring policies).
+1. CSP emitter is the custom `SecurityHeaders` middleware, not spatie's `AddCspHeaders` (spatie/laravel-csp is installed for the `csp-nonce` binding/directive only; custom middleware owns nonce sync + scoped docs/monitoring policies). `bepsvpt/secure-headers` was removed to avoid a second, intersecting policy.
 2. `VITE_PRIMEUI_LICENSE` in the bundle is NOT a leak (see §5).
 3. `laravel/doctor` excludes `SqliteDatabaseExists` (Windows false positive, v0.1.0); `doctor --fix` must never run for it.
 4. `.env` is not readable from inside the agent sandbox. The §17 Red list is therefore verified through the framework (`config:show` / `about` / `doctor`), not by opening the file. This is a restriction, not a skipped check.

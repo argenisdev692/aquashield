@@ -7,12 +7,11 @@ use Illuminate\Support\Facades\Route;
 use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
 /*
- * `appUrl` feeds the canonical/OG head tags on the entry page: scrapers
- * require absolute URLs, so the absolute origin can only come from the
- * server — `config('app.url')` is the single source. No Spatie Data class
- * is involved, which is why the prop is typed by hand on the page.
+ * Entry screen for the internal operations workspace. The page is `noindex`
+ * in the root Blade and carries no canonical/OG payload, so it needs no
+ * `appUrl` prop — the old marketing head was the only consumer.
  */
-Route::get('/', fn () => inertia('Welcome', ['appUrl' => config('app.url')]));
+Route::get('/', fn () => inertia('Welcome'));
 
 /*
  * Google OAuth. `guest` keeps a signed-in visitor out of the handshake, and

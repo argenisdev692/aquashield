@@ -126,18 +126,24 @@
     </DatePicker>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import CalendarIcon from '@primevue/icons/calendar';
 import ChevronDownIcon from '@primevue/icons/chevrondown';
 import ChevronLeftIcon from '@primevue/icons/chevronleft';
 import ChevronRightIcon from '@primevue/icons/chevronright';
 import ChevronUpIcon from '@primevue/icons/chevronup';
-import DatePicker from 'primevue/datepicker';
+import DatePicker, {
+    type DatePickerPassThroughOptions,
+    type DatePickerProps,
+} from 'primevue/datepicker';
 import { ref } from 'vue';
 import SecondaryButton from './SecondaryButton.vue';
 import { ptViewMerge } from './utils';
 
-const theme = ref({
+interface Props extends /* @vue-ignore */ DatePickerProps {}
+defineProps<Props>();
+
+const theme = ref<DatePickerPassThroughOptions>({
     root: `inline-flex max-w-full relative p-fluid:flex`,
     pcInputText: {
         root: `flex-auto w-[1%] appearance-none rounded-md outline-hidden
@@ -151,8 +157,8 @@ const theme = ref({
         enabled:focus:border-primary
         disabled:bg-surface-200 disabled:text-surface-500
         dark:disabled:bg-surface-700 dark:disabled:text-surface-400
-        p-invalid:border-red-400 dark:p-invalid:border-red-300
-        p-invalid:placeholder:text-red-600 dark:p-invalid:placeholder:text-red-400
+        p-invalid:border-aq-danger
+        p-invalid:placeholder:text-aq-danger-strong
         px-3 py-2 p-fluid:w-full
         p-small:text-sm p-small:px-[0.625rem] p-small:py-[0.375rem]
         p-large:text-lg p-large:px-[0.875rem] p-large:py-[0.625rem]
@@ -203,7 +209,6 @@ const theme = ref({
     tableBody: ``,
     weekNumber: ``,
     weekLabelContainer: `opacity-60 flex w-8 h-8 p-1 justify-center`,
-    weekLabel: ``,
     dayCell: `p-1`,
     day: `flex items-center justify-center cursor-pointer my-0 mx-auto overflow-hidden relative w-8 h-8
         rounded-full p-1 transition-colors duration-200 border border-transparent text-surface-700 dark:text-surface-0

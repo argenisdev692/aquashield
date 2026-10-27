@@ -6,20 +6,22 @@
  * does not own a model, a schema, an endpoint or a query: the page passes the
  * fields and handles `submit`, so the kit stays presentation-only.
  *
- * The default slot is wrapped in a native form, which gives Enter-to-submit and
- * browser constraint validation for free. A page that needs its own form
- * component (for example the module's PrimeVue Forms + Zod setup) overrides the
- * `form` slot and keeps the same `formId`, so the footer submit button still
- * targets it.
+ * Validation is never delegated to browser bubbles. The page uses the form kit
+ * (`useZodForm` + the field components) and passes the merged error map here for
+ * the summary; the native `<form>` exists only for Enter-to-submit and the
+ * submit button's `form` attribute.
  *
  * Delete and restore are not form operations. They use `RowAction.confirm` and
  * the global ConfirmDialog instead; this dialog is for create, edit or a
  * destructive action that genuinely needs fields (such as a deletion reason).
  */
-import { computed, useId } from 'vue';
+import { computed, useId, useTemplateRef } from 'vue';
+import { useConfirm } from 'primevue/useconfirm';
 import Button from '@/volt/Button.vue';
 import Dialog from '@/volt/Dialog.vue';
 import SecondaryButton from '@/volt/SecondaryButton.vue';
+import FormErrorSummary from '@/Components/Forms/FormErrorSummary.vue';
+import type { FormErrorMap } from '@/lib/forms';
 import type { CrudDialogSize } from './types';
 
 interface Props {
@@ -34,9 +36,17 @@ interface Props {
      * set `busy` to disable every dismissal while a mutation is in flight.
      */
     dismissible?: boolean;
+    /** Enables the discard confirmation when the form has unsaved work. */
+    dirty?: boolean;
+    /** Client + server errors, rendered in the summary above the fields. */
+    errors?: FormErrorMap;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    dirty: false,
+    errors: () => ({}),
+});
+
 const visible = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ submit: []; cancel: [] }>();
 
@@ -46,8 +56,10 @@ defineSlots<{
     footer(slotProps: { formId: string; busy: boolean; cancel: () => void }): unknown;
 }>();
 
+const confirm = useConfirm();
 const formId = useId();
 const descriptionId = useId();
+const formEl = useTemplateRef<HTMLFormElement>('formEl');
 
 const SIZE_WIDTH: Record<CrudDialogSize, string> = {
     sm: '24rem',
@@ -63,25 +75,42 @@ const dialogStyle = computed(() => ({
 const isBusy = computed(() => props.busy === true);
 const isDismissible = computed(() => props.dismissible !== false && !isBusy.value);
 
-const onVisibleChange = (value: boolean): void => {
-    if (!value && !isDismissible.value) {
-        return;
-    }
-
-    visible.value = value;
-
-    if (!value) {
-        emit('cancel');
-    }
+const forceClose = (): void => {
+    visible.value = false;
+    emit('cancel');
 };
 
-const close = (): void => {
+const requestClose = (): void => {
     if (isBusy.value) {
         return;
     }
 
-    visible.value = false;
-    emit('cancel');
+    if (!props.dirty) {
+        forceClose();
+        return;
+    }
+
+    confirm.require({
+        header: 'Discard changes?',
+        message: 'Your edits have not been saved. Close this dialog and lose them?',
+        icon: 'pi pi-exclamation-triangle',
+        acceptProps: { label: 'Discard' },
+        rejectProps: { label: 'Keep editing' },
+        accept: forceClose,
+    });
+};
+
+const onVisibleChange = (value: boolean): void => {
+    if (value) {
+        visible.value = true;
+        return;
+    }
+
+    if (!isDismissible.value) {
+        return;
+    }
+
+    requestClose();
 };
 
 const onSubmit = (): void => {
@@ -101,7 +130,7 @@ const onSubmit = (): void => {
         :header="props.title"
         :closable="isDismissible"
         :close-on-escape="isDismissible"
-        :dismissable-mask="false"
+        :dismissable-mask="isDismissible"
         :draggable="false"
         :style="dialogStyle"
         :aria-describedby="props.description ? descriptionId : undefined"
@@ -110,20 +139,28 @@ const onSubmit = (): void => {
         <p
             v-if="props.description"
             :id="descriptionId"
-            class="mb-4 text-sm text-surface-500 dark:text-surface-300"
+            class="mb-4 text-sm text-surface-600 dark:text-surface-300"
         >
             {{ props.description }}
         </p>
 
+        <FormErrorSummary :errors="props.errors" :form-el="formEl" />
+
         <slot name="form" :form-id="formId" :busy="isBusy">
-            <form :id="formId" class="flex flex-col gap-4" @submit.prevent="onSubmit">
+            <form
+                ref="formEl"
+                :id="formId"
+                class="flex flex-col gap-4"
+                novalidate
+                @submit.prevent="onSubmit"
+            >
                 <slot :form-id="formId" :busy="isBusy" />
             </form>
         </slot>
 
         <template #footer>
-            <slot name="footer" :form-id="formId" :busy="isBusy" :cancel="close">
-                <SecondaryButton class="font-medium" :disabled="isBusy" @click="close">
+            <slot name="footer" :form-id="formId" :busy="isBusy" :cancel="requestClose">
+                <SecondaryButton class="font-medium" :disabled="isBusy" @click="requestClose">
                     {{ props.cancelLabel ?? 'Cancel' }}
                 </SecondaryButton>
 
