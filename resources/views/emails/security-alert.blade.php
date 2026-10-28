@@ -33,15 +33,28 @@
         @include('emails.partials.detail', ['label' => 'Lock lifts at', 'value' => $context['locked_until']])
     @endif
 
+    @if (! empty($context['new_email']))
+        @include('emails.partials.detail', ['label' => 'New sign-in email', 'value' => $context['new_email']])
+    @endif
+
+    @php($emailChanged = $event === \App\Enums\SecurityEvent::EmailChanged)
     @php($lockedOut = $event === \App\Enums\SecurityEvent::AccountLocked)
 
-    @include('emails.partials.button', [
-        'url' => $lockedOut ? route('password.request') : route('settings.profile.edit'),
-        'label' => $lockedOut ? 'Reset your password' : 'Review security settings',
-    ])
+    @if (! $emailChanged)
+        @include('emails.partials.button', [
+            'url' => $lockedOut ? route('password.request') : route('settings.profile.edit'),
+            'label' => $lockedOut ? 'Reset your password' : 'Review security settings',
+        ])
+    @endif
 
     <p style="margin:18px 0 0 0;font-size:14px;line-height:1.65;color:#6b87a8;">
-        If you did not make this change, reset your password immediately and contact
-        {{ config('mail.from.address') }}.
+        @if ($emailChanged)
+            If you did not authorize this change, contact
+            {{ config('mail.from.address') }} immediately. Do not reply with your password or any
+            sign-in code.
+        @else
+            If you did not make this change, reset your password immediately and contact
+            {{ config('mail.from.address') }}.
+        @endif
     </p>
 @endsection

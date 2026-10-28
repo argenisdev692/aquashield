@@ -15,8 +15,14 @@
  */
 import { useMediaQuery, useStorage } from '@vueuse/core';
 import { computed, useId, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import SidebarNav from '@/Components/SidebarNav.vue';
-import { DASHBOARD_PATH, DASHBOARD_SECTIONS, PRIMARY_NAV, type NavGroup } from '@/lib/navigation';
+import {
+    DASHBOARD_PATH,
+    DASHBOARD_SECTIONS,
+    visiblePrimaryNav,
+    type NavGroup,
+} from '@/lib/navigation';
 import Drawer from '@/volt/Drawer.vue';
 
 const props = defineProps<{
@@ -31,13 +37,16 @@ const collapsed = useStorage<boolean>('aq:nav:collapsed', false);
 const isDesktop = useMediaQuery('(min-width: 64rem)');
 const railId = useId();
 
+const page = usePage<{ authPermissions?: string[] }>();
+const primaryNav = computed(() => visiblePrimaryNav(page.props.authPermissions ?? []));
+
 /**
  * Section jumps only exist while the dashboard is mounted. Showing them on the
  * auth screens would be a link to nowhere, so the group is conditional rather
  * than disabled-looking.
  */
 const groups = computed<readonly NavGroup[]>(() => {
-    const result: NavGroup[] = [{ items: PRIMARY_NAV }];
+    const result: NavGroup[] = [{ items: primaryNav.value }];
 
     if (props.currentPath === DASHBOARD_PATH) {
         result.push({ label: 'On this page', items: DASHBOARD_SECTIONS });

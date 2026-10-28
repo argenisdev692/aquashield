@@ -20,6 +20,12 @@ interface Props {
     count: number;
     canRestore?: boolean;
     busy?: boolean;
+    /**
+     * Human labels for the selected rows (`Name <email>`). Supplied by the page
+     * so the confirmation names what is about to change instead of only showing
+     * a count.
+     */
+    labels?: readonly string[];
 }
 
 const props = defineProps<Props>();
@@ -31,10 +37,30 @@ const confirm = useConfirm();
 
 const noun = computed(() => (props.count === 1 ? 'record' : 'records'));
 
+/**
+ * The modal must name the rows it is about to mutate. Three names keep the
+ * message readable; beyond that it says how many more.
+ */
+const subject = computed<string>(() => {
+    const labels = (props.labels ?? [])
+        .map((label) => label.trim())
+        .filter((label) => label !== '');
+
+    if (labels.length === 0) {
+        return `${props.count} selected ${noun.value}`;
+    }
+
+    if (labels.length <= 3) {
+        return labels.join(', ');
+    }
+
+    return `${labels.slice(0, 3).join(', ')} and ${labels.length - 3} more`;
+});
+
 const askDelete = (): void => {
     const message = props.canRestore
-        ? `Delete ${props.count} selected ${noun.value}? You can restore them from the deleted view.`
-        : `Delete ${props.count} selected ${noun.value}? This action cannot be undone.`;
+        ? `Delete ${subject.value}? You can restore them from the deleted view.`
+        : `Delete ${subject.value}? This action cannot be undone.`;
 
     confirm.require({
         header: 'Delete selected records',
@@ -49,7 +75,7 @@ const askDelete = (): void => {
 const askRestore = (): void => {
     confirm.require({
         header: 'Restore selected records',
-        message: `Restore ${props.count} selected ${noun.value}? They will become active again.`,
+        message: `Restore ${subject.value}? They will become active again.`,
         icon: 'pi pi-replay',
         acceptProps: { label: 'Restore' },
         rejectProps: { label: 'Cancel' },

@@ -8,6 +8,7 @@ use App\Enums\SecurityEvent;
 use App\Jobs\SendSecurityAlert;
 use App\Models\User;
 use App\Support\AuthRequestContext;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -39,6 +40,20 @@ class ResetUserPassword implements ResetsUserPasswords
         $user->forceFill([
             'password' => Hash::make($input['password']),
         ])->save();
+
+        /*
+         * A reset is the recovery path for a compromised credential. Any
+         * session or API token issued before it may belong to the attacker, so
+         * they are revoked together with the old password. The reset form is
+         * unauthenticated: the user signs in again with the new credential.
+         */
+        $user->tokens()->delete();
+
+        if (config('session.driver') === 'database') {
+            DB::table((string) config('session.table', 'sessions'))
+                ->where('user_id', $user->getKey())
+                ->delete();
+        }
 
         $context = AuthRequestContext::properties();
 

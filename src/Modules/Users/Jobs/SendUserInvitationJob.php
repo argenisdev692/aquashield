@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Users\Jobs;
 
 use App\Models\User;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,12 +14,18 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Password;
 
 /**
- * Sends the account holder a password-reset link after an administrator
- * creates their account.
+ * Sends the account holder a password-set link after an administrator creates
+ * their account or asks for a resend.
  *
  * This leaves the HTTP request: SMTP is an external call, and an outage must
  * not turn a successful account creation into a 500. The caller dispatches with
  * afterCommit(), so a rolled-back transaction never sends anything.
+ *
+ * The job creates the broker token directly instead of calling
+ * `Password::sendResetLink()`, because the broker's 60-second throttle would
+ * silently drop an immediate resend. The admin route still has its own burst
+ * limit, and every request is audited; the public forgot-password flow keeps
+ * the broker throttle.
  *
  * The job drops itself when the model is gone (`$deleteWhenMissingModels`) —
  * a deleted account must not be retried forever.
@@ -43,6 +50,8 @@ final class SendUserInvitationJob implements ShouldQueue
 
     public function handle(): void
     {
-        Password::sendResetLink(['email' => $this->user->email]);
+        $token = Password::broker()->createToken($this->user);
+
+        $this->user->notify(new ResetPasswordNotification($token));
     }
 }

@@ -31,9 +31,16 @@ final class CreateUserData extends Data
         public readonly ?string $username = null,
         public readonly ?string $phone = null,
         public readonly ?string $dateOfBirth = null,
+        public readonly ?string $address = null,
+        #[MapInputName('address_2')]
+        #[MapOutputName('address_2')]
+        public readonly ?string $address2 = null,
+        public readonly ?string $zipCode = null,
         public readonly ?string $city = null,
         public readonly ?string $state = null,
         public readonly ?string $country = null,
+        public readonly ?float $latitude = null,
+        public readonly ?float $longitude = null,
         public readonly array $roles = [],
         public readonly array $permissions = [],
     ) {}

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Enums\SecurityEvent;
 use App\Jobs\SendSecurityAlert;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -33,7 +33,7 @@ it('emails a reset link to a known address', function (): void {
     $this->post('/forgot-password', ['email' => $user->email])
         ->assertSessionHasNoErrors();
 
-    Notification::assertSentTo($user, ResetPassword::class);
+    Notification::assertSentTo($user, ResetPasswordNotification::class);
 });
 
 it('renders the reset screen with the token from the link', function (): void {

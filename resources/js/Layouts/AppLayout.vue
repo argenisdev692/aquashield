@@ -27,7 +27,7 @@ import type { Command } from '@/lib/commands';
 import {
     DASHBOARD_PATH,
     DASHBOARD_SECTIONS,
-    PRIMARY_NAV,
+    visiblePrimaryNav,
     jumpToSection,
     sectionId,
 } from '@/lib/navigation';
@@ -65,7 +65,7 @@ interface AccountMenuItem {
  * it is typed here as optional: a future page that omits it simply renders the
  * plain sign-out control instead of an empty avatar.
  */
-const page = usePage<{ user?: AuthUser | null }>();
+const page = usePage<{ user?: AuthUser | null; authPermissions?: string[] }>();
 
 const { isDark, toggleTheme } = useTheme();
 
@@ -97,14 +97,16 @@ const initials = computed(() => {
 });
 
 const commands = computed<Command[]>(() => {
-    const destinations: Command[] = PRIMARY_NAV.map((item) => ({
-        id: `nav-${item.href.slice(1)}`,
-        group: 'Go to',
-        label: item.label,
-        icon: item.icon,
-        keywords: item.keywords,
-        run: () => router.visit(item.href),
-    }));
+    const destinations: Command[] = visiblePrimaryNav(page.props.authPermissions ?? []).map(
+        (item) => ({
+            id: `nav-${item.href.slice(1)}`,
+            group: 'Go to',
+            label: item.label,
+            icon: item.icon,
+            keywords: item.keywords,
+            run: () => router.visit(item.href),
+        }),
+    );
 
     /**
      * Section jumps are real only while the dashboard is mounted. Gating here —

@@ -47,8 +47,19 @@ CRUD change touch nine files with no test that fails if a layer is deleted.
 - Audit: `Shared\Domain\Ports\AuditPort` (explicit actions). No `LogsActivity`
   on `User`: the auth model is updated by Fortify too, and passive logging there
   would mix self-service profile edits with administrative actions.
-- Job: `Jobs/SendUserInvitationJob` (queued password-reset link, dispatched
-  after commit).
+- Password: an administrator never sets, sees or emails a password. The account
+  is created with a random hash; `Jobs/SendUserInvitationJob` creates a
+  single-use reset token and sends `App\Notifications\ResetPasswordNotification`
+  (branded, no PII in the URL, no plaintext password). `SendPasswordResetLinkAction`
+  re-queues the same link from the user screen under `UPDATE_USER` + the row
+  ceiling, and audits `user.password_reset_link_sent`. A successful reset
+  revokes the user's sessions and API tokens.
+- Email change: `UpdateUserAction` clears `email_verified_at`, queues
+  `Jobs/SendEmailVerificationJob` to the new address, and queues
+  `SendSecurityAlert` (`SecurityEvent::EmailChanged`) to the old address, so an
+  account move is never silent.
+- Job: `Jobs/SendUserInvitationJob` (queued password-set link, dispatched after
+  commit) and `Jobs/SendEmailVerificationJob` (after an email change).
 - What is NEVER exposed: the persistence model, `id`, password hashes,
   remember tokens, Google ids, 2FA secrets.
 
@@ -91,6 +102,13 @@ CRUD change touch nine files with no test that fails if a layer is deleted.
   the new user out of the screens they were created for.
 - Inertia pages are not part of this backend task. The JSON contract (`rows` +
   `total`, `filter[...]`, `sort`, `per_page`) is the DataTable kit's contract.
+  The Inertia screen set now consumes the same routes; the list still exposes
+  the JSON body to the DataTable.
+- Password policy is 6–10 characters, the pre-existing product decision recorded
+  in `App\Actions\Fortify\PasswordValidationRules`. NIST SP 800-63B-4 (2025)
+  and the OWASP Authentication Cheat Sheet recommend 12–15+ and allow long
+  passphrases; raising it is a product decision that also changes the mirrored
+  TS constants and the demo credential. Tracked, not silently changed here.
 
 ## Tests holding the module down
 
@@ -100,5 +118,11 @@ CRUD change touch nine files with no test that fails if a layer is deleted.
   assignment, the Juan/Manager scenario, self-protection, last super admin.
 - `Tests/Feature/UserExportTest.php` — CSV/XLSX/PDF, same filters as the list,
   403 without `EXPORT_USER`.
+- `Tests/Feature/UserPagesTest.php` — Inertia screens, deep-linked filters,
+  page-level abilities, JSON/Inertia transport split, shared `authPermissions`.
+- `Tests/Feature/UserPasswordFlowTest.php` — branded password-set email,
+  admin resend + audit, ceiling refusal, email-change verification and old-address
+  security alert.
 - `Tests/Unit/AccessCeilingTest.php` — the ceiling and last-super-admin rule
   called directly, including the branch the HTTP self-check masks.
+- `Tests/Unit/UserFilterDataTest.php` — the DataTable/export query contract.

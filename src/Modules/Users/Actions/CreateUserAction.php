@@ -48,9 +48,14 @@ final readonly class CreateUserAction
                 'email' => $data->email,
                 'phone' => $data->phone,
                 'date_of_birth' => $data->dateOfBirth,
+                'address' => $data->address,
+                'address_2' => $data->address2,
+                'zip_code' => $data->zipCode,
                 'city' => $data->city,
                 'state' => $data->state,
                 'country' => $data->country,
+                'latitude' => $data->latitude,
+                'longitude' => $data->longitude,
             ]);
 
             $user->password = Str::password(32);

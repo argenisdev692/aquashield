@@ -49,7 +49,8 @@ declare namespace App {
             | '2fa.enabled'
             | '2fa.disabled'
             | '2fa.recovery_codes_regenerated'
-            | 'auth.account_locked';
+            | 'auth.account_locked'
+            | 'email.changed';
     }
 }
 declare namespace Illuminate {
@@ -219,9 +220,14 @@ declare namespace Modules {
                 readonly username: string | null;
                 readonly phone: string | null;
                 readonly date_of_birth: string | null;
+                readonly address: string | null;
+                readonly address_2: string | null;
+                readonly zip_code: string | null;
                 readonly city: string | null;
                 readonly state: string | null;
                 readonly country: string | null;
+                readonly latitude: number | null;
+                readonly longitude: number | null;
                 readonly roles: string[];
                 readonly permissions: string[];
             };
@@ -235,9 +241,14 @@ declare namespace Modules {
                 readonly email_verified: boolean;
                 readonly phone: string | null;
                 readonly date_of_birth: string | null;
+                readonly address: string | null;
+                readonly address_2: string | null;
+                readonly zip_code: string | null;
                 readonly city: string | null;
                 readonly state: string | null;
                 readonly country: string | null;
+                readonly latitude: number | null;
+                readonly longitude: number | null;
                 readonly roles: string[];
                 readonly direct_permissions: string[];
                 readonly deleted_at: string | null;
@@ -255,9 +266,14 @@ declare namespace Modules {
                 readonly username: string | null;
                 readonly phone: string | null;
                 readonly date_of_birth: string | null;
+                readonly address: string | null;
+                readonly address_2: string | null;
+                readonly zip_code: string | null;
                 readonly city: string | null;
                 readonly state: string | null;
                 readonly country: string | null;
+                readonly latitude: number | null;
+                readonly longitude: number | null;
             };
             export type UserAccessCatalogData = {
                 readonly roles: Modules.Users.Data.RoleOptionData[];

@@ -46,9 +46,14 @@ final class UpdateUserRequest extends FormRequest
             ],
             'phone' => ['nullable', 'string', 'max:32'],
             'date_of_birth' => ['nullable', 'date_format:Y-m-d', 'before:today'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'address_2' => ['nullable', 'string', 'max:255'],
+            'zip_code' => ['nullable', 'string', 'max:32'],
             'city' => ['nullable', 'string', 'max:120'],
             'state' => ['nullable', 'string', 'max:120'],
             'country' => ['nullable', 'string', 'max:120'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ];
     }
 

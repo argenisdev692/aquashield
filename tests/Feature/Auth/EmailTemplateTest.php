@@ -53,6 +53,19 @@ it('renders the lockout alert with attempts, location and a reset link', functio
         ->toContain('Reset your password');
 });
 
+it('renders the email-change alert with the new address and no reset button', function (): void {
+    $html = (new SecurityAlertMail(
+        recipientName: 'Ada Lovelace',
+        event: SecurityEvent::EmailChanged,
+        context: ['new_email' => 'new@example.com'],
+    ))->render();
+
+    expect($html)
+        ->toContain('Sign-in email changed')
+        ->toContain('new@example.com')
+        ->not->toContain('Review security settings');
+});
+
 it('renders the one-time-code email from the same layout', function (): void {
     $html = view('emails.otp', [
         'recipientName' => 'Ada Lovelace',

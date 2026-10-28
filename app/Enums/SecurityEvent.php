@@ -19,6 +19,7 @@ enum SecurityEvent: string
     case TwoFactorDisabled = '2fa.disabled';
     case RecoveryCodesRegenerated = '2fa.recovery_codes_regenerated';
     case AccountLocked = 'auth.account_locked';
+    case EmailChanged = 'email.changed';
 
     public function subject(): string
     {
@@ -28,6 +29,7 @@ enum SecurityEvent: string
             self::TwoFactorDisabled => 'Two-factor authentication was turned off',
             self::RecoveryCodesRegenerated => 'New two-factor recovery codes were generated',
             self::AccountLocked => 'Security alert: sign-in to your AquaShield account was locked',
+            self::EmailChanged => 'Your AquaShield sign-in email was changed',
         };
     }
 
@@ -39,6 +41,7 @@ enum SecurityEvent: string
             self::TwoFactorDisabled => 'Two-factor authentication disabled',
             self::RecoveryCodesRegenerated => 'Recovery codes regenerated',
             self::AccountLocked => 'Sign-in temporarily locked',
+            self::EmailChanged => 'Sign-in email changed',
         };
     }
 
@@ -50,13 +53,14 @@ enum SecurityEvent: string
             self::TwoFactorDisabled => 'Your account now signs in with its password only. If you did not make this change, contact support immediately.',
             self::RecoveryCodesRegenerated => 'The recovery codes for your account were replaced. Older codes no longer work.',
             self::AccountLocked => 'Sign-in was locked after repeated incorrect password attempts. The lock lifts automatically; you do not need to contact support.',
+            self::EmailChanged => 'The email address used to sign in to your AquaShield account was changed. If you did not authorize this change, contact support immediately.',
         };
     }
 
     public function severity(): string
     {
         return match ($this) {
-            self::TwoFactorDisabled, self::AccountLocked => 'warning',
+            self::TwoFactorDisabled, self::AccountLocked, self::EmailChanged => 'warning',
             default => 'info',
         };
     }

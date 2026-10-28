@@ -35,6 +35,12 @@ Route::middleware('web')->group(function (): void {
                 ->middleware('permission:VIEW_ANY_USER')
                 ->name('access-catalog');
 
+            // Static path before `{user:uuid}`; the UUID constraint would make
+            // `/users/create` a 404 otherwise.
+            Route::get('/create', [UserController::class, 'create'])
+                ->middleware('permission:CREATE_USER')
+                ->name('create');
+
             Route::post('/', [UserController::class, 'store'])
                 ->middleware('permission:CREATE_USER')
                 ->name('store');
@@ -53,14 +59,25 @@ Route::middleware('web')->group(function (): void {
                 ->name('export');
 
             Route::get('/{user:uuid}', [UserController::class, 'show'])
+                ->withTrashed()
                 ->whereUuid('user')
                 ->middleware('permission:VIEW_USER')
                 ->name('show');
+
+            Route::get('/{user:uuid}/edit', [UserController::class, 'edit'])
+                ->whereUuid('user')
+                ->middleware('permission:UPDATE_USER')
+                ->name('edit');
 
             Route::put('/{user:uuid}', [UserController::class, 'update'])
                 ->whereUuid('user')
                 ->middleware('permission:UPDATE_USER')
                 ->name('update');
+
+            Route::post('/{user:uuid}/password-reset', [UserController::class, 'sendPasswordReset'])
+                ->whereUuid('user')
+                ->middleware(['permission:UPDATE_USER', 'throttle:5,1'])
+                ->name('password-reset');
 
             Route::delete('/{user:uuid}', [UserController::class, 'destroy'])
                 ->whereUuid('user')

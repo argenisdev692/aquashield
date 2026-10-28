@@ -46,6 +46,8 @@ interface Props {
     exportFormats?: readonly ExportFormat[];
     exportHref?: (format: ExportFormat) => string | undefined;
     canRestore?: boolean;
+    /** Optional human label per selected row, used by the bulk confirm copy. */
+    selectionLabel?: (row: T) => string;
     emptyTitle?: string;
     emptyDescription?: string;
     emptyIcon?: string;
@@ -101,6 +103,19 @@ const filtered = computed(
         (props.filterCount ?? 0) > 0 ||
         search.value.trim() !== '',
 );
+
+/**
+ * The bulk bar owns the confirm modal, so it needs readable row labels to show
+ * what is about to be deleted. The page supplies the projection; the kit never
+ * assumes a model shape.
+ */
+const selectionLabels = computed<string[] | undefined>(() => {
+    if (props.selectionLabel === undefined) {
+        return undefined;
+    }
+
+    return selection.value.map((row) => props.selectionLabel?.(row) ?? '');
+});
 
 const resolvedEmptyTitle = computed(() => {
     if (props.emptyTitle !== undefined) {
@@ -270,6 +285,7 @@ defineExpose({ clearSelection });
                     :count="selection.length"
                     :can-restore="props.canRestore ?? false"
                     :busy="props.loading ?? false"
+                    :labels="selectionLabels"
                     @clear="clearSelection"
                     @delete="onBulkDelete"
                     @restore="onBulkRestore"

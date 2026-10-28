@@ -318,6 +318,8 @@ Rules:
 
 - The modal fires **before** the action. Accepting runs the page-supplied
   handler (`router.delete` / `router.post`); cancelling changes nothing.
+- Pass `selection-label` to `DataTableKit` and the bulk modal names up to three
+  selected rows; without it, the copy falls back to a count.
 - A row action without a `confirm` block runs immediately. Reserve that for
   reversible, non-destructive navigation such as an edit link.
 - `tone: 'danger'` is the visual half; the modal is the interactive half. Both
@@ -350,6 +352,7 @@ Required models: `v-model:page` and `v-model:per-page`. Optional models:
 | `export-formats`     | `['csv','xlsx','pdf']` | Menu entries.                                                      |
 | `export-href`        | —                      | `(format) => string \| undefined`.                                 |
 | `can-restore`        | `false`                | Shows Restore in the bulk bar.                                     |
+| `selection-label`    | —                      | `(row) => string` used to name selected rows in the bulk confirm.  |
 | `empty-*`            | auto copy              | Title, description and icon for the empty state.                   |
 
 Events: `export(format)`, `bulk-delete`, `bulk-restore`, `reset-filters`.
@@ -448,11 +451,12 @@ available actions leaves the column empty instead of a stray group wrapper.
 rows are selected and sits above the table rather than floating over the last
 row. Delete and restore both confirm through `ConfirmDialog` before emitting.
 
-| Prop         | Default | Purpose                                       |
-| ------------ | ------- | --------------------------------------------- |
-| `count`      | —       | Selected rows; drives the copy and the count. |
-| `canRestore` | `false` | Shows the Restore button.                     |
-| `busy`       | `false` | Disables every control.                       |
+| Prop         | Default | Purpose                                                  |
+| ------------ | ------- | -------------------------------------------------------- |
+| `count`      | —       | Selected rows; drives the copy and the count.            |
+| `canRestore` | `false` | Shows the Restore button.                                |
+| `busy`       | `false` | Disables every control.                                  |
+| `labels`     | —       | `string[]` naming the selected rows in the confirm copy. |
 
 Events: `delete`, `restore`, `clear`. Slot: `default` (extra controls, placed
 between the actions and the clear button).

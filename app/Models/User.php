@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -179,6 +180,19 @@ class User extends Authenticatable implements MustVerifyEmail
     public function uniqueIds(): array
     {
         return ['uuid'];
+    }
+
+    /**
+     * Send the branded password-set link.
+     *
+     * The signature intentionally stays untyped: the framework's
+     * CanResetPassword contract declares it without a parameter type.
+     *
+     * @param string $token
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification((string) $token));
     }
 
     /**

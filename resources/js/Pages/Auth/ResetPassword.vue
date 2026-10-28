@@ -8,7 +8,7 @@ import { PASSWORD_HINT, PASSWORD_MAX_LENGTH, passwordSchema } from '@/lib/auth';
 import { useZodForm } from '@/lib/forms';
 
 const props = defineProps<{
-    email: string;
+    email: string | null;
     token: string;
 }>();
 
@@ -29,7 +29,7 @@ const resetForm = useTemplateRef<HTMLFormElement>('resetForm');
 const { form, formEl, errors, submit, touch, clearError } = useZodForm({
     initial: {
         token: props.token,
-        email: props.email,
+        email: props.email ?? '',
         password: '',
         password_confirmation: '',
     },

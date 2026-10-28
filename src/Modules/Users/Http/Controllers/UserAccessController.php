@@ -6,6 +6,7 @@ namespace Modules\Users\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Modules\Users\Actions\AssignPermissionsAction;
 use Modules\Users\Actions\AssignRolesAction;
@@ -35,22 +36,39 @@ final readonly class UserAccessController
         return response()->json($this->catalog->execute());
     }
 
-    public function assignRoles(AssignRolesRequest $request, User $user): JsonResponse
+    public function assignRoles(AssignRolesRequest $request, User $user): JsonResponse|RedirectResponse
     {
         $data = AssignRolesData::from($request->validated());
 
         $user = $this->assignRoles->execute($user, $this->actor($request), $data->roles);
 
+        if (! $this->wantsJson($request)) {
+            return to_route('users.show', ['user' => $user->uuid]);
+        }
+
         return response()->json(ManagedUserData::fromModel($user));
     }
 
-    public function assignPermissions(AssignPermissionsRequest $request, User $user): JsonResponse
+    public function assignPermissions(AssignPermissionsRequest $request, User $user): JsonResponse|RedirectResponse
     {
         $data = AssignPermissionsData::from($request->validated());
 
         $user = $this->assignPermissions->execute($user, $this->actor($request), $data->permissions);
 
+        if (! $this->wantsJson($request)) {
+            return to_route('users.show', ['user' => $user->uuid]);
+        }
+
         return response()->json(ManagedUserData::fromModel($user));
+    }
+
+    /**
+     * An Inertia visit carries `X-Inertia`; the JSON contract is for clients
+     * that ask for JSON and are not the page transport.
+     */
+    private function wantsJson(Request $request): bool
+    {
+        return $request->expectsJson() && ! $request->header('X-Inertia');
     }
 
     private function actor(Request $request): User

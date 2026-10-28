@@ -22,6 +22,8 @@ export interface NavItem {
     readonly icon: string;
     /** Extra words the palette filter should match but the row should not show. */
     readonly keywords: string;
+    /** Permission required to see the destination; omitted for every-user rows. */
+    readonly permission?: string;
     /** Same-page target (`#id`) instead of a route visit. */
     readonly anchor?: boolean;
 }
@@ -47,8 +49,29 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/company-data/edit',
         icon: 'pi-building',
         keywords: 'company profile settings branding contact address billing bank socials',
+        permission: 'VIEW_COMPANY_DATA',
+    },
+    {
+        label: 'Users',
+        href: '/users',
+        icon: 'pi-users',
+        keywords: 'users team staff people accounts access roles permissions invitations',
+        permission: 'VIEW_ANY_USER',
     },
 ];
+
+/**
+ * The menu is a courtesy, not a control: the route middleware still answers the
+ * permission. Filtering here keeps a user without VIEW_ANY_USER from seeing a
+ * destination that would only 403.
+ */
+export const visiblePrimaryNav = (permissions: readonly string[]): readonly NavItem[] => {
+    const granted = new Set(permissions);
+
+    return PRIMARY_NAV.filter(
+        (item) => item.permission === undefined || granted.has(item.permission),
+    );
+};
 
 /**
  * The dashboard's real section ids. `Dashboard.vue` owns the markup; these
