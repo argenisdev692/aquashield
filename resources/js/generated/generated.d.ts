@@ -46,6 +46,12 @@ declare namespace Modules {
     namespace CompanyData {
         namespace Application {
             namespace Dtos {
+                export type CompanyAssetsDto = {
+                    readonly logo_url: string | null;
+                    readonly logo_white_url: string | null;
+                    readonly mark_url: string | null;
+                    readonly signature_url: string | null;
+                };
                 export type CompanyBrandingDto = {
                     readonly name: string;
                     readonly description: string | null;
@@ -136,6 +142,11 @@ declare namespace Modules {
                     readonly twitter_link: string | null;
                     readonly tiktok_link: string | null;
                 };
+            }
+        }
+        namespace Domain {
+            namespace Enums {
+                export type CompanyAsset = 'logo' | 'logo_white' | 'mark' | 'signature';
             }
         }
     }

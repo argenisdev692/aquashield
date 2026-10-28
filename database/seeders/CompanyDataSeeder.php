@@ -62,13 +62,14 @@ class CompanyDataSeeder extends Seeder
 
         // Ownership, signature and branding assets are set explicitly: none of
         // them is mass-assignable from the profile endpoint. `img/...` tells
-        // CompanyProfile to serve the bundled public asset; an R2 object key
-        // would be used verbatim after a real upload.
+        // CompanyProfile to serve the bundled public asset; an uploaded asset is
+        // an R2 object key written by the asset endpoint, never a full URL
+        // (a frozen origin makes a later bucket migration unrecoverable).
         $company->user_id = $owner->id;
         $company->signature_path = '/signatures/victor_lara_signature.png';
-        $company->logo_path = 'https://pub-92ad7c0f92a442a485c4eab0514a2faa.r2.dev/logos/logo.webp';
-        $company->logo_white_path = 'https://pub-92ad7c0f92a442a485c4eab0514a2faa.r2.dev/logos/logo-white.webp';
-        $company->mark_path = 'https://pub-92ad7c0f92a442a485c4eab0514a2faa.r2.dev/logos/logo-mark.webp';
+        $company->logo_path = 'img/logo.webp';
+        $company->logo_white_path = 'img/logo-white.webp';
+        $company->mark_path = 'img/logo-mark.webp';
         $company->save();
     }
 }

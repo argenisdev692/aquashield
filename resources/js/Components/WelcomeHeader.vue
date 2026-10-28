@@ -29,11 +29,16 @@ const { company } = defineProps<{
 }>();
 
 /*
- * The mark and the phone come from the seeded company row (the public
- * CompanyBrandingDto), never from a hardcoded asset or number. The name is
- * split into the same two-line lockup the template already uses: first word
- * bold, remainder in the muted line.
+ * The mark is bundled brand artwork (`public/img`), not the uploaded
+ * company_data row: the welcome header is the one surface that must render
+ * before any seed, upload or storage round trip exists. The name and the
+ * dispatch number do come from the public CompanyBrandingDto, so changing the
+ * company block still changes the header copy.
+ *
+ * Bound rather than a literal `src`: Vite 8 treats a literal public path in a
+ * template as a module request and fails the build.
  */
+const mark = '/img/logo-mark.webp';
 const brandParts = computed(() => {
     const [first = '', ...rest] = company.name.trim().split(/\s+/);
 
@@ -138,7 +143,7 @@ watch(menuOpen, (open) => {
                     class="aq-logo-shine aq-logo-shine-mark transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none"
                 >
                     <img
-                        :src="company.mark_url"
+                        :src="mark"
                         alt=""
                         width="358"
                         height="402"

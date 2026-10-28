@@ -7,8 +7,10 @@ namespace Modules\CompanyData\Providers;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Modules\CompanyData\Application\Repositories\CompanyAssetStorage;
 use Modules\CompanyData\Application\Repositories\CompanyRepository;
 use Modules\CompanyData\Infrastructure\Persistence\EloquentCompanyRepository;
+use Modules\CompanyData\Infrastructure\Services\R2CompanyAssetStorage;
 
 final class CompanyServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,13 @@ final class CompanyServiceProvider extends ServiceProvider
         $this->app->bind(
             CompanyRepository::class,
             EloquentCompanyRepository::class,
+        );
+
+        // The module owns the asset contract; R2 is the current adapter. A test
+        // or a storage migration swaps this binding, not the use cases.
+        $this->app->bind(
+            CompanyAssetStorage::class,
+            R2CompanyAssetStorage::class,
         );
     }
 

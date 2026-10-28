@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
 use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
 
 return [
     /*
@@ -185,7 +184,10 @@ return [
         MiddlewareAuthSecurityStrategy::class,
         [
             'middleware' => ['auth', 'auth:*'],
-            'scheme' => SecurityScheme::http('bearer'),
+            // No `scheme` key on purpose: the strategy already defaults to
+            // SecurityScheme::http('bearer'). Holding that object here puts a
+            // closure in the config graph, and `php artisan config:cache` then
+            // fails with "security_strategy.1.scheme is not serializable".
         ],
     ],
 ];

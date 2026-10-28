@@ -39,6 +39,15 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: 'pi-home',
         keywords: 'home overview start workspace pipeline crm',
     },
+    {
+        // The CompanyData module's one screen. Adding the module to the shell is
+        // this entry and nothing else: the rail, the drawer and the palette read
+        // from here.
+        label: 'Company',
+        href: '/company-data/edit',
+        icon: 'pi-building',
+        keywords: 'company profile settings branding contact address billing bank socials',
+    },
 ];
 
 /**

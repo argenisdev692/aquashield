@@ -17,6 +17,7 @@ the submit call.
 | `NumberField`      | Numeric / currency input                                            |
 | `PhoneField`       | libphonenumber-js formatting; the model is E.164                    |
 | `CheckboxField`    | Binary checkbox with an inline label                                |
+| `SignatureField`   | Canvas signature + upload fallback; the model is a PNG `File`       |
 | `FileDropzone`     | One file + name / size / type preview                               |
 | `ImageDropzone`    | One image + object-URL preview                                      |
 | `ImagesDropzone`   | Image array, previews, drag reorder, keyboard move buttons          |
@@ -157,6 +158,29 @@ number is valid and keeps the draft while it is incomplete.
   through a polite live region. `vuedraggable@2` is Vue 2-only and is not used.
 
 ---
+
+---
+
+## Signature
+
+```vue
+<SignatureField
+  v-model="signature"
+  label="Authorised signature"
+  :current-url="assets.signature_url"
+  :disabled="!canUpdate"
+/>
+```
+
+- The canvas is pointer/pen input; the always-visible **Upload image instead**
+  control is the keyboard and screen-reader path (WCAG 2.2 has no "draw"
+  primitive, so an image file is the equivalent action).
+- The model is a PNG `File` from `canvas.toBlob`, or the image the user chose.
+- Pen colour is read from the canvas's computed `color`, so it follows the
+  `text-surface-*` token and `.dark` instead of freezing a literal; it is
+  re-read when the theme changes.
+- `redraw()` on resize replays the strokes, so rotating a phone does not wipe a
+  half-drawn signature.
 
 ## Server errors
 
