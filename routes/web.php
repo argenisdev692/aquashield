@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Data\Auth\UserData;
 use App\Http\Controllers\Auth\AuthenticatorLoginController;
 use App\Http\Controllers\Auth\GoogleController;
+use App\Http\Controllers\Auth\KeepSessionAliveController;
 use App\Http\Controllers\Auth\OneTimePasswordLoginController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ProfilePhotoController;
@@ -68,6 +69,15 @@ Route::middleware('guest')->group(function () {
  * Inertia shell around them, so it needs no permission beyond `auth`.
  */
 Route::middleware('auth')->group(function (): void {
+    /*
+     * Idle-session heartbeat. The Vue dialog posts here when the user answers
+     * "Keep me signed in"; the route is throttled because a compromised page
+     * should not be able to refresh the session in a tight loop.
+     */
+    Route::post('/auth/keep-alive', KeepSessionAliveController::class)
+        ->middleware('throttle:60,1')
+        ->name('auth.keep-alive');
+
     Route::get('/settings/profile', [ProfileController::class, 'edit'])
         ->name('settings.profile.edit');
     Route::post('/settings/profile/photo', [ProfilePhotoController::class, 'store'])

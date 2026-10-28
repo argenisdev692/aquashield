@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\SecurityEvent;
 use App\Mail\SecurityAlertMail;
 use App\Models\User;
+use App\Support\ClientLocation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -48,15 +49,27 @@ final class SendSecurityAlert implements ShouldQueue
         self::dispatch($user->email, $user->name, $event, $context);
     }
 
-    public function handle(MailInterface $mail): void
+    public function handle(MailInterface $mail, ?ClientLocation $location = null): void
     {
+        $location ??= app(ClientLocation::class);
+
+        $context = [
+            ...$this->context,
+            'occurred_at' => now()->toIso8601String(),
+        ];
+
+        // Resolve the label in the worker, not in the login request: a slow
+        // geolocation provider must never add latency to an authentication
+        // response. The IP is already in the context; private ranges resolve
+        // to null and the email still goes out.
+        if (! array_key_exists('location', $context)) {
+            $context['location'] = $location->forIp($context['ip_address'] ?? null);
+        }
+
         $mail->send($this->email, new SecurityAlertMail(
             recipientName: $this->name,
             event: $this->event,
-            context: [
-                ...$this->context,
-                'occurred_at' => now()->toIso8601String(),
-            ],
+            context: $context,
         ));
     }
 }

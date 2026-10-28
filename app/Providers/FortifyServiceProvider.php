@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Actions\Auth\RecordFailedLoginAction;
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Models\User;
+use App\Support\AccountLockout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -56,7 +58,21 @@ class FortifyServiceProvider extends ServiceProvider
                 return null;
             }
 
+            /*
+             * The durable lock is checked before the password: a locked account
+             * rejects even the correct credential for the rest of the hour.
+             * This is deliberately separate from the 5/min route limiter —
+             * the limiter bounds a burst, this bounds the account.
+             */
+            if (AccountLockout::active($user)) {
+                throw ValidationException::withMessages([
+                    'email' => AccountLockout::message($user),
+                ]);
+            }
+
             if (! Hash::check((string) $request->input('password'), (string) $user->password)) {
+                app(RecordFailedLoginAction::class)->execute($user);
+
                 return null;
             }
 

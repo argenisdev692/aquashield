@@ -27,6 +27,18 @@ return [
         'maps_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    /*
+    | Coarse IP → "City, Region, Country" enrichment for security emails.
+    | The host is configuration, never request input. Disable it in tests or
+    | on an air-gapped deployment; the alert still carries IP + device.
+    */
+    'geolocation' => [
+        'enabled' => env('GEOLOCATION_ENABLED', true),
+        'endpoint' => env('GEOLOCATION_ENDPOINT', 'https://ipwho.is'),
+        'connect_timeout' => env('GEOLOCATION_CONNECT_TIMEOUT', 1),
+        'timeout' => env('GEOLOCATION_TIMEOUT', 2),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

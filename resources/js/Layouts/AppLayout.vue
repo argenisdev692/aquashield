@@ -21,6 +21,7 @@ import CommandPalette from '@/Components/CommandPalette.vue';
 import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
 import HeaderInbox from '@/Components/HeaderInbox.vue';
+import SessionIdleWarning from '@/Components/SessionIdleWarning.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
 import type { Command } from '@/lib/commands';
 import {
@@ -81,6 +82,7 @@ const accountMenu = useTemplateRef<{ toggle: (event: Event) => void }>('accountM
 const logoMark = '/img/logo-mark.webp';
 
 const user = computed(() => page.props.user ?? null);
+const idleConfig = computed(() => page.props.authIdle);
 const currentPath = computed(() => page.url.split('?')[0] ?? '/');
 
 const initials = computed(() => {
@@ -339,6 +341,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
         <Toast position="bottom-right" />
         <ConfirmDialog />
+
+        <SessionIdleWarning
+            v-if="idleConfig"
+            :warn-after-seconds="idleConfig.warnAfterSeconds"
+            :grace-seconds="idleConfig.graceSeconds"
+            :keep-alive-endpoint="idleConfig.keepAliveEndpoint"
+            :logout-endpoint="idleConfig.logoutEndpoint"
+        />
 
         <CookieConsentBanner />
         <CursorOrb />

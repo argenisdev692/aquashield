@@ -9,6 +9,7 @@ use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -41,6 +42,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string|null $password
+ * @property int $failed_login_attempts
+ * @property Carbon|null $locked_until
  * @property string|null $google_id
  * @property string|null $phone
  * @property string|null $date_of_birth
@@ -126,7 +129,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUsername($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereZipCode($value)
  *
- * @mixin \Eloquent
+ * @mixin Builder
  */
 #[Fillable([
     'first_name',
@@ -177,6 +180,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
             'latitude' => 'float',
             'longitude' => 'float',
             'terms_and_conditions' => 'boolean',

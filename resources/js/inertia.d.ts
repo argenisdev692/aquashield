@@ -23,6 +23,13 @@ declare module '@inertiajs/core' {
              * the banner renders nothing for it.
              */
             cookieConsent: Shared.Application.DTOs.CookieConsentData | null;
+
+            /**
+             * Non-null while the visitor is authenticated. The idle dialog
+             * reads both numbers from the server policy; a guest page gets
+             * `null` and mounts nothing.
+             */
+            authIdle: App.Data.Auth.IdleSessionData | null;
         };
     }
 }

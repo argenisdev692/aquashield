@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Auth\ClearLoginFailuresAction;
+use App\Actions\Auth\RecordFailedLoginAction;
 use App\Data\Auth\AuthTokenData;
 use App\Data\Auth\UserData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Models\User;
+use App\Support\AccountLockout;
 use App\Support\AuthRequestContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
@@ -37,26 +40,34 @@ final class AuthController extends Controller
         private readonly TwoFactorAuthenticationProvider $twoFactor,
         private readonly AuditPort $audit,
         private readonly StoragePort $storage,
+        private readonly RecordFailedLoginAction $recordFailedLogin,
+        private readonly ClearLoginFailuresAction $clearLoginFailures,
     ) {}
 
     public function login(LoginRequest $request): AuthTokenData
     {
         $email = Str::lower($request->string('email')->toString());
+        $user = User::query()->where('email', $email)->first();
 
-        if (! Auth::validate([
-            'email' => $email,
-            'password' => $request->string('password')->toString(),
-        ])) {
+        /*
+         * Same durable lock as the web transport. The API and the web share
+         * one user row, so an attacker cannot reset the budget by switching
+         * from the form to the token endpoint (or back).
+         */
+        if ($user instanceof User && AccountLockout::active($user)) {
             $this->auditFailure($email);
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => AccountLockout::message($user),
             ]);
         }
 
-        $user = User::query()->where('email', $email)->first();
+        if (! $user instanceof User
+            || ! Hash::check($request->string('password')->toString(), (string) $user->password)) {
+            if ($user instanceof User) {
+                $this->recordFailedLogin->execute($user);
+            }
 
-        if (! $user instanceof User) {
             $this->auditFailure($email);
 
             throw ValidationException::withMessages([
@@ -73,6 +84,10 @@ final class AuthController extends Controller
         }
 
         $this->assertTwoFactor($user, $request);
+
+        // The password and the second factor both checked out: restart the
+        // five-attempt budget. Web logins do this in AuthEventSubscriber.
+        $this->clearLoginFailures->execute($user);
 
         $device = trim($request->string('device_name')->toString()) ?: 'api';
         $expiresAt = $this->expiryFor($user);

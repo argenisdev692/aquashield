@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\EnforceIdleSession;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -35,6 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
         $middleware->web(append: [
+            // Runs before Inertia renders: an expired session must never
+            // produce a page payload for a user who is already signed out.
+            EnforceIdleSession::class,
             HandleInertiaRequests::class,
         ]);
         $middleware->alias([

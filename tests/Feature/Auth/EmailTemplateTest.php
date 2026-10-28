@@ -18,6 +18,7 @@ it('renders the shared corporate layout for a security alert', function (): void
         event: SecurityEvent::PasswordChanged,
         context: [
             'ip_address' => '203.0.113.10',
+            'location' => 'Madrid, Community of Madrid, Spain',
             'occurred_at' => '2026-10-28T12:00:00+00:00',
         ],
     ))->render();
@@ -28,7 +29,28 @@ it('renders the shared corporate layout for a security alert', function (): void
         ->toContain('Password changed')
         ->toContain('Review security settings')
         ->toContain('203.0.113.10')
+        ->toContain('Approximate location')
+        ->toContain('Madrid, Community of Madrid, Spain')
         ->toContain('Hi Ada Lovelace');
+});
+
+it('renders the lockout alert with attempts, location and a reset link', function (): void {
+    $html = (new SecurityAlertMail(
+        recipientName: 'Ada Lovelace',
+        event: SecurityEvent::AccountLocked,
+        context: [
+            'ip_address' => '203.0.113.10',
+            'location' => 'Madrid, Spain',
+            'failed_attempts' => '5',
+            'locked_until' => '2026-10-28T13:00:00+00:00',
+        ],
+    ))->render();
+
+    expect($html)
+        ->toContain('Sign-in temporarily locked')
+        ->toContain('Failed attempts')
+        ->toContain('Madrid, Spain')
+        ->toContain('Reset your password');
 });
 
 it('renders the one-time-code email from the same layout', function (): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Data\Auth\IdleSessionData;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Shared\Application\Queries\PendingCookieConsent;
@@ -46,6 +47,17 @@ class HandleInertiaRequests extends Middleware
             // case: one shared prop, typed from `CookieConsentData` via
             // `typescript:transform`, and the Vue banner renders nothing for it.
             'cookieConsent' => app(PendingCookieConsent::class)($request),
+
+            // Null for guests. Authenticated pages mount the idle warning with
+            // these two numbers; the countdown itself is client-side.
+            'authIdle' => $request->user() === null
+                ? null
+                : new IdleSessionData(
+                    warnAfterSeconds: max(1, (int) config('auth.hardening.idle.warn_after_minutes', 5)) * 60,
+                    graceSeconds: max(10, (int) config('auth.hardening.idle.grace_seconds', 60)),
+                    keepAliveEndpoint: route('auth.keep-alive'),
+                    logoutEndpoint: route('logout'),
+                ),
         ];
     }
 }

@@ -7,6 +7,12 @@ declare namespace App {
                 readonly expires_at: string;
                 readonly user: App.Data.Auth.UserData;
             };
+            export type IdleSessionData = {
+                readonly warnAfterSeconds: number;
+                readonly graceSeconds: number;
+                readonly keepAliveEndpoint: string;
+                readonly logoutEndpoint: string;
+            };
             export type ProfilePhotoData = {
                 readonly profile_photo_url: string | null;
             };
@@ -39,7 +45,11 @@ declare namespace App {
     }
     namespace Enums {
         export type SecurityEvent =
-            'password.changed' | '2fa.enabled' | '2fa.disabled' | '2fa.recovery_codes_regenerated';
+            | 'password.changed'
+            | '2fa.enabled'
+            | '2fa.disabled'
+            | '2fa.recovery_codes_regenerated'
+            | 'auth.account_locked';
     }
 }
 declare namespace Illuminate {

@@ -116,4 +116,33 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Brute-force and idle-session policy
+    |--------------------------------------------------------------------------
+    |
+    | The route limiter (5/min) bounds a burst; these values bound the account
+    | and the session. Lockout is durable in the users table, so it survives a
+    | cache flush and applies to the web and API transports alike.
+    |
+    | `idle.warn_after_minutes` is the product's 3-or-5 minute choice: set
+    | AUTH_IDLE_WARN_MINUTES=3 for the stricter window, 5 for the default.
+    | `server_buffer_seconds` is only clock/network skew tolerance; the browser
+    | still counts down exactly `grace_seconds`.
+    |
+    */
+
+    'hardening' => [
+        'lockout' => [
+            'max_attempts' => (int) env('AUTH_MAX_FAILED_ATTEMPTS', 5),
+            'duration_minutes' => (int) env('AUTH_LOCKOUT_MINUTES', 60),
+        ],
+
+        'idle' => [
+            'warn_after_minutes' => (int) env('AUTH_IDLE_WARN_MINUTES', 5),
+            'grace_seconds' => (int) env('AUTH_IDLE_GRACE_SECONDS', 60),
+            'server_buffer_seconds' => 15,
+        ],
+    ],
+
 ];

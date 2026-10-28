@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Listeners;
 
+use App\Actions\Auth\ClearLoginFailuresAction;
 use App\Enums\SecurityEvent;
 use App\Jobs\SendSecurityAlert;
 use App\Models\User;
@@ -34,6 +35,7 @@ final readonly class AuthEventSubscriber
 {
     public function __construct(
         private AuditPort $auditPort,
+        private ClearLoginFailuresAction $clearLoginFailures,
     ) {}
 
     public function subscribe(Dispatcher $events): void
@@ -52,6 +54,16 @@ final readonly class AuthEventSubscriber
 
     public function handleLogin(Login $event): void
     {
+        if ($event->user instanceof User) {
+            try {
+                $this->clearLoginFailures->execute($event->user);
+            } catch (Throwable $exception) {
+                // The user is already authenticated; a counter update must not
+                // turn a successful sign-in into an error page.
+                report($exception);
+            }
+        }
+
         $this->log('auth.login', $event->user instanceof User ? $event->user : null, [
             'guard' => $event->guard,
             'remember' => $event->remember,
