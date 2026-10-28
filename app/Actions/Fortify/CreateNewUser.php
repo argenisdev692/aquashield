@@ -6,10 +6,10 @@ namespace App\Actions\Fortify;
 
 use App\Models\User;
 use App\Rules\Username;
+use App\Support\UserProfileInput;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -101,26 +101,12 @@ class CreateNewUser implements CreatesNewUsers
      */
     private function normalise(array $input): array
     {
-        $input['email'] = Str::lower(trim((string) ($input['email'] ?? '')));
-
-        if (array_key_exists('username', $input)) {
-            $username = Str::lower(trim((string) $input['username']));
-            $input['username'] = $username === '' ? null : $username;
-        }
+        $input = UserProfileInput::normalise($input);
 
         if (array_key_exists('name', $input) && ! array_key_exists('first_name', $input)) {
             $parts = preg_split('/\s+/', trim((string) $input['name'])) ?: [];
             $input['first_name'] = array_shift($parts) ?? '';
             $input['last_name'] = $parts === [] ? null : implode(' ', $parts);
-        }
-
-        if (array_key_exists('first_name', $input)) {
-            $input['first_name'] = trim((string) $input['first_name']);
-        }
-
-        if (array_key_exists('last_name', $input)) {
-            $lastName = trim((string) $input['last_name']);
-            $input['last_name'] = $lastName === '' ? null : $lastName;
         }
 
         $input['terms_and_conditions'] = (bool) ($input['terms_and_conditions'] ?? false);

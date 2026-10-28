@@ -6,6 +6,7 @@ namespace App\Actions\Fortify;
 
 use App\Models\User;
 use App\Rules\Username;
+use App\Support\UserProfileInput;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -89,30 +90,12 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
      */
     private function normalise(array $input): array
     {
-        $input['email'] = Str::lower(trim((string) ($input['email'] ?? '')));
-
-        foreach (['first_name', 'last_name', 'phone', 'address', 'address_2', 'zip_code', 'city', 'state', 'country', 'gender'] as $key) {
-            if (array_key_exists($key, $input)) {
-                $value = trim((string) $input[$key]);
-                $input[$key] = $value === '' ? null : $value;
-            }
-        }
-
-        if (array_key_exists('username', $input)) {
-            $username = Str::lower(trim((string) $input['username']));
-            $input['username'] = $username === '' ? null : $username;
-        }
+        $input = UserProfileInput::normalise($input);
 
         if (array_key_exists('name', $input) && ! array_key_exists('first_name', $input)) {
             $parts = preg_split('/\s+/', trim((string) $input['name'])) ?: [];
             $input['first_name'] = array_shift($parts) ?? '';
             $input['last_name'] = $parts === [] ? null : implode(' ', $parts);
-        }
-
-        foreach (['date_of_birth', 'latitude', 'longitude'] as $key) {
-            if (array_key_exists($key, $input) && $input[$key] === '') {
-                $input[$key] = null;
-            }
         }
 
         if (array_key_exists('terms_and_conditions', $input)) {

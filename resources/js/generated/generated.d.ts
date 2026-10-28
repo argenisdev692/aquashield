@@ -204,6 +204,79 @@ declare namespace Modules {
             }
         }
     }
+    namespace Users {
+        namespace Data {
+            export type AssignPermissionsData = {
+                readonly permissions: string[];
+            };
+            export type AssignRolesData = {
+                readonly roles: string[];
+            };
+            export type CreateUserData = {
+                readonly first_name: string;
+                readonly email: string;
+                readonly last_name: string | null;
+                readonly username: string | null;
+                readonly phone: string | null;
+                readonly date_of_birth: string | null;
+                readonly city: string | null;
+                readonly state: string | null;
+                readonly country: string | null;
+                readonly roles: string[];
+                readonly permissions: string[];
+            };
+            export type ManagedUserData = {
+                readonly uuid: string;
+                readonly first_name: string;
+                readonly last_name: string | null;
+                readonly name: string;
+                readonly username: string | null;
+                readonly email: string;
+                readonly email_verified: boolean;
+                readonly phone: string | null;
+                readonly date_of_birth: string | null;
+                readonly city: string | null;
+                readonly state: string | null;
+                readonly country: string | null;
+                readonly roles: string[];
+                readonly direct_permissions: string[];
+                readonly deleted_at: string | null;
+                readonly created_at: string | null;
+                readonly updated_at: string | null;
+            };
+            export type RoleOptionData = {
+                readonly name: string;
+                readonly permissions: string[];
+            };
+            export type UpdateUserData = {
+                readonly first_name: string;
+                readonly email: string;
+                readonly last_name: string | null;
+                readonly username: string | null;
+                readonly phone: string | null;
+                readonly date_of_birth: string | null;
+                readonly city: string | null;
+                readonly state: string | null;
+                readonly country: string | null;
+            };
+            export type UserAccessCatalogData = {
+                readonly roles: Modules.Users.Data.RoleOptionData[];
+                readonly permissions: string[];
+            };
+            export type UserFilterData = {
+                readonly role: string | null;
+                readonly permission: string | null;
+                readonly sort_field: string;
+                readonly sort_order: number;
+                readonly page: number;
+                readonly per_page: number;
+                search: string | null;
+                status: string | null;
+                date_from: string | null;
+                date_to: string | null;
+            };
+        }
+    }
 }
 declare namespace Shared {
     namespace Application {

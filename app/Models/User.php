@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\DatabaseNotificationCollection;
@@ -62,6 +63,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property string|null $two_factor_confirmed_at
@@ -130,6 +132,15 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereZipCode($value)
  *
  * @mixin Builder
+ *
+ * @method static Builder<static>|User onlyTrashed()
+ * @method static Builder<static>|User whereFailedLoginAttempts($value)
+ * @method static Builder<static>|User whereLockedUntil($value)
+ * @method static Builder<static>|User withTrashed(bool $withTrashed = true)
+ * @method static Builder<static>|User withoutTrashed()
+ * @method static Builder<static>|User whereDeletedAt($value)
+ *
+ * @mixin \Eloquent
  */
 #[Fillable([
     'first_name',
@@ -158,7 +169,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasOneTimePasswords, HasRoles, HasUuids, MustVerifyEmailTrait, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasOneTimePasswords, HasRoles, HasUuids, MustVerifyEmailTrait, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * Get the columns that should receive a unique identifier.
