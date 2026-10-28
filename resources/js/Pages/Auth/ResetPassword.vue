@@ -4,6 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import { AppButton, FormErrorSummary, PasswordField, TextField } from '@/Components/Forms';
+import { PASSWORD_HINT, PASSWORD_MAX_LENGTH, passwordSchema } from '@/lib/auth';
 import { useZodForm } from '@/lib/forms';
 
 const props = defineProps<{
@@ -15,7 +16,7 @@ const schema = z
     .object({
         token: z.string().min(1),
         email: z.email('Enter a valid email address'),
-        password: z.string().min(8, 'Use at least 8 characters'),
+        password: passwordSchema,
         password_confirmation: z.string(),
     })
     .refine((values) => values.password === values.password_confirmation, {
@@ -70,7 +71,8 @@ const onSubmit = (): void => {
                 label="New password"
                 autocomplete="new-password"
                 required
-                hint="At least 8 characters."
+                :hint="PASSWORD_HINT"
+                :maxlength="PASSWORD_MAX_LENGTH"
                 :error="errors.password"
                 @update:model-value="clearError('password')"
                 @blur="touch('password')"
@@ -82,6 +84,7 @@ const onSubmit = (): void => {
                 label="Confirm password"
                 autocomplete="new-password"
                 required
+                :maxlength="PASSWORD_MAX_LENGTH"
                 :error="errors.password_confirmation"
                 @update:model-value="clearError('password_confirmation')"
                 @blur="touch('password_confirmation')"

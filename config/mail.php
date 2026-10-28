@@ -16,7 +16,10 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    // Resend is the production transport. Local `.env` may deliberately set
+    // `MAIL_MAILER=log`; ResolvesOutboundMailer treats log/array as passthrough
+    // so developers never send real mail from a local machine.
+    'default' => env('MAIL_MAILER', 'resend'),
 
     /*
     |--------------------------------------------------------------------------
@@ -30,7 +33,7 @@ return [
     |
     */
 
-    'adapter' => env('MAIL_ADAPTER', 'brevo'),
+    'adapter' => env('MAIL_ADAPTER', 'resend'),
 
     /*
     |--------------------------------------------------------------------------

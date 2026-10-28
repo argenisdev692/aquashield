@@ -24,6 +24,8 @@ interface Props {
     placeholder?: string;
     disabled?: boolean;
     autofocus?: boolean;
+    maxlength?: number;
+    minlength?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,6 +57,8 @@ const masked = ref<boolean>(true);
                 :placeholder="props.placeholder"
                 :disabled="props.disabled"
                 :autofocus="props.autofocus"
+                :maxlength="props.maxlength"
+                :minlength="props.minlength"
                 :aria-describedby="describedBy"
                 :aria-invalid="props.error ? true : undefined"
                 :invalid="Boolean(props.error)"

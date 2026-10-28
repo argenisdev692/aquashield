@@ -1,3 +1,30 @@
+declare namespace App {
+    namespace Data {
+        namespace Auth {
+            export type AuthTokenData = {
+                readonly token: string;
+                readonly token_type: string;
+                readonly expires_at: string;
+                readonly user: App.Data.Auth.UserData;
+            };
+            export type AvatarData = {
+                readonly avatar_url: string | null;
+            };
+            export type UserData = {
+                readonly uuid: string;
+                readonly name: string;
+                readonly email: string;
+                readonly avatar_url: string | null;
+                readonly two_factor_enabled: boolean;
+                readonly permissions: string[];
+            };
+        }
+    }
+    namespace Enums {
+        export type SecurityEvent =
+            'password.changed' | '2fa.enabled' | '2fa.disabled' | '2fa.recovery_codes_regenerated';
+    }
+}
 declare namespace Illuminate {
     export type CursorPaginator<TKey, TValue> = {
         data: TKey extends string ? Record<TKey, TValue> : TValue[];

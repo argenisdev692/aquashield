@@ -63,6 +63,20 @@ final class BrandPalette
     /** `--color-aq-ink-muted` — labels, metadata, the quietest legible rung. */
     public const string TEXT_MUTED = '#7a8fa8';
 
+    /*
+     * Email-specific light rungs. Email clients cannot resolve CSS custom
+     * properties, and Outlook's Word engine handles a light reading surface
+     * better than a full dark canvas. These mirror the light half of
+     * globals.css: surface-50, surface-0, surface-900 and surface-700.
+     */
+    public const string EMAIL_BACKGROUND = '#f1f6fa';
+
+    public const string EMAIL_CARD = '#ffffff';
+
+    public const string EMAIL_TEXT = '#0c2340';
+
+    public const string EMAIL_MUTED = '#244166';
+
     /**
      * `--aq-grad-primary`, composed from the two constants it is made of rather
      * than restated as a literal — the CSS token and this string cannot drift

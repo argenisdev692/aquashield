@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Notifications\OneTimePasswordNotification;
 use Spatie\OneTimePasswords\Actions\ConsumeOneTimePasswordAction;
 use Spatie\OneTimePasswords\Actions\CreateOneTimePasswordAction;
 use Spatie\OneTimePasswords\Models\OneTimePassword;
-use Spatie\OneTimePasswords\Notifications\OneTimePasswordNotification;
 use Spatie\OneTimePasswords\Support\OriginInspector\DefaultOriginEnforcer;
 use Spatie\OneTimePasswords\Support\PasswordGenerators\NumericOneTimePasswordGenerator;
 

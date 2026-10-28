@@ -15,15 +15,115 @@
         }
     ],
     "paths": {
-        "/user": {
-            "get": {
+        "/auth/login": {
+            "post": {
+                "operationId": "auth.login",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
-                        "description": "`User`",
+                        "description": "`AuthTokenData`",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/User"
+                                    "$ref": "#/components/schemas/AuthTokenData"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "operationId": "auth.me",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`UserData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "operationId": "auth.refresh",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AuthTokenData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuthTokenData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "operationId": "auth.logout",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/user": {
+            "get": {
+                "operationId": "user",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`UserData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserData"
                                 }
                             }
                         }
@@ -133,6 +233,67 @@
             }
         },
         "schemas": {
+            "App.Data.Auth.UserData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "avatar_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "two_factor_enabled": {
+                        "type": "boolean"
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "name",
+                    "email",
+                    "two_factor_enabled",
+                    "permissions"
+                ],
+                "title": "App.Data.Auth.UserData"
+            },
+            "AuthTokenData": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "token_type": {
+                        "type": "string"
+                    },
+                    "expires_at": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/App.Data.Auth.UserData"
+                    }
+                },
+                "required": [
+                    "token",
+                    "token_type",
+                    "expires_at",
+                    "user"
+                ],
+                "title": "AuthTokenData"
+            },
             "CompanyBrandingDto": {
                 "type": "object",
                 "properties": {
@@ -471,6 +632,44 @@
                 },
                 "title": "CompanySocialsDto"
             },
+            "LoginRequest": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "device_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "two_factor_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "recovery_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "email",
+                    "password"
+                ],
+                "title": "LoginRequest"
+            },
             "UpdateCompanyDataRequest": {
                 "type": "object",
                 "properties": {
@@ -672,12 +871,9 @@
                 ],
                 "title": "UpdateCompanyDataRequest"
             },
-            "User": {
+            "UserData": {
                 "type": "object",
                 "properties": {
-                    "id": {
-                        "type": "integer"
-                    },
                     "uuid": {
                         "type": "string"
                     },
@@ -687,59 +883,30 @@
                     "email": {
                         "type": "string"
                     },
-                    "email_verified_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "created_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "updated_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ],
-                        "format": "date-time"
-                    },
-                    "two_factor_secret": {
+                    "avatar_url": {
                         "type": [
                             "string",
                             "null"
                         ]
                     },
-                    "two_factor_recovery_codes": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                    "two_factor_enabled": {
+                        "type": "boolean"
                     },
-                    "two_factor_confirmed_at": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 },
                 "required": [
-                    "id",
                     "uuid",
                     "name",
                     "email",
-                    "email_verified_at",
-                    "created_at",
-                    "updated_at",
-                    "two_factor_secret",
-                    "two_factor_recovery_codes",
-                    "two_factor_confirmed_at"
+                    "two_factor_enabled",
+                    "permissions"
                 ],
-                "title": "User"
+                "title": "UserData"
             }
         },
         "responses": {

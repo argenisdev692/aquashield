@@ -70,13 +70,12 @@ final class CompanyProfile
      * it for years, and dompdf decodes it through GD.
      *
      * Same two artworks as {@see FALLBACK_LOGO} and {@see FALLBACK_LOGO_WHITE},
-     * re-exported. The white one sits on the dark gradient header in
-     * `emails.layout`; the dark one on the light header in the appointment
-     * partial.
+     * re-exported as PNG. The normal-colour one sits on the light email
+     * header; the white one is available for dark footer/header variants.
      */
-    public const string EMAIL_FALLBACK_LOGO = 'img/logo-argenis-hub.png';
+    public const string EMAIL_FALLBACK_LOGO = 'img/logo-email.png';
 
-    public const string EMAIL_FALLBACK_LOGO_WHITE = 'img/logo-argenis-hub-white.png';
+    public const string EMAIL_FALLBACK_LOGO_WHITE = 'img/logo-email-white.png';
 
     /**
      * @return CompanyArray

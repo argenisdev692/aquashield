@@ -78,5 +78,52 @@ class FortifyServiceProvider extends ServiceProvider
                 ($credentialId ?: $request->session()->getId()).'|'.$request->ip()
             );
         });
+
+        /*
+         * Email one-time-code login. Sending is capped per email+IP so an
+         * attacker cannot turn the endpoint into a mail bomb, and verification
+         * is capped per IP so a six-digit code cannot be brute-forced. The
+         * package keeps its own per-user attempt budget. The send response is
+         * deliberately identical for known and unknown addresses — the
+         * throttle is the abuse control, not enumeration.
+         */
+        RateLimiter::for('otp-send', function (Request $request) {
+            $email = Str::lower((string) $request->input('email'));
+
+            return Limit::perMinute(3)->by($email.'|'.$request->ip());
+        });
+
+        RateLimiter::for('otp-verify', function (Request $request) {
+            // IP, not session id: a session id can rotate between the two
+            // steps, and the per-user attempt budget is already enforced by
+            // the package. The route throttle is the outer bound.
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        /*
+         * Passwordless TOTP entry (email + authenticator code) and the API
+         * token surface. The web and API credentials are different transports,
+         * so each gets its own bucket; sharing one would let an API client
+         * exhaust a user's web login budget.
+         */
+        RateLimiter::for('authenticator-login', function (Request $request) {
+            $email = Str::lower((string) $request->input('email'));
+
+            return Limit::perMinute(5)->by($email.'|'.$request->ip());
+        });
+
+        RateLimiter::for('api-login', function (Request $request) {
+            $email = Str::lower((string) $request->input('email'));
+
+            return Limit::perMinute(5)->by($email.'|'.$request->ip());
+        });
+
+        RateLimiter::for('api', function (Request $request) {
+            $user = $request->user();
+
+            return Limit::perMinute(60)->by(
+                $user?->getAuthIdentifier() ?? $request->ip()
+            );
+        });
     }
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Listeners\AuthEventSubscriber;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -39,5 +41,9 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
+        // Auth audit + queued security email, one subscription for framework
+        // and Fortify events. The subscriber is the only place that knows the
+        // event-to-activity mapping.
+        Event::subscribe(AuthEventSubscriber::class);
     }
 }

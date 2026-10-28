@@ -43,6 +43,7 @@ defineProps<{
 interface AuthUser {
     name: string;
     email: string;
+    avatar_url?: string | null;
 }
 
 /**
@@ -132,6 +133,14 @@ const commands = computed<Command[]>(() => {
             run: toggleTheme,
         },
         {
+            id: 'profile',
+            group: 'Preferences',
+            label: 'Profile & security',
+            icon: 'pi-user-edit',
+            keywords: 'account email password 2fa two-factor recovery security',
+            run: () => router.visit('/settings/profile'),
+        },
+        {
             id: 'sign-out',
             group: 'Session',
             label: 'Sign out',
@@ -149,6 +158,12 @@ const accountItems = computed<AccountMenuItem[]>(() => {
         items.push({ label: user.value.email, disabled: true });
     }
 
+    items.push({ separator: true });
+    items.push({
+        label: 'Profile & security',
+        icon: 'pi pi-user-edit',
+        command: () => router.visit('/settings/profile'),
+    });
     items.push({ separator: true });
     items.push({
         label: 'Sign out',
@@ -264,7 +279,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
                         aria-label="Account menu"
                         @click="accountMenu?.toggle($event)"
                     >
+                        <img
+                            v-if="user.avatar_url"
+                            :src="user.avatar_url"
+                            alt=""
+                            class="size-9 rounded-full border border-aq-line object-cover"
+                        />
                         <Avatar
+                            v-else
                             :label="initials"
                             shape="circle"
                             class="bg-aq-accent/15 text-xs font-semibold text-aq-accent dark:bg-aq-accent/20"

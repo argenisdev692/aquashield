@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue';
+import { xsrfToken } from '@/lib/http';
 
 /**
  * Brand-asset transport for the company profile page.
@@ -54,12 +55,6 @@ function messageFrom(payload: unknown, status: number): string {
     return status === 419
         ? 'Your session expired. Reload the page and try again.'
         : 'The upload failed. Try again.';
-}
-
-function xsrfToken(): string {
-    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
-
-    return match?.[1] === undefined ? '' : decodeURIComponent(match[1]);
 }
 
 export function useCompanyAssets() {

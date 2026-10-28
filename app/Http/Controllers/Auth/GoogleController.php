@@ -72,6 +72,12 @@ class GoogleController extends Controller
             return $this->signInFailed();
         }
 
+        // Every other auth path lowercases before lookup (Fortify's
+        // lowercase_usernames, OTP, API, authenticator). Google is the one
+        // provider that can return mixed-case addresses, so normalise here too
+        // or the same account becomes two rows on a case-sensitive collation.
+        $email = Str::lower($email);
+
         $googleId = (string) $googleUser->getId();
 
         $user = User::query()->where('google_id', $googleId)->first()

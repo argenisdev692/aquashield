@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -69,6 +70,25 @@ test('an unverified google email is refused', function () {
 
 test('a callback without a valid state is refused', function () {
     $this->get('/auth/google/callback')->assertRedirect('/login');
+
+    $this->assertGuest();
+});
+
+test('a google identity with two factor is sent to the challenge', function () {
+    $user = User::factory()->create([
+        'email' => 'ada@example.com',
+        'google_id' => 'google-2fa',
+    ]);
+
+    app(EnableTwoFactorAuthentication::class)($user);
+    $user->forceFill(['two_factor_confirmed_at' => now()])->save();
+
+    Socialite::shouldReceive('driver->user')->andReturn(
+        SocialiteUser::fake(['id' => 'google-2fa', 'email' => 'ada@example.com'])
+            ->setRaw(['email_verified' => true]),
+    );
+
+    $this->get('/auth/google/callback')->assertRedirect('/two-factor-challenge');
 
     $this->assertGuest();
 });

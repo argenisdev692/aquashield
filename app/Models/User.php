@@ -19,7 +19,10 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Spatie\OneTimePasswords\Models\Concerns\HasOneTimePasswords;
+use Spatie\OneTimePasswords\Models\OneTimePassword;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
@@ -77,14 +80,22 @@ use Spatie\Permission\Traits\HasRoles;
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUuid($value)
  *
+ * @property-read Collection<int, OneTimePassword> $oneTimePasswords
+ * @property-read int|null $one_time_passwords_count
+ * @property-read Collection<int, PersonalAccessToken> $tokens
+ * @property-read int|null $tokens_count
+ * @property string|null $avatar_path
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAvatarPath($value)
+ *
  * @mixin \Eloquent
  */
-#[Fillable(['name', 'email', 'password', 'google_id', 'uuid'])]
+#[Fillable(['name', 'email', 'password', 'google_id', 'uuid', 'avatar_path'])]
 #[Hidden(['password', 'remember_token', 'google_id'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasOneTimePasswords, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the columns that should receive a unique identifier.
