@@ -80,7 +80,7 @@ const inputClass = (isInvalid: boolean): string =>
         'transition-colors duration-150 placeholder:text-surface-500 focus:border-primary',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
         'dark:bg-surface-900 dark:text-surface-0 dark:placeholder:text-surface-300',
-        '[color-scheme:light] dark:[color-scheme:dark] motion-reduce:transition-none',
+        'scheme-light dark:scheme-dark motion-reduce:transition-none',
         isInvalid
             ? 'border-aq-danger-strong'
             : 'border-content-border hover:border-surface-400 dark:hover:border-surface-600',

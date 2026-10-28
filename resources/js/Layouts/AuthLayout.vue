@@ -54,11 +54,11 @@ const panelWidth = computed(() => panelWidths[width]);
 
 <template>
     <main
-        class="dark relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-aq-void p-6 [color-scheme:dark]"
+        class="dark relative isolate flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-aq-void p-6 scheme-dark"
     >
         <div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
             <div
-                class="absolute -top-40 left-1/2 h-120 w-192 -translate-x-1/2 rounded-full bg-aq-accent/10 blur-[120px] animate-[aq-orb-drift_24s_ease-in-out_infinite]"
+                class="absolute -top-40 left-1/2 h-120 w-3xl -translate-x-1/2 rounded-full bg-aq-accent/10 blur-[120px] animate-[aq-orb-drift_24s_ease-in-out_infinite]"
             ></div>
             <div class="aq-grid-overlay absolute inset-0"></div>
         </div>
