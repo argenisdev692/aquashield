@@ -17,6 +17,7 @@
  * centred over the panel, and the form below stays left-aligned. CursorOrb
  * rides along so the flow feels like the rest of the site.
  */
+import { computed } from 'vue';
 import CookieConsentBanner from '@/Components/CookieConsentBanner.vue';
 import AppFooter from '@/Components/AppFooter.vue';
 import CursorOrb from '@/Components/CursorOrb.vue';
@@ -28,10 +29,27 @@ import CursorOrb from '@/Components/CursorOrb.vue';
  */
 const logoWhite = '/img/logo-white.webp';
 
-defineProps<{
+const { width = 'sm' } = defineProps<{
     title: string;
     subtitle?: string;
+    /**
+     * Panel width. `md` is for the sign-in tabs: three labels plus their
+     * padding do not fit the narrow column, and a scrollable tab strip on the
+     * first screen is the wrong first impression.
+     */
+    width?: 'sm' | 'md';
 }>();
+
+/*
+ * Written as literal class strings so Tailwind's scanner sees both: a computed
+ * `max-w-${width}` would be dropped from the build.
+ */
+const panelWidths = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+} as const;
+
+const panelWidth = computed(() => panelWidths[width]);
 </script>
 
 <template>
@@ -45,7 +63,7 @@ defineProps<{
             <div class="aq-grid-overlay absolute inset-0"></div>
         </div>
 
-        <div class="w-full max-w-sm">
+        <div class="w-full" :class="panelWidth">
             <div class="mb-6 flex justify-center">
                 <slot name="brand">
                     <a

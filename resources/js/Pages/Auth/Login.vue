@@ -94,8 +94,15 @@ const {
     reset: resetEmailCode,
 } = useEmailCodeLogin();
 
-const emailCodeFormEl = useTemplateRef<HTMLFormElement>('emailCodeForm');
-const codeFormEl = useTemplateRef<HTMLFormElement>('codeForm');
+/*
+ * The ref keys carry the `El` suffix on purpose. With inline templates in a
+ * production build the compiler resolves `ref="name"` to the setup binding of
+ * that name; a key that matched the Inertia form object below would be passed
+ * to `setRef` as a plain reactive object, which has no owner instance and
+ * throws "Cannot read properties of undefined (reading 'refs')".
+ */
+const emailCodeFormEl = useTemplateRef<HTMLFormElement>('emailCodeFormEl');
+const codeFormEl = useTemplateRef<HTMLFormElement>('codeFormEl');
 
 const {
     form: emailCodeForm,
@@ -158,7 +165,7 @@ const authenticatorSchema = z.object({
     code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app'),
 });
 
-const authenticatorFormEl = useTemplateRef<HTMLFormElement>('authenticatorForm');
+const authenticatorFormEl = useTemplateRef<HTMLFormElement>('authenticatorFormEl');
 
 const {
     form: authenticatorForm,
@@ -194,7 +201,7 @@ const loginAlert = computed<string | null>(
 <template>
     <Head title="Sign in" />
 
-    <AuthLayout title="Sign in" subtitle="Access your account">
+    <AuthLayout title="Sign in" subtitle="Access your account" width="md">
         <Message v-if="status" severity="info" class="mb-4">{{ status }}</Message>
         <Message v-if="loginAlert" severity="error" class="mb-4" role="alert">
             {{ loginAlert }}
@@ -302,7 +309,7 @@ const loginAlert = computed<string | null>(
 
                         <form
                             v-if="emailCodeStep === 'email'"
-                            ref="emailCodeForm"
+                            ref="emailCodeFormEl"
                             class="flex flex-col gap-4"
                             novalidate
                             @submit.prevent="onSendEmailCode"
@@ -318,7 +325,7 @@ const loginAlert = computed<string | null>(
                                 label="Email"
                                 type="email"
                                 autocomplete="username"
-                                required\n
+                                required
                                 :error="emailCodeErrors.email"
                                 @update:model-value="clearEmailCodeError('email')"
                                 @blur="touchEmailCode('email')"
@@ -345,7 +352,7 @@ const loginAlert = computed<string | null>(
                             }}</Message>
 
                             <form
-                                ref="codeForm"
+                                ref="codeFormEl"
                                 class="flex flex-col gap-4"
                                 novalidate
                                 @submit.prevent="onVerifyEmailCode"
@@ -388,7 +395,7 @@ const loginAlert = computed<string | null>(
 
                 <TabPanel value="authenticator">
                     <form
-                        ref="authenticatorForm"
+                        ref="authenticatorFormEl"
                         class="flex flex-col gap-4 pt-4"
                         novalidate
                         @submit.prevent="onAuthenticatorSubmit"

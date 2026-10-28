@@ -25,8 +25,8 @@ const verifySchema = z.object({
     code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 
-const sendFormEl = useTemplateRef<HTMLFormElement>('sendForm');
-const verifyFormEl = useTemplateRef<HTMLFormElement>('verifyForm');
+const sendFormEl = useTemplateRef<HTMLFormElement>('sendFormEl');
+const verifyFormEl = useTemplateRef<HTMLFormElement>('verifyFormEl');
 
 const {
     form: sendForm,
@@ -74,7 +74,7 @@ const onVerify = (): void => {
     <AuthLayout title="Email sign-in code" subtitle="Sign in without a password">
         <Message v-if="props.status" severity="info" class="mb-4">{{ props.status }}</Message>
 
-        <form ref="sendForm" class="flex flex-col gap-4" novalidate @submit.prevent="onSend">
+        <form ref="sendFormEl" class="flex flex-col gap-4" novalidate @submit.prevent="onSend">
             <FormErrorSummary :errors="sendErrors" :form-el="sendFormElement" />
 
             <TextField
@@ -97,7 +97,7 @@ const onVerify = (): void => {
 
         <form
             v-if="props.email"
-            ref="verifyForm"
+            ref="verifyFormEl"
             class="mt-6 flex flex-col gap-4 border-t border-aq-line pt-6"
             novalidate
             @submit.prevent="onVerify"

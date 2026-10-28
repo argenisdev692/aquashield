@@ -87,9 +87,9 @@ const confirmSchema = z.object({
     code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app'),
 });
 
-const profileFormEl = useTemplateRef<HTMLFormElement>('profileForm');
-const passwordFormEl = useTemplateRef<HTMLFormElement>('passwordForm');
-const confirmFormEl = useTemplateRef<HTMLFormElement>('confirmForm');
+const profileFormEl = useTemplateRef<HTMLFormElement>('profileFormEl');
+const passwordFormEl = useTemplateRef<HTMLFormElement>('passwordFormEl');
+const confirmFormEl = useTemplateRef<HTMLFormElement>('confirmFormEl');
 
 const {
     form: profileForm,
@@ -406,7 +406,7 @@ watch(
                 </div>
 
                 <form
-                    ref="profileForm"
+                    ref="profileFormEl"
                     class="mt-6 flex flex-col gap-4"
                     novalidate
                     @submit.prevent="onProfileSubmit"
@@ -615,7 +615,7 @@ watch(
                 <p class="mt-1 text-sm text-aq-ink-muted">{{ PASSWORD_HINT }}</p>
 
                 <form
-                    ref="passwordForm"
+                    ref="passwordFormEl"
                     class="mt-5 flex max-w-xl flex-col gap-4"
                     novalidate
                     @submit.prevent="onPasswordSubmit"
@@ -726,7 +726,7 @@ watch(
                     </div>
 
                     <form
-                        ref="confirmForm"
+                        ref="confirmFormEl"
                         class="flex flex-col gap-4"
                         novalidate
                         @submit.prevent="onConfirmSubmit"
