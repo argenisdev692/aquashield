@@ -1,5 +1,5 @@
 {
-    "openapi": "3.1.0",
+    "openapi": "3.1.2",
     "info": {
         "title": "Laravel",
         "version": "0.0.1"
@@ -7,6 +7,11 @@
     "servers": [
         {
             "url": "http://localhost:8000/api"
+        }
+    ],
+    "security": [
+        {
+            "http": []
         }
     ],
     "paths": {
@@ -28,15 +33,653 @@
                     }
                 }
             }
+        },
+        "/company-data": {
+            "get": {
+                "operationId": "company-data.show",
+                "description": "Returning the Data object (not a JsonResponse) lets Scramble document\nthe response schema from the class instead of guessing at an array.",
+                "summary": "Public branding. No auth on purpose: the welcome page and the external\nlanding sites need the logo/contact block before anyone signs in",
+                "tags": [
+                    "CompanyData"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CompanyBrandingDto`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyBrandingDto"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            },
+            "put": {
+                "operationId": "company-data.update",
+                "tags": [
+                    "CompanyData"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCompanyDataRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CompanyDataDto`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyDataDto"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/company-data/manage": {
+            "get": {
+                "operationId": "company-data.manage",
+                "summary": "Authenticated management read: the full profile, including the billing\nfields that must never appear on the public endpoint",
+                "tags": [
+                    "CompanyData"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CompanyDataDto`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CompanyDataDto"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
         }
     },
     "components": {
+        "securitySchemes": {
+            "http": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
         "schemas": {
+            "CompanyBrandingDto": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "logo_url": {
+                        "type": "string"
+                    },
+                    "logo_white_url": {
+                        "type": "string"
+                    },
+                    "mark_url": {
+                        "type": "string"
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "support_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "socials": {
+                        "$ref": "#/components/schemas/CompanySocialsDto"
+                    }
+                },
+                "required": [
+                    "name",
+                    "logo_url",
+                    "logo_white_url",
+                    "mark_url",
+                    "socials"
+                ],
+                "title": "CompanyBrandingDto"
+            },
+            "CompanyDataDto": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "company_name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "nif_nipc": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "nie": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bank_beneficiary": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bank_iban": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bank_bic": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "bank_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "invoice_notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "website": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "facebook_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "instagram_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "linkedin_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "twitter_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "tiktok_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "logo_path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "logo_white_path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "mark_path": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "company_name"
+                ],
+                "title": "CompanyDataDto"
+            },
+            "CompanySocialsDto": {
+                "type": "object",
+                "properties": {
+                    "linkedin": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "twitter": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "instagram": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "facebook": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "tiktok": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "github": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "title": "CompanySocialsDto"
+            },
+            "UpdateCompanyDataRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "company_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "nif_nipc": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "nie": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "bank_beneficiary": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "bank_iban": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 34
+                    },
+                    "bank_bic": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 11
+                    },
+                    "bank_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "invoice_notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 10
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "country": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "country_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "minLength": 2,
+                        "maxLength": 2
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "website": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "facebook_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "instagram_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "linkedin_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "twitter_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "tiktok_link": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "maxLength": 255
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "description": "Ownership is server-side only. A client that tries to set it gets a\n422 rather than silently creating a row for another user."
+                    }
+                },
+                "required": [
+                    "name",
+                    "company_name",
+                    "email"
+                ],
+                "title": "UpdateCompanyDataRequest"
+            },
             "User": {
                 "type": "object",
                 "properties": {
                     "id": {
                         "type": "integer"
+                    },
+                    "uuid": {
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -86,6 +729,7 @@
                 },
                 "required": [
                     "id",
+                    "uuid",
                     "name",
                     "email",
                     "email_verified_at",
@@ -99,6 +743,44 @@
             }
         },
         "responses": {
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthorizationException": {
+                "description": "Authorization error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
             "AuthenticationException": {
                 "description": "Unauthenticated",
                 "content": {
@@ -113,6 +795,36 @@
                             },
                             "required": [
                                 "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
                             ]
                         }
                     }

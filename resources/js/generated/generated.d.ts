@@ -42,6 +42,104 @@ declare namespace Illuminate {
         TValue
     >;
 }
+declare namespace Modules {
+    namespace CompanyData {
+        namespace Application {
+            namespace Dtos {
+                export type CompanyBrandingDto = {
+                    readonly name: string;
+                    readonly description: string | null;
+                    readonly url: string | null;
+                    readonly logo_url: string;
+                    readonly logo_white_url: string;
+                    readonly mark_url: string;
+                    readonly address: string | null;
+                    readonly address_2: string | null;
+                    readonly zip_code: string | null;
+                    readonly city: string | null;
+                    readonly state: string | null;
+                    readonly country: string | null;
+                    readonly country_code: string | null;
+                    readonly phone: string | null;
+                    readonly support_email: string | null;
+                    readonly latitude: number | null;
+                    readonly longitude: number | null;
+                    readonly socials: Modules.CompanyData.Application.Dtos.CompanySocialsDto;
+                };
+                export type CompanyDataDto = {
+                    readonly uuid: string;
+                    readonly name: string | null;
+                    readonly company_name: string;
+                    readonly email: string | null;
+                    readonly description: string | null;
+                    readonly phone: string | null;
+                    readonly nif_nipc: string | null;
+                    readonly nie: string | null;
+                    readonly bank_beneficiary: string | null;
+                    readonly bank_iban: string | null;
+                    readonly bank_bic: string | null;
+                    readonly bank_name: string | null;
+                    readonly invoice_notes: string | null;
+                    readonly address: string | null;
+                    readonly address_2: string | null;
+                    readonly zip_code: string | null;
+                    readonly city: string | null;
+                    readonly state: string | null;
+                    readonly country: string | null;
+                    readonly country_code: string | null;
+                    readonly latitude: number | null;
+                    readonly longitude: number | null;
+                    readonly website: string | null;
+                    readonly facebook_link: string | null;
+                    readonly instagram_link: string | null;
+                    readonly linkedin_link: string | null;
+                    readonly twitter_link: string | null;
+                    readonly tiktok_link: string | null;
+                    readonly logo_path: string | null;
+                    readonly logo_white_path: string | null;
+                    readonly mark_path: string | null;
+                };
+                export type CompanySocialsDto = {
+                    readonly linkedin: string | null;
+                    readonly twitter: string | null;
+                    readonly instagram: string | null;
+                    readonly facebook: string | null;
+                    readonly tiktok: string | null;
+                    readonly github: string | null;
+                };
+                export type SaveCompanyDataData = {
+                    readonly name: string;
+                    readonly company_name: string;
+                    readonly email: string;
+                    readonly description: string | null;
+                    readonly phone: string | null;
+                    readonly nif_nipc: string | null;
+                    readonly nie: string | null;
+                    readonly bank_beneficiary: string | null;
+                    readonly bank_iban: string | null;
+                    readonly bank_bic: string | null;
+                    readonly bank_name: string | null;
+                    readonly invoice_notes: string | null;
+                    readonly address: string | null;
+                    readonly address_2: string | null;
+                    readonly zip_code: string | null;
+                    readonly city: string | null;
+                    readonly state: string | null;
+                    readonly country: string | null;
+                    readonly country_code: string | null;
+                    readonly latitude: number | null;
+                    readonly longitude: number | null;
+                    readonly website: string | null;
+                    readonly facebook_link: string | null;
+                    readonly instagram_link: string | null;
+                    readonly linkedin_link: string | null;
+                    readonly twitter_link: string | null;
+                    readonly tiktok_link: string | null;
+                };
+            }
+        }
+    }
+}
 declare namespace Shared {
     namespace Application {
         namespace DTOs {

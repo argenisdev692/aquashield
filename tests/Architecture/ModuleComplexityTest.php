@@ -123,18 +123,32 @@ foreach ($progressive as $module) {
 
 /* ---------------------------------------------------- cross-module contexts */
 
-$innerLayers = $moduleNames
-    ->flatMap(fn ($m) => ["Modules\\{$m}\\Domain", "Modules\\{$m}\\Application"])
-    ->all();
+foreach ($moduleNames as $module) {
+    $foreignInnerLayers = $moduleNames
+        ->reject(fn (string $other): bool => $other === $module)
+        ->flatMap(fn (string $other): array => [
+            "Modules\\{$other}\\Domain",
+            "Modules\\{$other}\\Application",
+        ])
+        ->values()
+        ->all();
 
-if ($innerLayers !== []) {
-    arch('a module never reaches into another module\'s inner layers')
+    if ($foreignInnerLayers === []) {
+        continue;
+    }
+
+    arch("{$module} never reaches into another module's inner layers")
         // Invariant 7 across the whole src/Modules tree, built from the modules that
         // actually exist, so a new module is covered the moment it appears. Public
         // cross-module access goes through Shared\Domain\Ports, Shared\Application\DTOs
         // or a public Data class — there is no third option.
-        ->expect('Modules')
-        ->not->toUse($innerLayers);
+        //
+        // The expectation is scoped to the module's own namespace on purpose: a
+        // blanket `expect('Modules')->not->toUse($innerLayers)` also flags a module's
+        // own `Http/` and `Infrastructure/` reaching into its own `Application/`,
+        // which is the inward direction the boundary matrix requires.
+        ->expect("Modules\\{$module}")
+        ->not->toUse($foreignInnerLayers);
 }
 
 /* ------------------------------------------- declarations & tree (it) */

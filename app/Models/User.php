@@ -11,13 +11,15 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
+use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
@@ -71,6 +73,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutTeam($teams)
  *
  * @property-read int|null $media_count
+ * @property-read CompanyData|null $companyData
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUuid($value)
  *
  * @mixin \Eloquent
  */
@@ -79,7 +84,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * Get the columns that should receive a unique identifier.
@@ -105,10 +110,12 @@ class User extends Authenticatable
     }
 
     /**
-     * @return HasMany<CompanyData, $this>
+     * The singleton company profile owned by this user.
+     *
+     * @return HasOne<CompanyData, $this>
      */
-    public function companyData(): HasMany
+    public function companyData(): HasOne
     {
-        return $this->hasMany(CompanyData::class);
+        return $this->hasOne(CompanyData::class);
     }
 }

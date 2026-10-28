@@ -48,6 +48,16 @@ const CookieConsentBanner = defineAsyncComponent(
 const CursorOrb = defineAsyncComponent(() => import('@/Components/CursorOrb.vue'));
 
 /*
+ * The server sends the public CompanyBrandingDto with the page (the same
+ * contract as GET /api/company-data). The header owns its own presentation,
+ * but the page owns the title and the prop hand-off, so both stay in sync with
+ * the seeded company row.
+ */
+const { company } = defineProps<{
+    company: Modules.CompanyData.Application.Dtos.CompanyBrandingDto;
+}>();
+
+/*
  * The orb is chrome, not content. On a phone it paints nothing (the
  * component refuses to attach a pointer listener), and for anyone who asked
  * the OS to calm motion it is noise. Gate it here and let the chunk arrive
@@ -80,10 +90,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <Head title="AquaShield Operations" />
+    <Head :title="`${company.name} Operations`" />
 
     <div class="min-h-screen bg-aq-void">
-        <WelcomeHeader />
+        <WelcomeHeader :company="company" />
 
         <main id="main">
             <WelcomeHero />

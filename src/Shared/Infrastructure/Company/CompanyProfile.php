@@ -41,11 +41,11 @@ final class CompanyProfile
      */
     public const string PUBLIC_CACHE_KEY = self::CACHE_KEY.'.public';
 
-    public const string FALLBACK_LOGO = 'img/Logo.webp';
+    public const string FALLBACK_LOGO = 'img/logo.webp';
 
-    public const string FALLBACK_LOGO_WHITE = 'img/Logo-white.webp';
+    public const string FALLBACK_LOGO_WHITE = 'img/logo-white.webp';
 
-    public const string FALLBACK_MARK = 'img/Mark.webp';
+    public const string FALLBACK_MARK = 'img/logo-mark.webp';
 
     /**
      * Invoice PDF header (dompdf) — deliberately the bundled asset, never the
@@ -208,6 +208,12 @@ final class CompanyProfile
             return self::bundledUrl($fallback);
         }
 
+        // `img/...` is a bundled asset, not an R2 object key. The seeder uses
+        // this form until an operator uploads a logo through the storage flow.
+        if (str_starts_with($key, 'img/')) {
+            return self::bundledUrl($key);
+        }
+
         try {
             return app(StoragePort::class)->publicUrl($key);
         } catch (Throwable) {
@@ -247,9 +253,9 @@ final class CompanyProfile
      * The main `company_data` row as a plain column map, or null when the
      * table is missing, empty or unreadable (e.g. before the first migrate).
      *
-     * Read through the query builder, not an Eloquent model: there is no
-     * `App\Models\CompanyData` in this codebase, and branding must degrade to
-     * the config fallbacks instead of fataling on a missing class.
+     * Read through the query builder, not the module's Eloquent model, so this
+     * Shared branding payload stays decoupled from CompanyData and degrades to
+     * the config fallbacks instead of fataling on a missing table.
      *
      * @return array<string, mixed>|null
      */

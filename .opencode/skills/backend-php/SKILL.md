@@ -115,6 +115,10 @@ Never a bare `with('posts')` on a list endpoint — it loads every column of eve
 **Data** (`spatie/laravel-data` v4) is the default response shape. For Inertia props and the app's own
 JSON alike. A classic `JsonResource` subclass in a new module is a FAIL.
 
+**Never redeclare `Data::from()` with a narrower parameter.** Spatie declares
+`from(mixed ...$payloads): static`; a `from(Invoice $invoice): self` override is a PHP fatal
+(contravariance). Use the inherited `from($model)` or name the typed factory `fromModel()`.
+
 **The one exception — Laravel 13 JSON:API.** `Illuminate\Http\Resources\JsonApi\JsonApiResource`
 (`php artisan make:resource X --json-api`) is now first-party and is the _correct_ tool when you are
 building a **public, spec-compliant API** for a third party: it handles relationship inclusion, sparse
@@ -138,7 +142,7 @@ when the spec sets `api: true`, and it is also what makes the Scramble surface u
 final class InvoiceData extends Data
 {
     public function __construct(public string $number, public int $totalMinor) {}
-    public static function from(Invoice $i): self { /* ... */ }
+    public static function fromModel(Invoice $i): self { /* ... */ }
 }
 ```
 
@@ -269,7 +273,7 @@ final class {Entity}Data extends Data
         #[Required, AfterOrEqual('date_from')] public readonly ?string $dateTo = null,
     ) {}
 
-    public static function from({Entity} $m): self { /* ... */ }
+    public static function fromModel({Entity} $m): self { /* ... */ }
     public static function collect(iterable $rows): self { /* ... */ }
 }
 ```

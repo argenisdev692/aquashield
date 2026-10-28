@@ -7,6 +7,7 @@ namespace Shared\Infrastructure\OpenApi;
 use Dedoc\Scramble\Extensions\TypeToSchemaExtension;
 use Dedoc\Scramble\Support\Generator\ClassBasedReference;
 use Dedoc\Scramble\Support\Generator\Reference;
+use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\ArrayType as OpenApiArray;
 use Dedoc\Scramble\Support\Generator\Types\BooleanType as OpenApiBoolean;
 use Dedoc\Scramble\Support\Generator\Types\IntegerType as OpenApiInteger;
@@ -52,6 +53,13 @@ final class SpatieDataToSchema extends TypeToSchemaExtension
      * @var array<class-string<Data>, iterable<DataProperty>>
      */
     private static array $dataClasses = [];
+
+    /**
+     * Guards recursive DTO graphs while a nested schema is being built.
+     *
+     * @var array<class-string<Data>, true>
+     */
+    private array $registering = [];
 
     public function shouldHandle(Type $type): bool
     {
@@ -122,8 +130,12 @@ final class SpatieDataToSchema extends TypeToSchemaExtension
         $type = $property->type;
 
         // A nested DTO, or a collection of them, becomes a reference so the
-        // nested shape is documented once and reused.
+        // nested shape is documented once and reused. The reference alone is
+        // not enough: Scramble does not traverse into the nested class, so its
+        // schema must be registered here or the `$ref` points at nothing.
         if ($type->dataClass !== null) {
+            $this->ensureNestedSchema($type->dataClass);
+
             $reference = ClassBasedReference::create('schemas', $type->dataClass, $this->components);
 
             return $type->kind->isDataCollectable()
@@ -132,6 +144,27 @@ final class SpatieDataToSchema extends TypeToSchemaExtension
         }
 
         return $this->scalarSchema($property);
+    }
+
+    /**
+     * @param class-string<Data> $dataClass
+     */
+    private function ensureNestedSchema(string $dataClass): void
+    {
+        if ($this->components->hasSchema($dataClass) || isset($this->registering[$dataClass])) {
+            return;
+        }
+
+        $this->registering[$dataClass] = true;
+
+        try {
+            $this->components->addSchema(
+                $dataClass,
+                Schema::fromType($this->toSchema(new ObjectType($dataClass))),
+            );
+        } finally {
+            unset($this->registering[$dataClass]);
+        }
     }
 
     private function scalarSchema(DataProperty $property): OpenApiType

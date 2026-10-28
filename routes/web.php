@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Support\Facades\Route;
+use Modules\CompanyData\Application\Dtos\CompanyBrandingDto;
+use Shared\Infrastructure\Company\CompanyProfile;
 use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
 /*
@@ -11,7 +13,12 @@ use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
  * in the root Blade and carries no canonical/OG payload, so it needs no
  * `appUrl` prop — the old marketing head was the only consumer.
  */
-Route::get('/', fn () => inertia('Welcome'));
+Route::get('/', fn () => inertia('Welcome', [
+    // Same public contract as GET /api/company-data, delivered with the page so
+    // the header renders its real mark/name on first paint instead of flashing
+    // the fallback while a client-side fetch resolves.
+    'company' => CompanyBrandingDto::from(CompanyProfile::data()),
+]));
 
 /*
  * Google OAuth. `guest` keeps a signed-in visitor out of the handshake, and

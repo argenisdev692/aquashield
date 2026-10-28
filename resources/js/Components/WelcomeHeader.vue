@@ -24,12 +24,40 @@ import { computed, onWatcherCleanup, ref, useTemplateRef, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useWindowScroll } from '@vueuse/core';
 
+const { company } = defineProps<{
+    company: Modules.CompanyData.Application.Dtos.CompanyBrandingDto;
+}>();
+
 /*
- * Public route, not a bundled import: an absolute path in a static `src` is
- * rewritten as a module id by the Vue asset transform and fails the build as
- * UNRESOLVED_IMPORT, so the path travels as a runtime binding.
+ * The mark and the phone come from the seeded company row (the public
+ * CompanyBrandingDto), never from a hardcoded asset or number. The name is
+ * split into the same two-line lockup the template already uses: first word
+ * bold, remainder in the muted line.
  */
-const logoMark = '/img/logo-mark.webp';
+const brandParts = computed(() => {
+    const [first = '', ...rest] = company.name.trim().split(/\s+/);
+
+    return { first, rest: rest.join(' ') };
+});
+
+const homeLabel = computed(() => `${company.name} — home`);
+
+const phoneHref = computed(() => (company.phone ? `tel:${company.phone}` : '#'));
+
+const phoneLabel = computed(() => {
+    const phone = company.phone;
+
+    if (!phone) {
+        return '';
+    }
+
+    const digits = phone.replace(/\D/g, '');
+    const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+
+    return national.length === 10
+        ? `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}`
+        : phone;
+});
 
 interface HeaderLink {
     readonly href: string;
@@ -37,12 +65,14 @@ interface HeaderLink {
     readonly inApp: boolean;
 }
 
-const links: readonly HeaderLink[] = [
-    { href: 'tel:+17135876423', label: 'Dispatch line', inApp: false },
+const links = computed<readonly HeaderLink[]>(() => [
+    ...(company.phone
+        ? [{ href: `tel:${company.phone}`, label: 'Dispatch line', inApp: false }]
+        : []),
     { href: '#paths-heading', label: 'Workspace', inApp: false },
     { href: '/login', label: 'Sign in', inApp: true },
     { href: '/register', label: 'Create account', inApp: true },
-];
+]);
 
 const { y } = useWindowScroll();
 const condensed = computed(() => y.value > 16);
@@ -102,32 +132,36 @@ watch(menuOpen, (open) => {
             <Link
                 href="/"
                 class="group flex shrink-0 items-center gap-3 rounded-lg transition-opacity duration-200 hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-aq-accent"
-                aria-label="AquaShield Restoration USA — home"
+                :aria-label="homeLabel"
             >
                 <span
                     class="aq-logo-shine aq-logo-shine-mark transition-transform duration-200 group-hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none"
                 >
                     <img
-                        :src="logoMark"
+                        :src="company.mark_url"
                         alt=""
-                        width="102"
-                        height="146"
+                        width="358"
+                        height="402"
                         class="h-9 w-auto shrink-0 object-contain"
                     />
                 </span>
                 <span class="flex flex-col leading-none">
-                    <span class="text-base font-bold tracking-tight text-aq-ink">AquaShield</span>
+                    <span class="text-base font-bold tracking-tight text-aq-ink">
+                        {{ brandParts.first }}
+                    </span>
                     <span
+                        v-if="brandParts.rest"
                         class="mt-0.5 text-[0.625rem] font-medium tracking-[0.16em] text-aq-ink-muted uppercase"
                     >
-                        Restoration USA
+                        {{ brandParts.rest }}
                     </span>
                 </span>
             </Link>
 
             <div class="flex items-center gap-2 sm:gap-3">
                 <a
-                    href="tel:+17135876423"
+                    v-if="company.phone"
+                    :href="phoneHref"
                     class="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-aq-ink-soft transition-colors duration-200 hover:bg-aq-elevated/50 hover:text-aq-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent sm:inline-flex"
                 >
                     <svg
@@ -144,7 +178,7 @@ watch(menuOpen, (open) => {
                             d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"
                         />
                     </svg>
-                    (713) 587-6423
+                    {{ phoneLabel }}
                 </a>
 
                 <a

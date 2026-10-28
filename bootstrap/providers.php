@@ -5,6 +5,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\FortifyServiceProvider;
 use App\Providers\TelescopeServiceProvider;
 use App\Providers\TypeScriptTransformerServiceProvider;
+use Modules\CompanyData\Providers\CompanyServiceProvider;
 use Shared\Providers\SharedServiceProvider;
 
 return [
@@ -12,5 +13,6 @@ return [
     FortifyServiceProvider::class,
     TelescopeServiceProvider::class,
     TypeScriptTransformerServiceProvider::class,
+    CompanyServiceProvider::class,
     SharedServiceProvider::class,
 ];
