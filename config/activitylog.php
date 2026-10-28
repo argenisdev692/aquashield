@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use Modules\ActivityLog\Models\ActivityEntry;
 use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Activitylog\Actions\LogActivityAction;
-use Spatie\Activitylog\Models\Activity;
 
 return [
 
@@ -16,8 +16,14 @@ return [
     /*
      * When the clean command is executed, all recording activities older than
      * the number of days specified here will be deleted.
+     *
+     * Retention is a legal decision, so it is env-driven and defaults to the
+     * longest common US window: SOX/GLBA 7 years, HIPAA 6 years, PCI DSS 12
+     * months (3 hot), FISMA 3 years. When several apply, retain the longest.
+     * Lower it only with counsel; the monthly `activitylog:clean --force`
+     * schedule is the enforcement point.
      */
-    'clean_after_days' => 365,
+    'clean_after_days' => (int) env('ACTIVITYLOG_CLEAN_AFTER_DAYS', 2555),
 
     /*
      * If no log name is passed to the activity() helper
@@ -41,8 +47,10 @@ return [
      * This model will be used to log activity.
      * It should implement the Spatie\Activitylog\Contracts\Activity interface
      * and extend Illuminate\Database\Eloquent\Model.
+     *
+     * The module model adds `uuid`, the only identifier the panel exposes.
      */
-    'activity_model' => Activity::class,
+    'activity_model' => ActivityEntry::class,
 
     /*
      * These attributes will be excluded from logging for all models.

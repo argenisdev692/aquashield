@@ -6,6 +6,7 @@ namespace Modules\Users\Jobs;
 
 use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
+use Illuminate\Auth\Passwords\PasswordBroker;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -50,7 +51,11 @@ final class SendUserInvitationJob implements ShouldQueue
 
     public function handle(): void
     {
-        $token = Password::broker()->createToken($this->user);
+        // The facade returns the concrete broker, but Intelephense cannot infer
+        // that from `Password::broker()`. The annotation is the contract.
+        /** @var PasswordBroker $broker */
+        $broker = Password::broker();
+        $token = $broker->createToken($this->user);
 
         $this->user->notify(new ResetPasswordNotification($token));
     }

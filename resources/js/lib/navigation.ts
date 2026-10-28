@@ -3,9 +3,8 @@
  *
  * The desktop rail, the mobile drawer and the ⌘K palette all read from here, so
  * a destination can never exist in one surface and be missing from another. The
- * list is deliberately short: this app has exactly one authenticated route
- * (`/dashboard`) plus the sections that page actually renders. Adding a module
- * means adding its route here and nothing else.
+ * list is deliberately short: every entry is a real admin destination, and
+ * adding a module means adding its route here and nothing else.
  *
  * `anchor` entries are same-page targets, not Inertia visits. They only make
  * sense while the dashboard is mounted, which is why `AppSidebar` gates them on
@@ -57,6 +56,20 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: 'pi-users',
         keywords: 'users team staff people accounts access roles permissions invitations',
         permission: 'VIEW_ANY_USER',
+    },
+    {
+        label: 'Backups',
+        href: '/backups',
+        icon: 'pi-database',
+        keywords: 'backups database dumps archives restore download retention quarantine',
+        permission: 'VIEW_ANY_BACKUPS',
+    },
+    {
+        label: 'Activity log',
+        href: '/activity',
+        icon: 'pi-history',
+        keywords: 'audit activity log history events security trail',
+        permission: 'VIEW_ANY_ACTIVITY_LOGS',
     },
 ];
 

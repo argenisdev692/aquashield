@@ -98,6 +98,85 @@ declare namespace Illuminate {
     >;
 }
 declare namespace Modules {
+    namespace ActivityLog {
+        namespace Data {
+            export type ActivityDetailData = {
+                readonly activity: Modules.ActivityLog.Data.ActivityEntryData;
+            };
+            export type ActivityEntryData = {
+                readonly uuid: string;
+                readonly log_name: string;
+                readonly event: string;
+                readonly description: string;
+                readonly causer_name: string | null;
+                readonly subject_type: string | null;
+                readonly properties: Record<string, string | number>;
+                readonly created_at: string;
+            };
+            export type ActivityFilterData = {
+                readonly search: string | null;
+                readonly log_name: string | null;
+                readonly event: string | null;
+                readonly date_from: string | null;
+                readonly date_to: string | null;
+                readonly sort_field: string;
+                readonly sort_order: number;
+                readonly page: number;
+                readonly per_page: number;
+            };
+            export type ActivityListData = {
+                readonly rows: Modules.ActivityLog.Data.ActivityEntryData[];
+                readonly total: number;
+                readonly page: number;
+                readonly per_page: number;
+            };
+        }
+    }
+    namespace Backups {
+        namespace Data {
+            export type BackupActivityData = {
+                readonly id: string;
+                readonly event: string;
+                readonly description: string;
+                readonly causer_name: string | null;
+                readonly properties: Record<string, string | number>;
+                readonly created_at: string;
+            };
+            export type BackupArchiveData = {
+                readonly uuid: string;
+                readonly disk: string;
+                readonly filename: string;
+                readonly size_bytes: number;
+                readonly size_human: string;
+                readonly taken_at: string;
+                readonly age_days: number;
+                readonly is_newest: boolean;
+                readonly is_trashed: boolean;
+            };
+            export type BackupDetailData = {
+                readonly backup: Modules.Backups.Data.BackupArchiveData;
+                readonly activities: Modules.Backups.Data.BackupActivityData[];
+            };
+            export type BackupFilterData = {
+                readonly search: string | null;
+                readonly status: string;
+                readonly disk: string | null;
+                readonly date_from: string | null;
+                readonly date_to: string | null;
+                readonly sort_field: string;
+                readonly sort_order: number;
+                readonly page: number;
+                readonly per_page: number;
+            };
+            export type BackupListData = {
+                readonly rows: Modules.Backups.Data.BackupArchiveData[];
+                readonly total: number;
+                readonly page: number;
+                readonly per_page: number;
+                readonly last_page: number;
+            };
+        }
+    }
     namespace CompanyData {
         namespace Application {
             namespace Dtos {

@@ -1,7 +1,7 @@
 {
     "openapi": "3.1.2",
     "info": {
-        "title": "Laravel",
+        "title": "AquaShield",
         "version": "0.0.1"
     },
     "servers": [
@@ -15,6 +15,71 @@
         }
     ],
     "paths": {
+        "/activity": {
+            "get": {
+                "operationId": "activity.index",
+                "tags": [
+                    "ActivityLog"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`ActivityListData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActivityListData"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/activity/{activity}": {
+            "get": {
+                "operationId": "activity.show",
+                "tags": [
+                    "ActivityLog"
+                ],
+                "parameters": [
+                    {
+                        "name": "activity",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`ActivityDetailData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ActivityDetailData"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "operationId": "auth.login",
@@ -134,6 +199,122 @@
                 }
             }
         },
+        "/backups": {
+            "get": {
+                "operationId": "backups.index",
+                "tags": [
+                    "Backup"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`BackupListData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BackupListData"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/backups/{backup}": {
+            "get": {
+                "operationId": "backups.show",
+                "tags": [
+                    "Backup"
+                ],
+                "parameters": [
+                    {
+                        "name": "backup",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`BackupDetailData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BackupDetailData"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/backups/{backup}/download": {
+            "get": {
+                "operationId": "backups.download",
+                "tags": [
+                    "BackupDownload"
+                ],
+                "parameters": [
+                    {
+                        "name": "backup",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/zip": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Transfer-Encoding": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chunked"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/company-data": {
             "get": {
                 "operationId": "company-data.show",
@@ -233,6 +414,92 @@
             }
         },
         "schemas": {
+            "ActivityDetailData": {
+                "type": "object",
+                "properties": {
+                    "activity": {
+                        "$ref": "#/components/schemas/ActivityEntryData"
+                    }
+                },
+                "required": [
+                    "activity"
+                ],
+                "title": "ActivityDetailData"
+            },
+            "ActivityEntryData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "log_name": {
+                        "type": "string"
+                    },
+                    "event": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "causer_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "subject_type": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "properties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "log_name",
+                    "event",
+                    "description",
+                    "properties",
+                    "created_at"
+                ],
+                "title": "ActivityEntryData"
+            },
+            "ActivityListData": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ActivityEntryData"
+                        }
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "page": {
+                        "type": "integer"
+                    },
+                    "per_page": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "per_page"
+                ],
+                "title": "ActivityListData"
+            },
             "App.Data.Auth.UserData": {
                 "type": "object",
                 "properties": {
@@ -389,6 +656,137 @@
                     "user"
                 ],
                 "title": "AuthTokenData"
+            },
+            "BackupActivityData": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "event": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "causer_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "properties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "event",
+                    "description",
+                    "properties",
+                    "created_at"
+                ],
+                "title": "BackupActivityData"
+            },
+            "BackupArchiveData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "disk": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer"
+                    },
+                    "size_human": {
+                        "type": "string"
+                    },
+                    "taken_at": {
+                        "type": "string"
+                    },
+                    "age_days": {
+                        "type": "integer"
+                    },
+                    "is_newest": {
+                        "type": "boolean"
+                    },
+                    "is_trashed": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "disk",
+                    "filename",
+                    "size_bytes",
+                    "size_human",
+                    "taken_at",
+                    "age_days",
+                    "is_newest",
+                    "is_trashed"
+                ],
+                "title": "BackupArchiveData"
+            },
+            "BackupDetailData": {
+                "type": "object",
+                "properties": {
+                    "backup": {
+                        "$ref": "#/components/schemas/BackupArchiveData"
+                    },
+                    "activities": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BackupActivityData"
+                        }
+                    }
+                },
+                "required": [
+                    "backup",
+                    "activities"
+                ],
+                "title": "BackupDetailData"
+            },
+            "BackupListData": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BackupArchiveData"
+                        }
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "page": {
+                        "type": "integer"
+                    },
+                    "per_page": {
+                        "type": "integer"
+                    },
+                    "last_page": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "rows",
+                    "total",
+                    "page",
+                    "per_page",
+                    "last_page"
+                ],
+                "title": "BackupListData"
             },
             "CompanyBrandingDto": {
                 "type": "object",
@@ -1102,25 +1500,6 @@
             }
         },
         "responses": {
-            "ModelNotFoundException": {
-                "description": "Not found",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
             "AuthorizationException": {
                 "description": "Authorization error",
                 "content": {
@@ -1142,6 +1521,25 @@
             },
             "AuthenticationException": {
                 "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ModelNotFoundException": {
+                "description": "Not found",
                 "content": {
                     "application/json": {
                         "schema": {

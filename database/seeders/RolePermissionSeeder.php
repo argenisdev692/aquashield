@@ -191,7 +191,7 @@ class RolePermissionSeeder extends Seeder
      *
      * @var list<string>
      */
-    private const array BACKUP_ACTIONS = ['VIEW_ANY', 'VIEW', 'DOWNLOAD', 'CREATE', 'DELETE', 'BULK_DELETE', 'EXPORT'];
+    private const array BACKUP_ACTIONS = ['VIEW_ANY', 'VIEW', 'DOWNLOAD', 'CREATE', 'DELETE', 'RESTORE', 'BULK_DELETE', 'BULK_RESTORE', 'EXPORT'];
 
     /**
      * System monitoring tools (Horizon, Telescope).
@@ -304,6 +304,11 @@ class RolePermissionSeeder extends Seeder
         $names = [
             ...$this->matrix(self::ADMIN_MODULES, self::MODULES_ACTIONS),
             ...$this->matrix(['USER'], ['VIEW_ANY', 'VIEW']),
+            // Least privilege for the operational panels: ADMIN can inspect and
+            // export backup metadata and the audit trail, but cannot download a
+            // full database copy, quarantine/restore an archive, or start a dump.
+            ...$this->matrix(['BACKUPS'], ['VIEW_ANY', 'VIEW', 'EXPORT']),
+            ...$this->matrix(['ACTIVITY_LOGS'], ['VIEW_ANY', 'VIEW', 'EXPORT']),
         ];
 
         Role::query()

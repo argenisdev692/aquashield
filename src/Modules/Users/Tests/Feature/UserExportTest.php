@@ -16,7 +16,14 @@ beforeEach(function (): void {
 
 it('exports CSV with the list filters applied', function (): void {
     User::factory()->create(['email' => 'ada@example.com', 'first_name' => 'Ada']);
-    User::factory()->create(['email' => 'bob@example.com', 'first_name' => 'Bob']);
+    // Pin every searchable column: a random Faker last name or username can
+    // contain "ada" and make this assertion fail intermittently.
+    User::factory()->create([
+        'email' => 'bob@example.com',
+        'first_name' => 'Bob',
+        'last_name' => 'Barker',
+        'username' => 'bob.barker',
+    ]);
 
     $response = $this->actingAs($this->admin)
         ->get('/users/export/csv?search=ada')

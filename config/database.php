@@ -99,6 +99,12 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Windows/Herd: pg_dump is not bundled. Point this at the
+            // PostgreSQL client bin directory once installed, e.g.
+            // C:/Program Files/PostgreSQL/17/bin
+            'dump' => [
+                'dump_binary_path' => env('DB_DUMP_BINARY_PATH', ''),
+            ],
         ],
 
         'sqlsrv' => [

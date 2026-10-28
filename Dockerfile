@@ -13,7 +13,9 @@ ARG VITE_REVERB_PORT
 ARG VITE_REVERB_SCHEME
 ENV DEBIAN_FRONTEND=noninteractive
 
-# PHP 8.5 via ondrej PPA + Node 24 via nodesource.
+# PHP 8.5 via ondrej PPA + Node 24 via nodesource. The PostgreSQL 17 client is
+# required by `backup:run --only-db`: Ubuntu 24.04 ships client 16, and pg_dump
+# refuses a newer server (Supabase is 17.6).
 RUN mkdir -p /etc/apt/keyrings \
     && apt-get update && apt-get install -y --no-install-recommends \
         gnupg curl ca-certificates git unzip \
@@ -21,6 +23,10 @@ RUN mkdir -p /etc/apt/keyrings \
         | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
     && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" \
         > /etc/apt/sources.list.d/ppa_ondrej_php.list \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+        | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+        > /etc/apt/sources.list.d/pgdg.list \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends \
         php${PHP_VERSION}-cli \
@@ -33,6 +39,7 @@ RUN mkdir -p /etc/apt/keyrings \
         php${PHP_VERSION}-zip \
         php${PHP_VERSION}-bcmath \
         php${PHP_VERSION}-intl \
+        postgresql-client-17 \
         nodejs \
         supervisor \
         ffmpeg \
@@ -69,9 +76,11 @@ RUN npm run build
 EXPOSE 8080
 
 # Single-service Railway deploy: migrations run before the caches so a fresh
-# database never serves 500s on missing tables; supervisord then keeps both the
-# HTTP server and a plain queue worker alive in the same container
+# database never serves 500s on missing tables; supervisord then keeps the HTTP
+# server, a plain queue worker and the scheduler alive in the same container
 # (see docker/supervisord.conf). The worker needs a reachable queue backend
 # (QUEUE_CONNECTION=redis + REDIS_URL/REDIS_HOST) - without it, it exits and
-# supervisord restarts it in a crash loop.
+# supervisord restarts it in a crash loop. The scheduler is what actually runs
+# backup:run, backup:clean, backups:purge-quarantine, backup:monitor and
+# activitylog:clean; without it those tasks never execute on Railway.
 CMD ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && exec supervisord -c docker/supervisord.conf"]
