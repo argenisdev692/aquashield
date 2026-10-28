@@ -8,11 +8,14 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
@@ -37,6 +40,34 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
+
+        /*
+         * Password sign-in is the only transport where Fortify owns the
+         * credential check, so this is where the verified-email gate belongs.
+         * Returning null preserves Fortify's normal `auth.failed` path and its
+         * Failed event; an unverified account gets a dedicated 422 on `email`,
+         * which the login screen renders as an alert.
+         */
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $email = Str::lower((string) $request->input('email'));
+            $user = User::query()->where('email', $email)->first();
+
+            if (! $user instanceof User) {
+                return null;
+            }
+
+            if (! Hash::check((string) $request->input('password'), (string) $user->password)) {
+                return null;
+            }
+
+            if (! $user->hasVerifiedEmail()) {
+                throw ValidationException::withMessages([
+                    'email' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
+                ]);
+            }
+
+            return $user;
+        });
 
         Fortify::loginView(fn () => inertia('Auth/Login', [
             'canResetPassword' => Features::resetPasswords(),

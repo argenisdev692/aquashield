@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useTemplateRef } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
@@ -180,6 +180,15 @@ const onAuthenticatorSubmit = (): void => {
         }),
     );
 };
+
+/**
+ * The server returns the verified-email refusal on the `email` key. Surfacing
+ * it above the tabs makes the reason visible on every login transport, not
+ * only under the field that happened to receive the 422.
+ */
+const loginAlert = computed<string | null>(
+    () => loginErrors.value.email ?? authenticatorErrors.value.email ?? null,
+);
 </script>
 
 <template>
@@ -187,6 +196,9 @@ const onAuthenticatorSubmit = (): void => {
 
     <AuthLayout title="Sign in" subtitle="Access your account">
         <Message v-if="status" severity="info" class="mb-4">{{ status }}</Message>
+        <Message v-if="loginAlert" severity="error" class="mb-4" role="alert">
+            {{ loginAlert }}
+        </Message>
 
         <div
             v-if="demoCredentials"

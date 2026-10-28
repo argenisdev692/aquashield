@@ -239,15 +239,108 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "name": {
                         "type": "string"
+                    },
+                    "username": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "email": {
                         "type": "string"
                     },
-                    "avatar_url": {
+                    "email_verified": {
+                        "type": "boolean"
+                    },
+                    "phone": {
                         "type": [
                             "string",
+                            "null"
+                        ]
+                    },
+                    "date_of_birth": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "gender": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profile_photo_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "terms_and_conditions": {
+                        "type": "boolean"
+                    },
+                    "registered_by_id": {
+                        "type": [
+                            "integer",
                             "null"
                         ]
                     },
@@ -263,8 +356,11 @@
                 },
                 "required": [
                     "uuid",
+                    "first_name",
                     "name",
                     "email",
+                    "email_verified",
+                    "terms_and_conditions",
                     "two_factor_enabled",
                     "permissions"
                 ],
@@ -877,15 +973,108 @@
                     "uuid": {
                         "type": "string"
                     },
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "name": {
                         "type": "string"
+                    },
+                    "username": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     },
                     "email": {
                         "type": "string"
                     },
-                    "avatar_url": {
+                    "email_verified": {
+                        "type": "boolean"
+                    },
+                    "phone": {
                         "type": [
                             "string",
+                            "null"
+                        ]
+                    },
+                    "date_of_birth": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "country": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "gender": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profile_photo_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "terms_and_conditions": {
+                        "type": "boolean"
+                    },
+                    "registered_by_id": {
+                        "type": [
+                            "integer",
                             "null"
                         ]
                     },
@@ -901,8 +1090,11 @@
                 },
                 "required": [
                     "uuid",
+                    "first_name",
                     "name",
                     "email",
+                    "email_verified",
+                    "terms_and_conditions",
                     "two_factor_enabled",
                     "permissions"
                 ],

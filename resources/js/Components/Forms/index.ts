@@ -1,3 +1,4 @@
+export { default as AddressAutocompleteField } from './AddressAutocompleteField.vue';
 export { default as AppButton } from './AppButton.vue';
 export { default as CheckboxField } from './CheckboxField.vue';
 export { default as DateField } from './DateField.vue';
@@ -15,4 +16,4 @@ export { default as SelectField } from './SelectField.vue';
 export { default as SignatureField } from './SignatureField.vue';
 export { default as TextField } from './TextField.vue';
 export { default as TextareaField } from './TextareaField.vue';
-export type { SelectOption } from './types';
+export type { AddressSelection, SelectOption } from './types';

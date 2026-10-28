@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "google.maps"],
     "paths": {
       "@/volt/*": ["./src/volt/*"],
       "@/pages/*": ["./resources/js/Pages/*"],

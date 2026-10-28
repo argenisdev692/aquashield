@@ -64,6 +64,14 @@ final class AuthController extends Controller
             ]);
         }
 
+        if (! $user->hasVerifiedEmail()) {
+            $this->auditFailure($email);
+
+            throw ValidationException::withMessages([
+                'email' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
+            ]);
+        }
+
         $this->assertTwoFactor($user, $request);
 
         $device = trim($request->string('device_name')->toString()) ?: 'api';

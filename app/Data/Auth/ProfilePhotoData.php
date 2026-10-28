@@ -11,10 +11,10 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 use Symfony\Component\HttpFoundation\Response;
 
 #[MapOutputName(SnakeCaseMapper::class)]
-final class AvatarData extends Data
+final class ProfilePhotoData extends Data
 {
     public function __construct(
-        public readonly ?string $avatarUrl,
+        public readonly ?string $profilePhotoUrl,
     ) {}
 
     protected function calculateResponseStatus(Request $request): int

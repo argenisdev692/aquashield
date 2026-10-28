@@ -20,6 +20,11 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+
+        // Browser key for the Maps JavaScript API + Places API (New).
+        // Restrict it by HTTP referrer in Google Cloud; never treat it as a
+        // server secret, because it is delivered to the browser by design.
+        'maps_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
     'postmark' => [

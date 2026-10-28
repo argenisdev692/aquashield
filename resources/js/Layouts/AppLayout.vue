@@ -43,7 +43,7 @@ defineProps<{
 interface AuthUser {
     name: string;
     email: string;
-    avatar_url?: string | null;
+    profile_photo_url?: string | null;
 }
 
 /**
@@ -280,8 +280,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
                         @click="accountMenu?.toggle($event)"
                     >
                         <img
-                            v-if="user.avatar_url"
-                            :src="user.avatar_url"
+                            v-if="user.profile_photo_url"
+                            :src="user.profile_photo_url"
                             alt=""
                             class="size-9 rounded-full border border-aq-line object-cover"
                         />

@@ -3,16 +3,16 @@ import { router } from '@inertiajs/vue3';
 import { xsrfToken } from '@/lib/http';
 
 /**
- * Avatar transport for the account screen.
+ * Profile photo transport for the account screen.
  *
  * The page selects a File; this composable owns the multipart request and the
  * follow-up Inertia reload that refreshes both the page prop and the shell
  * avatar. The server re-encodes to WebP and stores through StoragePort (R2).
  */
-export class AvatarUploadError extends Error {
+export class ProfilePhotoUploadError extends Error {
     constructor(message: string) {
         super(message);
-        this.name = 'AvatarUploadError';
+        this.name = 'ProfilePhotoUploadError';
     }
 }
 
@@ -25,10 +25,10 @@ function messageFrom(payload: unknown, status: number): string {
 
         if (
             isRecord(errors) &&
-            Array.isArray(errors.avatar) &&
-            typeof errors.avatar[0] === 'string'
+            Array.isArray(errors.photo) &&
+            typeof errors.photo[0] === 'string'
         ) {
-            return errors.avatar[0];
+            return errors.photo[0];
         }
 
         if (typeof payload.message === 'string' && payload.message !== '') {
@@ -42,7 +42,7 @@ function messageFrom(payload: unknown, status: number): string {
 }
 
 async function send(method: 'POST' | 'DELETE', body?: FormData): Promise<void> {
-    const response = await fetch('/settings/profile/avatar', {
+    const response = await fetch('/settings/profile/photo', {
         method,
         body,
         credentials: 'same-origin',
@@ -55,11 +55,11 @@ async function send(method: 'POST' | 'DELETE', body?: FormData): Promise<void> {
 
     if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
-        throw new AvatarUploadError(messageFrom(payload, response.status));
+        throw new ProfilePhotoUploadError(messageFrom(payload, response.status));
     }
 }
 
-export function useAvatarUpload() {
+export function useProfilePhotoUpload() {
     const uploading: Ref<boolean> = ref(false);
     const error: Ref<string | null> = ref(null);
 
@@ -69,7 +69,7 @@ export function useAvatarUpload() {
 
         try {
             const body = new FormData();
-            body.append('avatar', file);
+            body.append('photo', file);
 
             await send('POST', body);
             router.reload({ only: ['user'] });

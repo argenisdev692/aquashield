@@ -47,6 +47,19 @@ it('refuses an invalid authenticator code', function (): void {
     $this->assertGuest();
 });
 
+it('refuses authenticator login until the email is verified', function (): void {
+    $user = User::factory()->unverified()->create();
+    app(EnableTwoFactorAuthentication::class)($user);
+    $user->forceFill(['two_factor_confirmed_at' => now()])->save();
+
+    $this->post('/login/authenticator', [
+        'email' => $user->email,
+        'code' => authenticatorCode($user),
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+});
+
 it('refuses authenticator login when the account has not enabled it', function (): void {
     $user = User::factory()->create();
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Spatie\Csp\Nonce\RandomString;
 use Spatie\Csp\Presets\Basic;
+use Spatie\Csp\Presets\GoogleMaps;
 
 // use Spatie\Csp\Directive;
 // use Spatie\Csp\Keyword;
@@ -16,6 +17,10 @@ return [
      */
     'presets' => [
         Basic::class,
+        // Maps JavaScript API + Places API (New) load scripts, tiles and
+        // XHR/fetch requests from Google's domains. The preset is the single
+        // source of that allowlist; do not inline the domains here.
+        GoogleMaps::class,
     ],
 
     /**

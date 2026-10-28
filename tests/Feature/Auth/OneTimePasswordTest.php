@@ -75,6 +75,20 @@ it('signs in with a valid email code and regenerates the session', function (): 
     expect($user->oneTimePasswords()->count())->toBe(0);
 });
 
+it('marks the email verified when a valid code proves ownership', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->unverified()->create();
+    $this->post('/login/otp', ['email' => $user->email]);
+
+    $this->post('/login/otp/verify', ['code' => issuedOtpCode($user)])
+        ->assertRedirect('/dashboard');
+
+    $this->assertAuthenticatedAs($user);
+
+    expect($user->refresh()->email_verified_at)->not->toBeNull();
+});
+
 it('refuses a wrong email code', function (): void {
     Notification::fake();
 

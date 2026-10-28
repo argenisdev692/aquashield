@@ -35,6 +35,9 @@ final class ProfileController extends Controller
 
         return inertia('Settings/Profile', [
             'user' => UserData::fromModel($user, $this->storage)->toArray(),
+            // Browser key, restricted by HTTP referrer in Google Cloud. It is
+            // public by design; the server never needs it for Places calls.
+            'googleMapsApiKey' => (string) config('services.google.maps_key', ''),
             'twoFactorEnabled' => $user->two_factor_secret !== null,
             'twoFactorConfirmed' => $user->two_factor_confirmed_at !== null,
             'status' => is_string($status) ? $status : null,

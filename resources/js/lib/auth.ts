@@ -31,8 +31,8 @@ const FORTIFY_STATUS_MESSAGES: Readonly<Record<string, string>> = {
     'two-factor-authentication-confirmed': 'Two-factor authentication confirmed.',
     'two-factor-authentication-disabled': 'Two-factor authentication disabled.',
     'recovery-codes-generated': 'New recovery codes generated. Store them somewhere safe.',
-    'avatar-updated': 'Profile photo updated.',
-    'avatar-removed': 'Profile photo removed.',
+    'profile-photo-updated': 'Profile photo updated.',
+    'profile-photo-removed': 'Profile photo removed.',
 };
 
 export const statusMessage = (status: string | null): string | null => {

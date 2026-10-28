@@ -26,12 +26,17 @@ test('a verified google identity creates and authenticates a user', function () 
     $this->assertDatabaseHas('users', [
         'email' => 'ada@example.com',
         'google_id' => 'google-7',
-        'name' => 'Ada Lovelace',
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
     ]);
+
+    $user = User::query()->where('email', 'ada@example.com')->first();
+
+    expect($user?->email_verified_at)->not->toBeNull();
 });
 
-test('a verified google identity links an existing password account', function () {
-    $user = User::factory()->create(['email' => 'ada@example.com']);
+test('a verified google identity links and verifies an existing password account', function () {
+    $user = User::factory()->unverified()->create(['email' => 'ada@example.com']);
 
     Socialite::shouldReceive('driver->user')->andReturn(
         SocialiteUser::fake(['id' => 'google-8', 'email' => 'ada@example.com'])
@@ -40,7 +45,10 @@ test('a verified google identity links an existing password account', function (
 
     $this->get('/auth/google/callback')->assertRedirect('/dashboard');
 
-    expect($user->refresh()->google_id)->toBe('google-8');
+    $user->refresh();
+
+    expect($user->google_id)->toBe('google-8')
+        ->and($user->email_verified_at)->not->toBeNull();
 });
 
 test('a google account never seizes an address linked to another google id', function () {

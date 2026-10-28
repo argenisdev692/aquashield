@@ -99,6 +99,13 @@ final class OneTimePasswordLoginController extends Controller
             return $this->verificationFailed($request, $result->validationMessage());
         }
 
+        // Consuming a code delivered to the address proves ownership. This is
+        // the one login transport that can promote an unverified account
+        // without a separate round-trip.
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
         $request->session()->forget('otp.email');
 
         if ($user->hasEnabledTwoFactorAuthentication()) {

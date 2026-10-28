@@ -6,8 +6,8 @@ use App\Data\Auth\UserData;
 use App\Http\Controllers\Auth\AuthenticatorLoginController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\OneTimePasswordLoginController;
-use App\Http\Controllers\Settings\AvatarController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\ProfilePhotoController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Modules\CompanyData\Application\Dtos\CompanyBrandingDto;
@@ -70,10 +70,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function (): void {
     Route::get('/settings/profile', [ProfileController::class, 'edit'])
         ->name('settings.profile.edit');
-    Route::post('/settings/profile/avatar', [AvatarController::class, 'store'])
-        ->name('settings.profile.avatar.store');
-    Route::delete('/settings/profile/avatar', [AvatarController::class, 'destroy'])
-        ->name('settings.profile.avatar.destroy');
+    Route::post('/settings/profile/photo', [ProfilePhotoController::class, 'store'])
+        ->name('settings.profile.photo.store');
+    Route::delete('/settings/profile/photo', [ProfilePhotoController::class, 'destroy'])
+        ->name('settings.profile.photo.destroy');
 });
 
 /*
@@ -82,7 +82,7 @@ Route::middleware('auth')->group(function (): void {
  * (a leads pipeline) lands with the first module, and this route becomes an
  * authorized controller then.
  */
-Route::middleware('auth')->get('/dashboard', function () {
+Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
     $user = auth()->user();
 
     if (! $user instanceof User) {

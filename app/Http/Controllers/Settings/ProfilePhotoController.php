@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
-use App\Actions\Auth\UpdateAvatarAction;
-use App\Data\Auth\AvatarData;
+use App\Actions\Auth\UpdateProfilePhotoAction;
+use App\Data\Auth\ProfilePhotoData;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Settings\UpdateAvatarRequest;
+use App\Http\Requests\Settings\UpdateProfilePhotoRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,14 +15,14 @@ use Illuminate\Http\UploadedFile;
 use Shared\Domain\Ports\StoragePort;
 use Throwable;
 
-final class AvatarController extends Controller
+final class ProfilePhotoController extends Controller
 {
     public function __construct(
-        private readonly UpdateAvatarAction $updateAvatar,
+        private readonly UpdateProfilePhotoAction $updatePhoto,
         private readonly StoragePort $storage,
     ) {}
 
-    public function store(UpdateAvatarRequest $request): AvatarData|RedirectResponse
+    public function store(UpdateProfilePhotoRequest $request): ProfilePhotoData|RedirectResponse
     {
         $user = $request->user();
 
@@ -30,22 +30,22 @@ final class AvatarController extends Controller
             abort(401);
         }
 
-        $file = $request->file('avatar');
+        $file = $request->file('photo');
 
         if (! $file instanceof UploadedFile) {
             abort(422);
         }
 
-        $key = $this->updateAvatar->store($user, $file);
+        $key = $this->updatePhoto->store($user, $file);
 
         if ($request->expectsJson()) {
-            return new AvatarData($this->publicUrl($key));
+            return new ProfilePhotoData($this->publicUrl($key));
         }
 
-        return back()->with('status', 'avatar-updated');
+        return back()->with('status', 'profile-photo-updated');
     }
 
-    public function destroy(Request $request): AvatarData|RedirectResponse
+    public function destroy(Request $request): ProfilePhotoData|RedirectResponse
     {
         $user = $request->user();
 
@@ -53,13 +53,13 @@ final class AvatarController extends Controller
             abort(401);
         }
 
-        $this->updateAvatar->remove($user);
+        $this->updatePhoto->remove($user);
 
         if ($request->expectsJson()) {
-            return new AvatarData(null);
+            return new ProfilePhotoData(null);
         }
 
-        return back()->with('status', 'avatar-removed');
+        return back()->with('status', 'profile-photo-removed');
     }
 
     private function publicUrl(string $key): ?string

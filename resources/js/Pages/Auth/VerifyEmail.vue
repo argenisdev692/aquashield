@@ -11,7 +11,7 @@ const form = useForm({});
 
 const isVerified = computed(() => props.status === 'verified');
 
-const submit = () => form.post('/email/verification');
+const submit = () => form.post('/email/verification-notification');
 </script>
 
 <template>

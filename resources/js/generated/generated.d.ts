@@ -7,14 +7,31 @@ declare namespace App {
                 readonly expires_at: string;
                 readonly user: App.Data.Auth.UserData;
             };
-            export type AvatarData = {
-                readonly avatar_url: string | null;
+            export type ProfilePhotoData = {
+                readonly profile_photo_url: string | null;
             };
             export type UserData = {
                 readonly uuid: string;
+                readonly first_name: string;
+                readonly last_name: string | null;
                 readonly name: string;
+                readonly username: string | null;
                 readonly email: string;
-                readonly avatar_url: string | null;
+                readonly email_verified: boolean;
+                readonly phone: string | null;
+                readonly date_of_birth: string | null;
+                readonly address: string | null;
+                readonly address_2: string | null;
+                readonly zip_code: string | null;
+                readonly city: string | null;
+                readonly state: string | null;
+                readonly country: string | null;
+                readonly gender: string | null;
+                readonly profile_photo_url: string | null;
+                readonly latitude: number | null;
+                readonly longitude: number | null;
+                readonly terms_and_conditions: boolean;
+                readonly registered_by_id: number | null;
                 readonly two_factor_enabled: boolean;
                 readonly permissions: string[];
             };

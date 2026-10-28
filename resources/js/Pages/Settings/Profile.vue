@@ -4,31 +4,72 @@ import { Head, router } from '@inertiajs/vue3';
 import { useConfirm } from 'primevue/useconfirm';
 import { z } from 'zod';
 import {
+    AddressAutocompleteField,
     AppButton,
+    CheckboxField,
+    DateField,
     FormErrorSummary,
     ImageDropzone,
+    NumberField,
     PasswordField,
+    PhoneField,
     TextField,
+    type AddressSelection,
 } from '@/Components/Forms';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { PASSWORD_HINT, PASSWORD_MAX_LENGTH, passwordSchema, statusMessage } from '@/lib/auth';
 import { useZodForm } from '@/lib/forms';
-import { useAvatarUpload } from '@/Modules/Auth/composables/useAvatarUpload';
+import { USERNAME_HINT, USERNAME_MAX, usernameSchema } from '@/lib/username';
+import { useProfilePhotoUpload } from '@/Modules/Auth/composables/useProfilePhotoUpload';
 import { useTwoFactorSettings } from '@/Modules/Auth/composables/useTwoFactorSettings';
 import Message from '@/volt/Message.vue';
 
 const props = defineProps<{
     user: App.Data.Auth.UserData;
+    googleMapsApiKey: string;
     twoFactorEnabled: boolean;
     twoFactorConfirmed: boolean;
     status?: string | null;
 }>();
 
 const confirm = useConfirm();
+const today = new Date();
 
 const profileSchema = z.object({
-    name: z.string().min(2, 'Enter your name').max(255),
+    first_name: z.string().min(1, 'Enter your first name').max(255),
+    last_name: z.string().max(255),
+    username: usernameSchema,
     email: z.email('Enter a valid email address').max(255),
+    phone: z.string().max(32),
+    date_of_birth: z
+        .string()
+        .nullable()
+        .refine(
+            (value) => value === null || value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value),
+            'Enter a valid date',
+        ),
+    address: z.string().max(255),
+    address_2: z.string().max(255),
+    zip_code: z.string().max(32),
+    city: z.string().max(120),
+    state: z.string().max(120),
+    country: z.string().max(120),
+    gender: z.string().max(50),
+    latitude: z
+        .number()
+        .nullable()
+        .refine(
+            (value) => value === null || (value >= -90 && value <= 90),
+            'Latitude must be between -90 and 90',
+        ),
+    longitude: z
+        .number()
+        .nullable()
+        .refine(
+            (value) => value === null || (value >= -180 && value <= 180),
+            'Longitude must be between -180 and 180',
+        ),
+    terms_and_conditions: z.boolean(),
 });
 
 const passwordFormSchema = z
@@ -59,12 +100,31 @@ const {
     clearError: clearProfileError,
 } = useZodForm({
     initial: {
-        name: props.user.name,
+        first_name: props.user.first_name,
+        last_name: props.user.last_name ?? '',
+        username: props.user.username ?? '',
         email: props.user.email,
+        phone: props.user.phone ?? '',
+        date_of_birth: props.user.date_of_birth,
+        address: props.user.address ?? '',
+        address_2: props.user.address_2 ?? '',
+        zip_code: props.user.zip_code ?? '',
+        city: props.user.city ?? '',
+        state: props.user.state ?? '',
+        country: props.user.country ?? '',
+        gender: props.user.gender ?? '',
+        latitude: props.user.latitude,
+        longitude: props.user.longitude,
+        terms_and_conditions: props.user.terms_and_conditions,
     },
     schema: profileSchema,
     formEl: profileFormEl,
 });
+
+const onUsernameInput = (): void => {
+    profileForm.username = profileForm.username.toLowerCase();
+    clearProfileError('username');
+};
 
 const {
     form: passwordForm,
@@ -97,17 +157,20 @@ const {
 });
 
 const twoFactorBusy = ref<boolean>(false);
-const avatarFile = ref<File | null>(null);
+const profilePhotoFile = ref<File | null>(null);
 
 const {
-    uploading: avatarUploading,
-    error: avatarError,
-    upload: uploadAvatar,
-    remove: removeAvatar,
-} = useAvatarUpload();
+    uploading: profilePhotoUploading,
+    error: profilePhotoError,
+    upload: uploadProfilePhoto,
+    remove: removeProfilePhoto,
+} = useProfilePhotoUpload();
 
 const initials = computed<string>(() => {
-    const parts = props.user.name.trim().split(/\s+/).filter(Boolean);
+    const parts = `${props.user.first_name} ${props.user.last_name ?? ''}`
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
 
     return (
         parts
@@ -131,20 +194,38 @@ const {
 
 const flashMessage = computed<string | null>(() => statusMessage(props.status ?? null));
 
-const onAvatarUpload = (): void => {
-    if (avatarFile.value === null) {
+const onProfilePhotoUpload = (): void => {
+    if (profilePhotoFile.value === null) {
         return;
     }
 
-    const file = avatarFile.value;
+    const file = profilePhotoFile.value;
 
-    void uploadAvatar(file).then(() => {
-        avatarFile.value = null;
+    void uploadProfilePhoto(file).then(() => {
+        profilePhotoFile.value = null;
     });
 };
 
-const onAvatarRemove = (): void => {
-    void removeAvatar();
+const onProfilePhotoRemove = (): void => {
+    void removeProfilePhoto();
+};
+
+const onAddressSelected = (selection: AddressSelection): void => {
+    profileForm.address = selection.address;
+    profileForm.zip_code = selection.zip_code;
+    profileForm.city = selection.city;
+    profileForm.state = selection.state;
+    profileForm.country = selection.country;
+    profileForm.latitude = selection.latitude;
+    profileForm.longitude = selection.longitude;
+
+    // address_2 is deliberately untouched: it is the manual apartment,
+    // suite or unit line and must survive every new address selection.
+    (['address', 'zip_code', 'city', 'state', 'country', 'latitude', 'longitude'] as const).forEach(
+        (field) => {
+            clearProfileError(field);
+        },
+    );
 };
 
 const onProfileSubmit = (): void => {
@@ -266,16 +347,16 @@ watch(
         <Message v-if="flashMessage" severity="success" class="mb-6">{{ flashMessage }}</Message>
 
         <div class="grid gap-6 xl:grid-cols-2">
-            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6">
+            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6 xl:col-span-2">
                 <h2 class="text-lg font-semibold text-aq-ink">Profile information</h2>
                 <p class="mt-1 text-sm text-aq-ink-muted">
-                    Update the name and email address used across the workspace.
+                    Update the identity, contact and address details used across the workspace.
                 </p>
 
                 <div class="mt-5 flex flex-wrap items-center gap-4">
                     <img
-                        v-if="props.user.avatar_url"
-                        :src="props.user.avatar_url"
+                        v-if="props.user.profile_photo_url"
+                        :src="props.user.profile_photo_url"
                         alt=""
                         class="size-16 rounded-full border border-aq-line object-cover"
                     />
@@ -295,30 +376,30 @@ watch(
                     </div>
                 </div>
 
-                <div class="mt-4">
+                <div class="mt-4 max-w-md">
                     <ImageDropzone
-                        v-model="avatarFile"
+                        v-model="profilePhotoFile"
                         label="Upload a new photo"
                         :max-size-mb="2"
-                        :error="avatarError ?? undefined"
-                        :disabled="avatarUploading"
+                        :error="profilePhotoError ?? undefined"
+                        :disabled="profilePhotoUploading"
                     />
                 </div>
 
                 <div class="mt-3 flex flex-wrap gap-3">
                     <AppButton
-                        v-if="avatarFile"
+                        v-if="profilePhotoFile"
                         type="button"
-                        :loading="avatarUploading"
-                        @click="onAvatarUpload"
+                        :loading="profilePhotoUploading"
+                        @click="onProfilePhotoUpload"
                     >
                         Save photo
                     </AppButton>
                     <AppButton
-                        v-if="props.user.avatar_url"
+                        v-if="props.user.profile_photo_url"
                         type="button"
-                        :loading="avatarUploading"
-                        @click="onAvatarRemove"
+                        :loading="profilePhotoUploading"
+                        @click="onProfilePhotoRemove"
                     >
                         Remove photo
                     </AppButton>
@@ -326,48 +407,216 @@ watch(
 
                 <form
                     ref="profileForm"
-                    class="mt-5 flex flex-col gap-4"
+                    class="mt-6 flex flex-col gap-4"
                     novalidate
                     @submit.prevent="onProfileSubmit"
                 >
                     <FormErrorSummary :errors="profileErrors" :form-el="profileElement" />
 
-                    <TextField
-                        v-model="profileForm.name"
-                        name="name"
-                        label="Name"
-                        autocomplete="name"
-                        required
-                        :error="profileErrors.name"
-                        @update:model-value="clearProfileError('name')"
-                        @blur="touchProfile('name')"
-                    />
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <TextField
+                            v-model="profileForm.first_name"
+                            name="first_name"
+                            label="First name"
+                            autocomplete="given-name"
+                            required
+                            :error="profileErrors.first_name"
+                            @update:model-value="clearProfileError('first_name')"
+                            @blur="touchProfile('first_name')"
+                        />
 
-                    <TextField
-                        v-model="profileForm.email"
-                        name="email"
-                        label="Email"
-                        type="email"
-                        autocomplete="username"
-                        required
-                        :error="profileErrors.email"
-                        @update:model-value="clearProfileError('email')"
-                        @blur="touchProfile('email')"
-                    />
+                        <TextField
+                            v-model="profileForm.last_name"
+                            name="last_name"
+                            label="Last name"
+                            autocomplete="family-name"
+                            :error="profileErrors.last_name"
+                            @update:model-value="clearProfileError('last_name')"
+                            @blur="touchProfile('last_name')"
+                        />
 
-                    <AppButton type="submit" :loading="profileForm.processing">
-                        Save profile
-                    </AppButton>
+                        <TextField
+                            v-model="profileForm.username"
+                            name="username"
+                            label="Username"
+                            autocomplete="username"
+                            :hint="USERNAME_HINT"
+                            :maxlength="USERNAME_MAX"
+                            :error="profileErrors.username"
+                            @update:model-value="onUsernameInput"
+                            @blur="touchProfile('username')"
+                        />
+
+                        <TextField
+                            v-model="profileForm.email"
+                            name="email"
+                            label="Email"
+                            type="email"
+                            autocomplete="email"
+                            required
+                            :error="profileErrors.email"
+                            @update:model-value="clearProfileError('email')"
+                            @blur="touchProfile('email')"
+                        />
+
+                        <PhoneField
+                            v-model="profileForm.phone"
+                            name="phone"
+                            label="Phone"
+                            :error="profileErrors.phone"
+                            @update:model-value="clearProfileError('phone')"
+                            @blur="touchProfile('phone')"
+                        />
+
+                        <DateField
+                            v-model="profileForm.date_of_birth"
+                            name="date_of_birth"
+                            label="Date of birth"
+                            :max-date="today"
+                            :error="profileErrors.date_of_birth"
+                            @update:model-value="clearProfileError('date_of_birth')"
+                            @blur="touchProfile('date_of_birth')"
+                        />
+
+                        <TextField
+                            v-model="profileForm.gender"
+                            name="gender"
+                            label="Gender"
+                            autocomplete="sex"
+                            :error="profileErrors.gender"
+                            @update:model-value="clearProfileError('gender')"
+                            @blur="touchProfile('gender')"
+                        />
+                    </div>
+
+                    <div class="mt-2 border-t border-aq-line pt-5">
+                        <h3 class="text-sm font-semibold text-aq-ink">Address</h3>
+                        <p class="mt-1 text-sm text-aq-ink-muted">
+                            Start with the street address. Choosing a suggestion fills the postal
+                            code, city, state, country and coordinates. The second address line
+                            stays exactly as you type it.
+                        </p>
+
+                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                            <div class="sm:col-span-2">
+                                <AddressAutocompleteField
+                                    v-model="profileForm.address"
+                                    name="address"
+                                    label="Address"
+                                    :api-key="props.googleMapsApiKey"
+                                    :error="profileErrors.address"
+                                    @update:model-value="clearProfileError('address')"
+                                    @select="onAddressSelected"
+                                    @blur="touchProfile('address')"
+                                />
+                            </div>
+
+                            <TextField
+                                v-model="profileForm.address_2"
+                                name="address_2"
+                                label="Address line 2"
+                                autocomplete="address-line2"
+                                hint="Apartment, suite, unit, building, floor…"
+                                :error="profileErrors.address_2"
+                                @update:model-value="clearProfileError('address_2')"
+                                @blur="touchProfile('address_2')"
+                            />
+
+                            <TextField
+                                v-model="profileForm.zip_code"
+                                name="zip_code"
+                                label="ZIP / Postal code"
+                                autocomplete="postal-code"
+                                inputmode="numeric"
+                                :error="profileErrors.zip_code"
+                                @update:model-value="clearProfileError('zip_code')"
+                                @blur="touchProfile('zip_code')"
+                            />
+
+                            <TextField
+                                v-model="profileForm.city"
+                                name="city"
+                                label="City"
+                                autocomplete="address-level2"
+                                :error="profileErrors.city"
+                                @update:model-value="clearProfileError('city')"
+                                @blur="touchProfile('city')"
+                            />
+
+                            <TextField
+                                v-model="profileForm.state"
+                                name="state"
+                                label="State / Province"
+                                autocomplete="address-level1"
+                                :error="profileErrors.state"
+                                @update:model-value="clearProfileError('state')"
+                                @blur="touchProfile('state')"
+                            />
+
+                            <TextField
+                                v-model="profileForm.country"
+                                name="country"
+                                label="Country"
+                                autocomplete="country-name"
+                                :error="profileErrors.country"
+                                @update:model-value="clearProfileError('country')"
+                                @blur="touchProfile('country')"
+                            />
+
+                            <NumberField
+                                v-model="profileForm.latitude"
+                                name="latitude"
+                                label="Latitude"
+                                hint="Filled by the address search; edit only if you know the exact value."
+                                :min="-90"
+                                :max="90"
+                                :step="0.000001"
+                                :error="profileErrors.latitude"
+                                @update:model-value="clearProfileError('latitude')"
+                                @blur="touchProfile('latitude')"
+                            />
+
+                            <NumberField
+                                v-model="profileForm.longitude"
+                                name="longitude"
+                                label="Longitude"
+                                hint="Filled by the address search; edit only if you know the exact value."
+                                :min="-180"
+                                :max="180"
+                                :step="0.000001"
+                                :error="profileErrors.longitude"
+                                @update:model-value="clearProfileError('longitude')"
+                                @blur="touchProfile('longitude')"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="mt-2 border-t border-aq-line pt-5">
+                        <CheckboxField
+                            v-model="profileForm.terms_and_conditions"
+                            name="terms_and_conditions"
+                            label="I accept the terms and conditions"
+                            :error="profileErrors.terms_and_conditions"
+                            @update:model-value="clearProfileError('terms_and_conditions')"
+                            @blur="touchProfile('terms_and_conditions')"
+                        />
+                    </div>
+
+                    <div class="mt-2">
+                        <AppButton type="submit" :loading="profileForm.processing">
+                            Save profile
+                        </AppButton>
+                    </div>
                 </form>
             </section>
 
-            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6">
+            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6 xl:col-span-2">
                 <h2 class="text-lg font-semibold text-aq-ink">Password</h2>
                 <p class="mt-1 text-sm text-aq-ink-muted">{{ PASSWORD_HINT }}</p>
 
                 <form
                     ref="passwordForm"
-                    class="mt-5 flex flex-col gap-4"
+                    class="mt-5 flex max-w-xl flex-col gap-4"
                     novalidate
                     @submit.prevent="onPasswordSubmit"
                 >

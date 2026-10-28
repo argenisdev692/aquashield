@@ -49,6 +49,12 @@ final class AuthenticatorLoginController extends Controller
             ]);
         }
 
+        if (! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
+            ]);
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 

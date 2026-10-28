@@ -51,9 +51,14 @@ it('issues a Sanctum token and an allowlisted user payload', function (): void {
             'expires_at',
             'user' => [
                 'uuid',
+                'first_name',
+                'last_name',
                 'name',
+                'username',
                 'email',
-                'avatar_url',
+                'email_verified',
+                'registered_by_id',
+                'profile_photo_url',
                 'two_factor_enabled',
                 'permissions',
             ],
@@ -62,7 +67,9 @@ it('issues a Sanctum token and an allowlisted user payload', function (): void {
         ->assertJsonPath('user.email', $user->email);
 
     expect($response->json('token'))->toBeString()->not->toBe('')
-        ->and($response->json('user.avatar_url'))->toBeNull()
+        ->and($response->json('user.email_verified'))->toBeTrue()
+        ->and($response->json('user.registered_by_id'))->toBeNull()
+        ->and($response->json('user.profile_photo_url'))->toBeNull()
         ->and($response->json('user.two_factor_enabled'))->toBeFalse();
 
     $this->assertDatabaseHas('personal_access_tokens', [
@@ -89,6 +96,20 @@ it('rejects a missing or malformed API payload with 422', function (): void {
     $this->postJson('/api/auth/login', [])
         ->assertStatus(422)
         ->assertJsonValidationErrors(['email', 'password']);
+});
+
+it('refuses an unverified email on API login', function (): void {
+    $user = User::factory()->unverified()->create([
+        'password' => Hash::make('password'),
+    ]);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors('email');
+
+    $this->assertGuest();
 });
 
 it('requires a TOTP code when two-factor is confirmed', function (): void {

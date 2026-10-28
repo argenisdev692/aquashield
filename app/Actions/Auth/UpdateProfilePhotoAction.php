@@ -14,15 +14,15 @@ use Shared\Domain\Ports\StoragePort;
 use Throwable;
 
 /**
- * Store one avatar through the Shared StoragePort (R2 today).
+ * Store one profile photo through the Shared StoragePort (R2 today).
  *
  * The upload is decoded and re-encoded before it reaches R2: that strips
  * EXIF/GPS/metadata and rejects a polyglot that is an image plus a payload.
  * Storage happens BEFORE the single DB update; if the update fails the new
  * object is removed, and a failed old-object cleanup is reported but never
- * rolls back a save that already points at the new avatar.
+ * rolls back a save that already points at the new photo.
  */
-final readonly class UpdateAvatarAction
+final readonly class UpdateProfilePhotoAction
 {
     private const int SIZE = 320;
 
@@ -38,16 +38,16 @@ final readonly class UpdateAvatarAction
             ->encodeUsingFormat(Format::WEBP, quality: 85, strip: true);
 
         $key = sprintf(
-            'avatars/%s/%s.webp',
+            'profile-photos/%s/%s.webp',
             (string) $user->uuid,
             Str::lower((string) Str::ulid()),
         );
 
         $stored = $this->storage->put($key, $encoded->toString(), 'public');
-        $old = $user->avatar_path;
+        $old = $user->profile_photo_path;
 
         try {
-            $user->forceFill(['avatar_path' => $stored])->save();
+            $user->forceFill(['profile_photo_path' => $stored])->save();
         } catch (Throwable $exception) {
             $this->deleteQuietly($stored);
 
@@ -63,9 +63,9 @@ final readonly class UpdateAvatarAction
 
     public function remove(User $user): void
     {
-        $old = $user->avatar_path;
+        $old = $user->profile_photo_path;
 
-        $user->forceFill(['avatar_path' => null])->save();
+        $user->forceFill(['profile_photo_path' => null])->save();
 
         if ($old !== null) {
             $this->deleteQuietly($old);

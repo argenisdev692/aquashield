@@ -4,25 +4,26 @@ One engine, one field contract, and PrimeVue 5 primitives underneath. The kit
 is presentation + validation wiring; the page owns the endpoint, the schema and
 the submit call.
 
-| Piece              | What it owns                                                        |
-| ------------------ | ------------------------------------------------------------------- |
-| `useZodForm`       | Inertia form state, Zod validation, server-error merge, error focus |
-| `FormErrorSummary` | Submit-time summary, `role="alert"`, links that focus each control  |
-| `FieldShell`       | Label / hint / error ids and `aria-describedby`                     |
-| `TextField`        | Single-line text, email, search, URL, tel                           |
-| `PasswordField`    | `InputPassword` (v5) with a real show/hide button                   |
-| `TextareaField`    | Multi-line text                                                     |
-| `SelectField`      | Single select, optional filter and clear                            |
-| `DateField`        | Date picker; the model is ISO `YYYY-MM-DD`                          |
-| `NumberField`      | Numeric / currency input                                            |
-| `PhoneField`       | libphonenumber-js formatting; the model is E.164                    |
-| `CheckboxField`    | Binary checkbox with an inline label                                |
-| `SignatureField`   | Canvas signature + upload fallback; the model is a PNG `File`       |
-| `FileDropzone`     | One file + name / size / type preview                               |
-| `ImageDropzone`    | One image + object-URL preview                                      |
-| `ImagesDropzone`   | Image array, previews, drag reorder, keyboard move buttons          |
-| `AppButton`        | Hover sheen + 1px lift, reduced-motion safe                         |
-| `FormActions`      | Submit / cancel row                                                 |
+| Piece                      | What it owns                                                        |
+| -------------------------- | ------------------------------------------------------------------- |
+| `useZodForm`               | Inertia form state, Zod validation, server-error merge, error focus |
+| `FormErrorSummary`         | Submit-time summary, `role="alert"`, links that focus each control  |
+| `FieldShell`               | Label / hint / error ids and `aria-describedby`                     |
+| `TextField`                | Single-line text, email, search, URL, tel                           |
+| `AddressAutocompleteField` | Google Places address search; emits the canonical address fields    |
+| `PasswordField`            | `InputPassword` (v5) with a real show/hide button                   |
+| `TextareaField`            | Multi-line text                                                     |
+| `SelectField`              | Single select, optional filter and clear                            |
+| `DateField`                | Date picker; the model is ISO `YYYY-MM-DD`                          |
+| `NumberField`              | Numeric / currency input                                            |
+| `PhoneField`               | libphonenumber-js formatting; the model is E.164                    |
+| `CheckboxField`            | Binary checkbox with an inline label                                |
+| `SignatureField`           | Canvas signature + upload fallback; the model is a PNG `File`       |
+| `FileDropzone`             | One file + name / size / type preview                               |
+| `ImageDropzone`            | One image + object-URL preview                                      |
+| `ImagesDropzone`           | Image array, previews, drag reorder, keyboard move buttons          |
+| `AppButton`                | Hover sheen + 1px lift, reduced-motion safe                         |
+| `FormActions`              | Submit / cancel row                                                 |
 
 Import from `@/Components/Forms`, never from a deep path.
 
@@ -129,6 +130,44 @@ not registered in `app.ts`.
 `DateField` converts the picker's `Date` to `YYYY-MM-DD` and back, so the server
 never receives a timezone-shifted timestamp. `PhoneField` stores E.164 once the
 number is valid and keeps the draft while it is incomplete.
+
+### Google address autocomplete
+
+```vue
+<AddressAutocompleteField
+  v-model="form.address"
+  name="address"
+  label="Address"
+  :api-key="googleMapsApiKey"
+  :error="errors.address"
+  @update:model-value="clearError('address')"
+  @select="onAddressSelected"
+  @blur="touch('address')"
+/>
+```
+
+```ts
+const onAddressSelected = (selection: AddressSelection): void => {
+  form.address = selection.address;
+  form.zip_code = selection.zip_code;
+  form.city = selection.city;
+  form.state = selection.state;
+  form.country = selection.country;
+  form.latitude = selection.latitude;
+  form.longitude = selection.longitude;
+  // address_2 is intentionally not touched.
+};
+```
+
+- Uses the Places API (New) `AutocompleteSuggestion` + `Place.fetchFields`; the
+  legacy `google.maps.places.Autocomplete` is not available to new customers.
+- The loader is lazy: the Maps JavaScript API is requested on first focus, not
+  on page load.
+- `apiKey` is a restricted **browser** key from `GOOGLE_MAPS_API_KEY`. Enable
+  Maps JavaScript API and Places API (New) in the Google Cloud project.
+- The listbox is a real combobox (`role`, `aria-expanded`,
+  `aria-activedescendant`, arrow keys, Enter, Escape, outside click) and the
+  status is announced through a polite live region.
 
 ---
 

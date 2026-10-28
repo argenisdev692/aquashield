@@ -84,8 +84,14 @@ class GoogleController extends Controller
             ?? User::query()->where('email', $email)->first();
 
         if ($user === null) {
+            [$firstName, $lastName] = $this->splitName(
+                (string) $googleUser->getName(),
+                $email,
+            );
+
             $user = User::create([
-                'name' => $googleUser->getName() ?? Str::before($email, '@'),
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 // A random secret: this account signs in via Google. If the
                 // owner ever wants a password, the reset flow sets one.
@@ -98,6 +104,12 @@ class GoogleController extends Controller
             // The address resolves to a different Google identity — never
             // re-link silently; that is exactly the takeover case.
             return $this->signInFailed();
+        }
+
+        // A Google-verified address is authoritative, including for an
+        // existing local account that had not confirmed its email yet.
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
         }
 
         if ($user->two_factor_secret !== null
@@ -114,6 +126,22 @@ class GoogleController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended('/dashboard');
+    }
+
+    /**
+     * Split the single Google display name into the canonical first/last pair.
+     *
+     * @return array{0: string, 1: string|null}
+     */
+    private function splitName(string $fullName, string $email): array
+    {
+        $parts = preg_split('/\s+/', trim($fullName)) ?: [];
+        $firstName = array_shift($parts) ?: Str::before($email, '@');
+
+        return [
+            $firstName !== '' ? $firstName : 'User',
+            $parts === [] ? null : implode(' ', $parts),
+        ];
     }
 
     /**
