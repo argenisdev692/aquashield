@@ -13,6 +13,7 @@ interface Props {
     submitLabel?: string;
     cancelLabel?: string;
     busy?: boolean;
+    disabled?: boolean;
     showCancel?: boolean;
 }
 
@@ -20,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
     submitLabel: 'Save',
     cancelLabel: 'Cancel',
     busy: false,
+    disabled: false,
     showCancel: true,
 });
 
@@ -31,13 +33,13 @@ const emit = defineEmits<{ cancel: [] }>();
         <SecondaryButton
             v-if="props.showCancel"
             type="button"
-            :disabled="props.busy"
+            :disabled="props.disabled || props.busy"
             @click="emit('cancel')"
         >
             {{ props.cancelLabel }}
         </SecondaryButton>
 
-        <AppButton type="submit" :loading="props.busy">
+        <AppButton type="submit" :loading="props.busy" :disabled="props.disabled">
             {{ props.submitLabel }}
         </AppButton>
     </div>

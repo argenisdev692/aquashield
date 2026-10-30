@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Users\Http\Requests;
 
 use App\Models\User;
+use App\Rules\AllowedEmailDomain;
 use App\Rules\Username;
 use App\Support\UserProfileInput;
 use Illuminate\Foundation\Http\FormRequest;
@@ -36,6 +37,7 @@ final class StoreUserRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
+                new AllowedEmailDomain(),
                 Rule::unique(User::class),
             ],
             'phone' => ['nullable', 'string', 'max:32'],
@@ -48,6 +50,7 @@ final class StoreUserRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:120'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'gender' => ['nullable', 'string', 'in:male,female,other', 'max:50'],
             'roles' => ['nullable', 'array'],
             'roles.*' => ['string', 'distinct', 'exists:roles,name'],
             'permissions' => ['nullable', 'array'],

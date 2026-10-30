@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Data\Auth\IdleSessionData;
+use App\Data\Auth\UserData;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Shared\Application\Queries\PendingCookieConsent;
+use Shared\Domain\Ports\StoragePort;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -76,6 +78,9 @@ class HandleInertiaRequests extends Middleware
                     keepAliveEndpoint: route('auth.keep-alive'),
                     logoutEndpoint: route('logout'),
                 ),
+            'user' => $user instanceof User
+                ? UserData::fromModel($user, app(StoragePort::class))->toArray()
+                : null,
         ];
     }
 }

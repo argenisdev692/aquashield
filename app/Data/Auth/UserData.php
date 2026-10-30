@@ -55,9 +55,13 @@ final class UserData extends Data
     {
         $profilePhotoUrl = null;
 
-        if ($user->profile_photo_path !== null && $user->profile_photo_path !== '') {
+        $profilePhotoPath = array_key_exists('profile_photo_path', $user->getAttributes())
+            ? $user->profile_photo_path
+            : null;
+
+        if ($profilePhotoPath !== null && $profilePhotoPath !== '') {
             try {
-                $profilePhotoUrl = $storage->publicUrl($user->profile_photo_path);
+                $profilePhotoUrl = $storage->publicUrl($profilePhotoPath);
             } catch (Throwable) {
                 // A storage outage must not turn the profile page into a 500;
                 // the shell falls back to initials.

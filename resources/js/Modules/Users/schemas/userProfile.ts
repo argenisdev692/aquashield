@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { emailSchema } from '@/lib/email';
 import { isValidPhone } from '@/lib/phone';
 import { usernameSchema } from '@/lib/username';
 
@@ -32,7 +33,7 @@ const profileShape = {
     first_name: z.string().trim().min(1, 'Enter a first name').max(255),
     last_name: z.string().max(255),
     username: usernameSchema,
-    email: z.email('Enter a valid email address').max(255),
+    email: emailSchema,
     // The server accepts any string up to 32 chars; the client uses the same
     // libphonenumber-js rule as PhoneField, so an incomplete draft cannot be
     // saved as a "phone number".
@@ -50,6 +51,7 @@ const profileShape = {
     city: z.string().max(120),
     state: z.string().max(120),
     country: z.string().max(120),
+    gender: z.enum(['male', 'female', 'other']).nullable(),
     latitude: z
         .number()
         .nullable()
@@ -90,7 +92,8 @@ export type UserProfileField =
     | 'state'
     | 'country'
     | 'latitude'
-    | 'longitude';
+    | 'longitude'
+    | 'gender';
 
 /** Map the generated DTO onto the form's string-only field contract. */
 export function toUserProfileForm(
@@ -109,6 +112,7 @@ export function toUserProfileForm(
         city: user?.city ?? '',
         state: user?.state ?? '',
         country: user?.country ?? '',
+        gender: (user?.gender ?? 'male') as 'male' | 'female' | 'other' | null,
         latitude: user?.latitude ?? null,
         longitude: user?.longitude ?? null,
     };

@@ -377,6 +377,16 @@ onUnmounted(() => {
                             {{ formatCalendarDate(props.user.date_of_birth) }}
                         </dd>
                     </div>
+                    <div>
+                        <dt
+                            class="text-[11px] font-semibold tracking-wide text-surface-500 uppercase dark:text-surface-400"
+                        >
+                            Gender
+                        </dt>
+                        <dd class="mt-0.5 text-sm text-surface-900 dark:text-surface-0">
+                            {{ display(props.user.gender) }}
+                        </dd>
+                    </div>
                     <div class="sm:col-span-2">
                         <dt
                             class="text-[11px] font-semibold tracking-wide text-surface-500 uppercase dark:text-surface-400"

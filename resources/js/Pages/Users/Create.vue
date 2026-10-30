@@ -34,7 +34,7 @@ const initial: CreateUserForm = {
     permissions: [],
 };
 
-const { form, errors, submit, touch, clearError } = useZodForm({
+const { form, errors, submit, touch, clearError, hasErrors } = useZodForm({
     initial,
     schema: createUserSchema,
     formEl,
@@ -116,6 +116,7 @@ const onSubmit = (): void => {
                     v-model:country="form.country"
                     v-model:latitude="form.latitude"
                     v-model:longitude="form.longitude"
+                    v-model:gender="form.gender"
                     :api-key="props.googleMapsApiKey"
                     :errors="errors"
                     @touch="touch"
@@ -167,6 +168,7 @@ const onSubmit = (): void => {
                 submit-label="Create user"
                 cancel-label="Cancel"
                 :busy="form.processing"
+                :disabled="form.processing || hasErrors"
                 @cancel="router.visit('/users')"
             />
         </div>

@@ -35,5 +35,6 @@ final class UpdateUserData extends Data
         public readonly ?string $country = null,
         public readonly ?float $latitude = null,
         public readonly ?float $longitude = null,
+        public readonly ?string $gender = null,
     ) {}
 }

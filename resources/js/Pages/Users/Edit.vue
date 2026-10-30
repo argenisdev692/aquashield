@@ -24,7 +24,7 @@ const toast = useToast();
 const formEl = useTemplateRef<HTMLFormElement>('editUserForm');
 const invalidateLists = useUserListInvalidation();
 
-const { form, errors, submit, touch, clearError } = useZodForm({
+const { form, errors, submit, touch, clearError, hasErrors } = useZodForm({
     initial: toUserProfileForm(props.user),
     schema: updateUserSchema,
     formEl,
@@ -106,6 +106,7 @@ const onSubmit = (): void => {
                     v-model:country="form.country"
                     v-model:latitude="form.latitude"
                     v-model:longitude="form.longitude"
+                    v-model:gender="form.gender"
                     :api-key="props.googleMapsApiKey"
                     :errors="errors"
                     @touch="touch"
@@ -117,6 +118,7 @@ const onSubmit = (): void => {
                 submit-label="Save changes"
                 cancel-label="Cancel"
                 :busy="form.processing"
+                :disabled="form.processing || hasErrors"
                 @cancel="router.visit(`/users/${props.user.uuid}`)"
             />
         </div>

@@ -61,9 +61,8 @@ interface AccountMenuItem {
 }
 
 /**
- * `user` is a page prop of the dashboard route, not a shared Inertia prop, so
- * it is typed here as optional: a future page that omits it simply renders the
- * plain sign-out control instead of an empty avatar.
+ * `user` is now a shared Inertia prop (see HandleInertiaRequests), so the
+ * avatar menu renders on every authenticated page, not just the dashboard.
  */
 const page = usePage<{ user?: AuthUser | null; authPermissions?: string[] }>();
 

@@ -307,6 +307,7 @@ declare namespace Modules {
                 readonly country: string | null;
                 readonly latitude: number | null;
                 readonly longitude: number | null;
+                readonly gender: string | null;
                 readonly roles: string[];
                 readonly permissions: string[];
             };
@@ -328,6 +329,7 @@ declare namespace Modules {
                 readonly country: string | null;
                 readonly latitude: number | null;
                 readonly longitude: number | null;
+                readonly gender: string | null;
                 readonly roles: string[];
                 readonly direct_permissions: string[];
                 readonly deleted_at: string | null;
@@ -353,6 +355,7 @@ declare namespace Modules {
                 readonly country: string | null;
                 readonly latitude: number | null;
                 readonly longitude: number | null;
+                readonly gender: string | null;
             };
             export type UserAccessCatalogData = {
                 readonly roles: Modules.Users.Data.RoleOptionData[];

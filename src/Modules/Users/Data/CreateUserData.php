@@ -41,6 +41,7 @@ final class CreateUserData extends Data
         public readonly ?string $country = null,
         public readonly ?float $latitude = null,
         public readonly ?float $longitude = null,
+        public readonly ?string $gender = null,
         public readonly array $roles = [],
         public readonly array $permissions = [],
     ) {}

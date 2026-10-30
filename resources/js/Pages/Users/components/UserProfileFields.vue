@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { AddressAutocompleteField, DateField, PhoneField, TextField } from '@/Components/Forms';
+import { computed, ref, watch } from 'vue';
+import { AddressAutocompleteField, DateField, PhoneField, SelectField, TextField } from '@/Components/Forms';
 import type { AddressSelection } from '@/Components/Forms';
 import { USERNAME_HINT } from '@/lib/username';
 import type { FormErrorMap } from '@/lib/forms';
@@ -38,6 +38,7 @@ const state = defineModel<string>('state', { required: true });
 const country = defineModel<string>('country', { required: true });
 const latitude = defineModel<number | null>('latitude', { required: true });
 const longitude = defineModel<number | null>('longitude', { required: true });
+const gender = defineModel<string | null>('gender', { required: true });
 
 const onAddressSelected = (selection: AddressSelection): void => {
     address.value = selection.address;
@@ -73,6 +74,37 @@ const yesterday = computed<Date>(() => {
 
     return date;
 });
+
+// Real-time validation with debounce for username, email, phone (DRY, KISS, clean)
+const debounceTimer = ref<number | null>(null);
+
+const debouncedValidate = (field: UserProfileField): void => {
+    emit('clear', field);
+    if (debounceTimer.value !== null) {
+        window.clearTimeout(debounceTimer.value);
+    }
+    debounceTimer.value = window.setTimeout(() => {
+        emit('touch', field);
+    }, 300);
+};
+
+watch(
+    () => username.value,
+    () => debouncedValidate('username'),
+    { deep: true },
+);
+
+watch(
+    () => email.value,
+    () => debouncedValidate('email'),
+    { deep: true },
+);
+
+watch(
+    () => phone.value,
+    () => debouncedValidate('phone'),
+    { deep: true },
+);
 </script>
 
 <template>
@@ -127,6 +159,20 @@ const yesterday = computed<Date>(() => {
                     :error="props.errors.email"
                     @update:model-value="emit('clear', 'email')"
                     @blur="emit('touch', 'email')"
+                />
+
+                <SelectField
+                    v-model="gender"
+                    name="gender"
+                    label="Gender"
+                    :options="[
+                        { label: 'Male', value: 'male' },
+                        { label: 'Female', value: 'female' },
+                        { label: 'Other', value: 'other' },
+                    ]"
+                    :error="props.errors.gender"
+                    @update:model-value="emit('clear', 'gender')"
+                    @blur="emit('touch', 'gender')"
                 />
             </div>
         </fieldset>

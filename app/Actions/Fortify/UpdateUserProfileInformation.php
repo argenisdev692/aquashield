@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Rules\AllowedEmailDomain;
 use App\Rules\Username;
 use App\Support\UserProfileInput;
 use Illuminate\Support\Facades\Validator;
@@ -43,6 +44,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 'string',
                 'email',
                 'max:255',
+                new AllowedEmailDomain(),
                 Rule::unique('users', 'email')->ignore($user->getKey()),
             ],
             'phone' => ['nullable', 'string', 'max:32'],
@@ -53,7 +55,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             'city' => ['nullable', 'string', 'max:120'],
             'state' => ['nullable', 'string', 'max:120'],
             'country' => ['nullable', 'string', 'max:120'],
-            'gender' => ['nullable', 'string', 'max:50'],
+            'gender' => ['nullable', 'string', 'in:male,female,other', 'max:50'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'terms_and_conditions' => ['sometimes', 'boolean'],

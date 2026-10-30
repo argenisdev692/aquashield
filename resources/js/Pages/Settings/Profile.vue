@@ -13,12 +13,14 @@ import {
     NumberField,
     PasswordField,
     PhoneField,
+    SelectField,
     TextField,
     type AddressSelection,
 } from '@/Components/Forms';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { PASSWORD_HINT, PASSWORD_MAX_LENGTH, passwordSchema, statusMessage } from '@/lib/auth';
 import { useZodForm } from '@/lib/forms';
+import { emailSchema } from '@/lib/email';
 import { USERNAME_HINT, USERNAME_MAX, usernameSchema } from '@/lib/username';
 import { useProfilePhotoUpload } from '@/Modules/Auth/composables/useProfilePhotoUpload';
 import { useTwoFactorSettings } from '@/Modules/Auth/composables/useTwoFactorSettings';
@@ -39,7 +41,7 @@ const profileSchema = z.object({
     first_name: z.string().min(1, 'Enter your first name').max(255),
     last_name: z.string().max(255),
     username: usernameSchema,
-    email: z.email('Enter a valid email address').max(255),
+    email: emailSchema,
     phone: z.string().max(32),
     date_of_birth: z
         .string()
@@ -54,7 +56,7 @@ const profileSchema = z.object({
     city: z.string().max(120),
     state: z.string().max(120),
     country: z.string().max(120),
-    gender: z.string().max(50),
+    gender: z.enum(['male', 'female', 'other']).nullable(),
     latitude: z
         .number()
         .nullable()
@@ -98,6 +100,7 @@ const {
     submit: submitProfile,
     touch: touchProfile,
     clearError: clearProfileError,
+    hasErrors: profileHasErrors,
 } = useZodForm({
     initial: {
         first_name: props.user.first_name,
@@ -112,7 +115,7 @@ const {
         city: props.user.city ?? '',
         state: props.user.state ?? '',
         country: props.user.country ?? '',
-        gender: props.user.gender ?? '',
+        gender: (props.user.gender ?? 'male') as 'male' | 'female' | 'other' | null,
         latitude: props.user.latitude,
         longitude: props.user.longitude,
         terms_and_conditions: props.user.terms_and_conditions,
@@ -125,6 +128,51 @@ const onUsernameInput = (): void => {
     profileForm.username = profileForm.username.toLowerCase();
     clearProfileError('username');
 };
+
+// Real-time validation with debounce for username, email, phone (DRY, KISS, clean)
+const debounceTimer = ref<number | null>(null);
+
+watch(
+    () => profileForm.username,
+    (val) => {
+        clearProfileError('username');
+        if (debounceTimer.value !== null) {
+            window.clearTimeout(debounceTimer.value);
+        }
+        debounceTimer.value = window.setTimeout(() => {
+            touchProfile('username');
+        }, 300);
+    },
+    { deep: true },
+);
+
+watch(
+    () => profileForm.email,
+    (val) => {
+        clearProfileError('email');
+        if (debounceTimer.value !== null) {
+            window.clearTimeout(debounceTimer.value);
+        }
+        debounceTimer.value = window.setTimeout(() => {
+            touchProfile('email');
+        }, 300);
+    },
+    { deep: true },
+);
+
+watch(
+    () => profileForm.phone,
+    (val) => {
+        clearProfileError('phone');
+        if (debounceTimer.value !== null) {
+            window.clearTimeout(debounceTimer.value);
+        }
+        debounceTimer.value = window.setTimeout(() => {
+            touchProfile('phone');
+        }, 300);
+    },
+    { deep: true },
+);
 
 const {
     form: passwordForm,
@@ -478,11 +526,15 @@ watch(
                             @blur="touchProfile('date_of_birth')"
                         />
 
-                        <TextField
+                        <SelectField
                             v-model="profileForm.gender"
                             name="gender"
                             label="Gender"
-                            autocomplete="sex"
+                            :options="[
+                                { label: 'Male', value: 'male' },
+                                { label: 'Female', value: 'female' },
+                                { label: 'Other', value: 'other' },
+                            ]"
                             :error="profileErrors.gender"
                             @update:model-value="clearProfileError('gender')"
                             @blur="touchProfile('gender')"
@@ -603,7 +655,7 @@ watch(
                     </div>
 
                     <div class="mt-2">
-                        <AppButton type="submit" :loading="profileForm.processing">
+                        <AppButton type="submit" :loading="profileForm.processing" :disabled="profileForm.processing || profileHasErrors">
                             Save profile
                         </AppButton>
                     </div>
