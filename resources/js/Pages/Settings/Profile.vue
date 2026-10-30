@@ -129,47 +129,43 @@ const onUsernameInput = (): void => {
     clearProfileError('username');
 };
 
-// Real-time validation with debounce for username, email, phone (DRY, KISS, clean)
-const debounceTimer = ref<number | null>(null);
+// Real-time validation with debounce per field (DRY, KISS, clean)
+const debounceTimers = ref<Record<string, number | null>>({});
+
+const debouncedTouch = (field: string, touchFn: (field: string) => void): void => {
+    const key = field;
+    if (debounceTimers.value[key] !== null && debounceTimers.value[key] !== undefined) {
+        window.clearTimeout(debounceTimers.value[key] as number);
+    }
+    debounceTimers.value[key] = window.setTimeout(() => {
+        touchFn(key);
+        debounceTimers.value[key] = null;
+    }, 300);
+};
 
 watch(
     () => profileForm.username,
-    (val) => {
+    () => {
         clearProfileError('username');
-        if (debounceTimer.value !== null) {
-            window.clearTimeout(debounceTimer.value);
-        }
-        debounceTimer.value = window.setTimeout(() => {
-            touchProfile('username');
-        }, 300);
+        debouncedTouch('username', touchProfile);
     },
     { deep: true },
 );
 
 watch(
     () => profileForm.email,
-    (val) => {
+    () => {
         clearProfileError('email');
-        if (debounceTimer.value !== null) {
-            window.clearTimeout(debounceTimer.value);
-        }
-        debounceTimer.value = window.setTimeout(() => {
-            touchProfile('email');
-        }, 300);
+        debouncedTouch('email', touchProfile);
     },
     { deep: true },
 );
 
 watch(
     () => profileForm.phone,
-    (val) => {
+    () => {
         clearProfileError('phone');
-        if (debounceTimer.value !== null) {
-            window.clearTimeout(debounceTimer.value);
-        }
-        debounceTimer.value = window.setTimeout(() => {
-            touchProfile('phone');
-        }, 300);
+        debouncedTouch('phone', touchProfile);
     },
     { deep: true },
 );

@@ -75,16 +75,17 @@ const yesterday = computed<Date>(() => {
     return date;
 });
 
-// Real-time validation with debounce for username, email, phone (DRY, KISS, clean)
-const debounceTimer = ref<number | null>(null);
+// Real-time validation with debounce per field (DRY, KISS, clean)
+const debounceTimers = ref<Record<string, number | null>>({});
 
 const debouncedValidate = (field: UserProfileField): void => {
     emit('clear', field);
-    if (debounceTimer.value !== null) {
-        window.clearTimeout(debounceTimer.value);
+    if (debounceTimers.value[field] !== null && debounceTimers.value[field] !== undefined) {
+        window.clearTimeout(debounceTimers.value[field] as number);
     }
-    debounceTimer.value = window.setTimeout(() => {
+    debounceTimers.value[field] = window.setTimeout(() => {
         emit('touch', field);
+        debounceTimers.value[field] = null;
     }, 300);
 };
 
