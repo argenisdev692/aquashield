@@ -9,7 +9,7 @@ description: Vue 3.5 + Inertia 3 + strict TypeScript rules — mandatory 3.5 API
 > Security → `owasp/SKILL.md`.
 
 **Stack (verified 2026-09-28):** Vue **3.5.43** (floor) · Inertia **3.7.1** (client) / 3.4.0 (server) ·
-TypeScript **6.0.3** strict · Tailwind **4.3.3** + `tailwindcss-primeui` · PrimeVue **5.0.1** unstyled +
+TypeScript **7.0.2** native (`tsc`) + **6.0.2** compat (`tsc6`, what `vue-tsc` embeds) · Tailwind **4.3.3** + `tailwindcss-primeui` · PrimeVue **5.0.1** unstyled +
 Volt **51** components in `src/volt/` · Pinia **4.0.3** + Colada **1.4.6** · Zod **4.6.5** + Inertia
 `useForm` via `lib/forms.ts` · FullCalendar **7.1.0** · `motion-v` **2.5.0** · Vite **8.3.1** · Inter
 via Bunny Fonts.
@@ -80,12 +80,30 @@ Destroying an in-flight request is not optional when filters are debounced.
 `strict: true`, `noEmit`. **Zero `any`** — no `any`, no `as any`, no implicit `any`, no `@ts-ignore`.
 Use `unknown` plus a narrowing guard.
 
-**TypeScript 6.0 is a bridge release, not a destination.** It is the last release built on the
-JavaScript codebase; **7.0 is the native Go port**. 6.0 deprecates a long list of compiler options
-and behaviours that become _hard removals_ in 7.0 (suppressible only with
-`"ignoreDeprecations": "6.0"`). So: adopt no newly-deprecated option today, and keep `target`
-conservative (`ES2022` here) rather than chasing the newest spec target — a 7.0 migration is a
-separate task, not a side effect of upgrading `typescript`.
+**TypeScript 7.0 is the native Go compiler; the type system did not change.** 7.0 (GA 2026-07-08)
+ships `tsc` as a native binary and, deliberately, **no programmatic API**. `vue-tsc` works by
+embedding the JavaScript compiler, so this repo runs both, per Microsoft's compatibility recipe:
+
+- `@typescript/native` → aliased `typescript@7.0.2`, supplies `tsc` (`npm exec tsc --version`).
+- `typescript` → aliased `@typescript/typescript6` (6.0.2), supplies `tsc6` and the API `vue-tsc`
+  loads from `typescript`.
+
+Rules that follow from that:
+
+- `npm run types:check` stays `vue-tsc --noEmit`. **Never** repoint it at `tsc`: 7.0 cannot read
+  `.vue`, and the `.ts` barrels (`Components/*/index.ts`) re-export `.vue` files, so native `tsc -p
+tsconfig.json` fails with `TS2307` by design. That is not a regression to "fix" with a `*.vue` shim.
+- **Never** put `"typescript": "^7"` in `package.json` or run `npm i -D typescript@latest`: `vue-tsc`
+  dies with `ERR_PACKAGE_PATH_NOT_EXPORTED: './lib/tsc'`, and `module:done` cannot pass.
+- No syntax to adopt. 7.0 removes compiler options 6.0 only deprecated — this `tsconfig.json` uses
+  none. One behavioural break: template-literal types count astral characters (`"😀"`) as one unit
+  instead of two UTF-16 halves.
+- Keep `target: ES2022`. `es2026` only becomes a stable `target`/`lib` in 7.1.
+
+**The exit ramp:** when TypeScript **7.1** (restores the API, adds content mappers) and **Vue Language
+Tools v4** (`@vue/content-mapper`, drops the `vue-tsc` binary) are both stable, collapse to a single
+`typescript@7.1`, point `types:check` at `tsc --noEmit`, and delete the compat alias. Until then, any
+`.vue` checking that does not go through `vue-tsc` is unverified.
 
 **Backend types are generated, never hand-written.** `php artisan typescript:transform` writes
 `resources/js/generated/generated.d.ts` from the Spatie `Data` classes. Hand-writing an interface that

@@ -11,6 +11,10 @@ ARG VITE_REVERB_APP_KEY
 ARG VITE_REVERB_HOST
 ARG VITE_REVERB_PORT
 ARG VITE_REVERB_SCHEME
+# Baked into the bundle by Vite at build time; must be a Railway variable AND
+# declared here, or the image ships with an unlicensed PrimeVue (the banner says
+# "Invalid PrimeUI License" even when the key is simply absent).
+ARG VITE_PRIMEUI_LICENSE
 ENV DEBIAN_FRONTEND=noninteractive
 
 # PHP 8.5 via ondrej PPA + Node 24 via nodesource. The PostgreSQL 17 client is

@@ -37,7 +37,8 @@ Research lives inside Phase 3 as a mandatory step. Use **Tavily** for release st
 "month"` when the question implies _now_) and **Context7** for the installed major's API. A version
 string written from memory is the most common way this flow produces plausible, wrong code — and this
 repo has concrete examples: PrimeVue 5 _deprecates_ rather than breaks and context7's PrimeVue docs
-are v4, Vue 3.6 is still an RC, TypeScript 6.0 is a bridge to the native 7.0.
+are v4, Vue 3.6 is still an RC, TypeScript 7.0 is native but `vue-tsc` still needs the 6.0 compat
+package until 7.1 + Vue Language Tools v4.
 
 ## Golden rule
 

@@ -651,7 +651,11 @@ watch(
                     </div>
 
                     <div class="mt-2">
-                        <AppButton type="submit" :loading="profileForm.processing" :disabled="profileForm.processing || profileHasErrors">
+                        <AppButton
+                            type="submit"
+                            :loading="profileForm.processing"
+                            :disabled="profileForm.processing || profileHasErrors"
+                        >
                             Save profile
                         </AppButton>
                     </div>

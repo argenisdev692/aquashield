@@ -42,7 +42,8 @@ Before writing `plan.md`:
   `package.json` for what is _installed_; research only for what _changed_.
 
 Watch for the traps this repo already documents: PrimeVue 5 deprecates rather than breaks, and
-context7's PrimeVue docs are v4; Vue 3.6 is still an RC; TypeScript 6.0 is a bridge to the native 7.0;
+context7's PrimeVue docs are v4; Vue 3.6 is still an RC; TypeScript 7.0 is the native compiler but
+`vue-tsc` still runs on the 6.0 compat package until 7.1 + Vue Language Tools v4;
 `laravel/doctor` and `laravel/vet` are first-party and real.
 
 ## Phase 0 — qualify before starting

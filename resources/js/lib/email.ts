@@ -48,17 +48,14 @@ export const emailSchema = z
     .trim()
     .email('Enter a valid email address')
     .max(255)
-    .refine(
-        (value) => {
-            const atPos = value.lastIndexOf('@');
-            if (atPos === -1 || atPos === 0 || atPos === value.length - 1) {
-                return false;
-            }
-            const domain = value.slice(atPos + 1).toLowerCase();
-            if (BLOCKED_DOMAINS.includes(domain)) {
-                return false;
-            }
-            return ALLOWED_DOMAINS.includes(domain);
-        },
-        'The email domain is not allowed. Use a known provider (gmail, outlook, proton, yahoo, etc.).',
-    );
+    .refine((value) => {
+        const atPos = value.lastIndexOf('@');
+        if (atPos === -1 || atPos === 0 || atPos === value.length - 1) {
+            return false;
+        }
+        const domain = value.slice(atPos + 1).toLowerCase();
+        if (BLOCKED_DOMAINS.includes(domain)) {
+            return false;
+        }
+        return ALLOWED_DOMAINS.includes(domain);
+    }, 'The email domain is not allowed. Use a known provider (gmail, outlook, proton, yahoo, etc.).');

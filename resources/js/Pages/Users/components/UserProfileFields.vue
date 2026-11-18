@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { AddressAutocompleteField, DateField, PhoneField, SelectField, TextField } from '@/Components/Forms';
+import {
+    AddressAutocompleteField,
+    DateField,
+    PhoneField,
+    SelectField,
+    TextField,
+} from '@/Components/Forms';
 import type { AddressSelection } from '@/Components/Forms';
 import { USERNAME_HINT } from '@/lib/username';
 import type { FormErrorMap } from '@/lib/forms';
