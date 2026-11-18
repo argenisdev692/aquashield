@@ -10,6 +10,7 @@ export { default as FormErrorSummary } from './FormErrorSummary.vue';
 export { default as ImageDropzone } from './ImageDropzone.vue';
 export { default as ImagesDropzone } from './ImagesDropzone.vue';
 export { default as NumberField } from './NumberField.vue';
+export { default as OtpField } from './OtpField.vue';
 export { default as PasswordField } from './PasswordField.vue';
 export { default as PhoneField } from './PhoneField.vue';
 export { default as SelectField } from './SelectField.vue';

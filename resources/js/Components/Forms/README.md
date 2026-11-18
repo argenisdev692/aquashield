@@ -4,26 +4,27 @@ One engine, one field contract, and PrimeVue 5 primitives underneath. The kit
 is presentation + validation wiring; the page owns the endpoint, the schema and
 the submit call.
 
-| Piece                      | What it owns                                                        |
-| -------------------------- | ------------------------------------------------------------------- |
-| `useZodForm`               | Inertia form state, Zod validation, server-error merge, error focus |
-| `FormErrorSummary`         | Submit-time summary, `role="alert"`, links that focus each control  |
-| `FieldShell`               | Label / hint / error ids and `aria-describedby`                     |
-| `TextField`                | Single-line text, email, search, URL, tel                           |
-| `AddressAutocompleteField` | Google Places address search; emits the canonical address fields    |
-| `PasswordField`            | `InputPassword` (v5) with a real show/hide button                   |
-| `TextareaField`            | Multi-line text                                                     |
-| `SelectField`              | Single select, optional filter and clear                            |
-| `DateField`                | Date picker; the model is ISO `YYYY-MM-DD`                          |
-| `NumberField`              | Numeric / currency input                                            |
-| `PhoneField`               | libphonenumber-js formatting; the model is E.164                    |
-| `CheckboxField`            | Binary checkbox with an inline label                                |
-| `SignatureField`           | Canvas signature + upload fallback; the model is a PNG `File`       |
-| `FileDropzone`             | One file + name / size / type preview                               |
-| `ImageDropzone`            | One image + object-URL preview                                      |
-| `ImagesDropzone`           | Image array, previews, drag reorder, keyboard move buttons          |
-| `AppButton`                | Hover sheen + 1px lift, reduced-motion safe                         |
-| `FormActions`              | Submit / cancel row                                                 |
+| Piece                      | What it owns                                                         |
+| -------------------------- | -------------------------------------------------------------------- |
+| `useZodForm`               | Inertia form state, Zod validation, server-error merge, error focus  |
+| `FormErrorSummary`         | Submit-time summary, `role="alert"`, links that focus each control   |
+| `FieldShell`               | Label / hint / error ids and `aria-describedby`                      |
+| `TextField`                | Single-line text, email, search, URL, tel                            |
+| `AddressAutocompleteField` | Google Places address search; emits the canonical address fields     |
+| `PasswordField`            | `InputPassword` (v5) with a real show/hide button                    |
+| `OtpField`                 | Segmented one-time code; paste, arrows and autofill across the group |
+| `TextareaField`            | Multi-line text                                                      |
+| `SelectField`              | Single select, optional filter and clear                             |
+| `DateField`                | Date picker; the model is ISO `YYYY-MM-DD`                           |
+| `NumberField`              | Numeric / currency input                                             |
+| `PhoneField`               | libphonenumber-js formatting; the model is E.164                     |
+| `CheckboxField`            | Binary checkbox with an inline label                                 |
+| `SignatureField`           | Canvas signature + upload fallback; the model is a PNG `File`        |
+| `FileDropzone`             | One file + name / size / type preview                                |
+| `ImageDropzone`            | One image + object-URL preview                                       |
+| `ImagesDropzone`           | Image array, previews, drag reorder, keyboard move buttons           |
+| `AppButton`                | Hover sheen + 1px lift, reduced-motion safe                          |
+| `FormActions`              | Submit / cancel row                                                  |
 
 Import from `@/Components/Forms`, never from a deep path.
 

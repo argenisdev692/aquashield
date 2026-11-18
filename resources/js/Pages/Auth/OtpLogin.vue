@@ -3,7 +3,7 @@ import { useTemplateRef } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
-import { AppButton, FormErrorSummary, TextField } from '@/Components/Forms';
+import { AppButton, FormErrorSummary, OtpField, TextField } from '@/Components/Forms';
 import Message from '@/volt/Message.vue';
 import { useZodForm } from '@/lib/forms';
 
@@ -84,7 +84,7 @@ const onVerify = (): void => {
                 type="email"
                 autocomplete="username"
                 required
-                autofocus
+                :autofocus="!props.email"
                 :error="sendErrors.email"
                 @update:model-value="clearSendError('email')"
                 @blur="touchSend('email')"
@@ -110,14 +110,12 @@ const onVerify = (): void => {
 
             <FormErrorSummary :errors="verifyErrors" :form-el="verifyFormElement" />
 
-            <TextField
+            <OtpField
                 v-model="verifyForm.code"
                 name="code"
                 label="Sign-in code"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                :maxlength="6"
                 required
+                :autofocus="Boolean(props.email)"
                 :error="verifyErrors.code"
                 @update:model-value="clearVerifyError('code')"
                 @blur="touchVerify('code')"

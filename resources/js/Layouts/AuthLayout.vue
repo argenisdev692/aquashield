@@ -33,9 +33,9 @@ const { width = 'sm' } = defineProps<{
     title: string;
     subtitle?: string;
     /**
-     * Panel width. `md` is for the sign-in tabs: three labels plus their
-     * padding do not fit the narrow column, and a scrollable tab strip on the
-     * first screen is the wrong first impression.
+     * Panel width. `md` is for the sign-in screen: the SSO button, the
+     * credential form and the two passwordless links need the wider column,
+     * and the alternative methods open inside the same card.
      */
     width?: 'sm' | 'md';
 }>();

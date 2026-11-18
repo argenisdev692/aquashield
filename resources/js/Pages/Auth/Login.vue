@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, ref, useTemplateRef } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { z } from 'zod';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
@@ -7,17 +7,13 @@ import {
     AppButton,
     CheckboxField,
     FormErrorSummary,
+    OtpField,
     PasswordField,
     TextField,
 } from '@/Components/Forms';
 import { useEmailCodeLogin } from '@/Modules/Auth/composables/useEmailCodeLogin';
 import { useZodForm } from '@/lib/forms';
 import Message from '@/volt/Message.vue';
-import Tab from '@/volt/Tab.vue';
-import TabList from '@/volt/TabList.vue';
-import TabPanel from '@/volt/TabPanel.vue';
-import TabPanels from '@/volt/TabPanels.vue';
-import Tabs from '@/volt/Tabs.vue';
 
 const props = defineProps<{
     canResetPassword: boolean;
@@ -29,7 +25,29 @@ const props = defineProps<{
     } | null;
 }>();
 
-const activeTab = ref<string>('password');
+/*
+ * One screen, one task. Password sign-in is the body of the card; the two
+ * passwordless transports are progressive-disclosure alternatives opened from
+ * text links, not tabs competing with the primary path. The email typed in one
+ * transport is carried into the next and back, so nobody retypes their address
+ * on the most visited form in the product.
+ */
+type Method = 'password' | 'email-code' | 'authenticator';
+
+const method = ref<Method>('password');
+const panel = useTemplateRef<HTMLDivElement>('panel');
+
+const focusPanel = (selector = 'input'): void => {
+    void nextTick(() => {
+        panel.value?.querySelector<HTMLInputElement>(selector)?.focus();
+    });
+};
+
+const linkClass =
+    'rounded-lg text-sm font-medium text-aq-accent underline-offset-4 transition-colors duration-150 hover:text-aq-accent-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none';
+
+const backClass =
+    'inline-flex items-center gap-1.5 self-center rounded-lg text-sm text-aq-ink-muted transition-colors duration-150 hover:text-aq-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none';
 
 const loginSchema = z.object({
     email: z.email('Enter a valid email address'),
@@ -43,7 +61,7 @@ const loginSchema = z.object({
 const loginFormEl = useTemplateRef<HTMLFormElement>('loginForm');
 
 const {
-    form: form,
+    form,
     formEl: loginFormElement,
     errors: loginErrors,
     submit: submitLogin,
@@ -58,26 +76,6 @@ const {
     schema: loginSchema,
     formEl: loginFormEl,
 });
-
-const fillDemo = (): void => {
-    if (!props.demoCredentials) {
-        return;
-    }
-
-    form.email = props.demoCredentials.email;
-    form.password = props.demoCredentials.password;
-    form.clearErrors();
-    clearLoginError('email');
-    clearLoginError('password');
-};
-
-const onLogin = (): void => {
-    submitLogin(() =>
-        form.post('/login', {
-            onFinish: () => form.reset('password'),
-        }),
-    );
-};
 
 const emailCodeSchema = z.object({
     email: z.email('Enter a valid email address'),
@@ -134,32 +132,6 @@ const {
     formEl: codeFormEl,
 });
 
-const onSendEmailCode = (): void => {
-    submitEmailCode(() => {
-        void sendEmailCode(emailCodeForm.email).then((sent: boolean) => {
-            if (sent) {
-                emailCodeForm.reset('email');
-            }
-        });
-    });
-};
-
-const onVerifyEmailCode = (): void => {
-    submitCode(() => {
-        void verifyEmailCode(codeForm.code).then((result) => {
-            if (result !== null) {
-                router.visit(result.redirect);
-            }
-        });
-    });
-};
-
-const onUseDifferentEmail = (): void => {
-    resetEmailCode();
-    emailCodeForm.reset('email');
-    codeForm.reset('code');
-};
-
 const authenticatorSchema = z.object({
     email: z.email('Enter a valid email address'),
     code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app'),
@@ -180,6 +152,48 @@ const {
     formEl: authenticatorFormEl,
 });
 
+const fillDemo = (): void => {
+    if (!props.demoCredentials) {
+        return;
+    }
+
+    form.email = props.demoCredentials.email;
+    form.password = props.demoCredentials.password;
+    emailCodeForm.email = props.demoCredentials.email;
+    authenticatorForm.email = props.demoCredentials.email;
+    form.clearErrors();
+    clearLoginError('email');
+    clearLoginError('password');
+};
+
+const onLogin = (): void => {
+    submitLogin(() =>
+        form.post('/login', {
+            onFinish: () => form.reset('password'),
+        }),
+    );
+};
+
+const onSendEmailCode = (): void => {
+    submitEmailCode(() => {
+        void sendEmailCode(emailCodeForm.email).then((sent: boolean) => {
+            if (sent) {
+                focusPanel('[name="code"]');
+            }
+        });
+    });
+};
+
+const onVerifyEmailCode = (): void => {
+    submitCode(() => {
+        void verifyEmailCode(codeForm.code).then((result) => {
+            if (result !== null) {
+                router.visit(result.redirect);
+            }
+        });
+    });
+};
+
 const onAuthenticatorSubmit = (): void => {
     submitAuthenticator(() =>
         authenticatorForm.post('/login/authenticator', {
@@ -188,10 +202,62 @@ const onAuthenticatorSubmit = (): void => {
     );
 };
 
+const openMethod = (next: Exclude<Method, 'password'>): void => {
+    clearLoginError('email');
+    clearLoginError('password');
+
+    if (next === 'email-code') {
+        if (emailCodeStep.value === 'email') {
+            emailCodeForm.email = form.email;
+            emailCodeForm.clearErrors();
+        }
+    } else {
+        authenticatorForm.email = form.email;
+        authenticatorForm.clearErrors();
+        authenticatorForm.reset('code');
+    }
+
+    method.value = next;
+
+    if (next === 'authenticator') {
+        focusPanel(authenticatorForm.email === '' ? 'input' : '[name="code"]');
+
+        return;
+    }
+
+    focusPanel(emailCodeStep.value === 'code' ? '[name="code"]' : 'input');
+};
+
+const backToPassword = (): void => {
+    if (method.value === 'email-code') {
+        form.email = emailCodeEmail.value !== '' ? emailCodeEmail.value : emailCodeForm.email;
+        emailCodeForm.clearErrors();
+        codeForm.clearErrors();
+    }
+
+    if (method.value === 'authenticator') {
+        form.email = authenticatorForm.email;
+        authenticatorForm.clearErrors();
+    }
+
+    method.value = 'password';
+    focusPanel();
+};
+
+const onUseDifferentEmail = (): void => {
+    const previous = emailCodeEmail.value;
+
+    resetEmailCode();
+    codeForm.reset('code');
+    emailCodeForm.clearErrors();
+    emailCodeForm.email = previous;
+    focusPanel('input');
+};
+
 /**
  * The server returns the verified-email refusal on the `email` key. Surfacing
- * it above the tabs makes the reason visible on every login transport, not
- * only under the field that happened to receive the 422.
+ * it above the card body makes the reason visible on every login transport,
+ * not only under the field that happened to receive the 422.
  */
 const loginAlert = computed<string | null>(
     () => loginErrors.value.email ?? authenticatorErrors.value.email ?? null,
@@ -233,256 +299,268 @@ const loginAlert = computed<string | null>(
             </dl>
         </div>
 
-        <Tabs v-model:value="activeTab">
-            <TabList>
-                <Tab value="password">Password</Tab>
-                <Tab value="email-code">Email code</Tab>
-                <Tab value="authenticator">Authenticator</Tab>
-            </TabList>
+        <div ref="panel">
+            <template v-if="method === 'password'">
+                <a
+                    href="/auth/google"
+                    class="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-aq-line bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-aq-line-strong hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
+                >
+                    <svg aria-hidden="true" viewBox="0 0 48 48" class="size-4.5 shrink-0">
+                        <path
+                            class="fill-google-red"
+                            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+                        />
+                        <path
+                            class="fill-google-blue"
+                            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+                        />
+                        <path
+                            class="fill-google-yellow"
+                            d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+                        />
+                        <path
+                            class="fill-google-green"
+                            d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+                        />
+                    </svg>
+                    Continue with Google
+                </a>
 
-            <TabPanels>
-                <TabPanel value="password">
-                    <form
-                        ref="loginForm"
-                        class="flex flex-col gap-4 pt-4"
-                        novalidate
-                        @submit.prevent="onLogin"
+                <div class="mt-5 flex items-center gap-3" aria-hidden="true">
+                    <span class="h-px grow bg-aq-line"></span>
+                    <span class="text-xs tracking-wide text-aq-ink-muted">or</span>
+                    <span class="h-px grow bg-aq-line"></span>
+                </div>
+
+                <form
+                    ref="loginForm"
+                    class="mt-5 flex flex-col gap-4"
+                    novalidate
+                    @submit.prevent="onLogin"
+                >
+                    <FormErrorSummary :errors="loginErrors" :form-el="loginFormElement" />
+
+                    <TextField
+                        v-model="form.email"
+                        name="email"
+                        label="Email"
+                        type="email"
+                        autocomplete="username"
+                        required
+                        autofocus
+                        :error="loginErrors.email"
+                        @update:model-value="clearLoginError('email')"
+                        @blur="touchLogin('email')"
+                    />
+
+                    <PasswordField
+                        v-model="form.password"
+                        name="password"
+                        label="Password"
+                        autocomplete="current-password"
+                        required
+                        :error="loginErrors.password"
+                        @update:model-value="clearLoginError('password')"
+                        @blur="touchLogin('password')"
+                    />
+
+                    <div class="flex items-center justify-between gap-4">
+                        <CheckboxField
+                            v-model="form.remember"
+                            name="remember"
+                            label="Remember me"
+                            :error="loginErrors.remember"
+                        />
+
+                        <Link
+                            v-if="props.canResetPassword"
+                            href="/forgot-password"
+                            class="rounded-lg text-sm text-aq-accent transition-colors hover:text-aq-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
+
+                    <AppButton type="submit" shine :loading="form.processing" class="w-full">
+                        Sign in
+                    </AppButton>
+                </form>
+
+                <div class="mt-6 border-t border-aq-line pt-5">
+                    <p
+                        class="text-center text-xs font-semibold tracking-wide text-aq-ink-muted uppercase"
                     >
-                        <FormErrorSummary :errors="loginErrors" :form-el="loginFormElement" />
+                        Other ways to sign in
+                    </p>
 
-                        <TextField
-                            v-model="form.email"
-                            name="email"
-                            label="Email"
-                            type="email"
-                            autocomplete="username"
+                    <div
+                        class="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-4"
+                    >
+                        <button type="button" :class="linkClass" @click="openMethod('email-code')">
+                            Email me a sign-in code
+                        </button>
+
+                        <span aria-hidden="true" class="hidden text-aq-ink-muted sm:inline">·</span>
+
+                        <button
+                            type="button"
+                            :class="linkClass"
+                            @click="openMethod('authenticator')"
+                        >
+                            Use an authenticator app
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template v-else-if="method === 'email-code'">
+                <div class="text-center">
+                    <h2 class="text-base font-semibold text-aq-ink">Email sign-in code</h2>
+                    <p class="mt-1 text-sm text-aq-ink-muted">
+                        We will email a six-digit code. It expires in two minutes.
+                    </p>
+                </div>
+
+                <Message
+                    v-if="emailCodeStep === 'email' && emailCodeError"
+                    severity="error"
+                    class="mt-4"
+                    role="alert"
+                >
+                    {{ emailCodeError }}
+                </Message>
+
+                <form
+                    v-if="emailCodeStep === 'email'"
+                    ref="emailCodeFormEl"
+                    class="mt-4 flex flex-col gap-4"
+                    novalidate
+                    @submit.prevent="onSendEmailCode"
+                >
+                    <FormErrorSummary :errors="emailCodeErrors" :form-el="emailCodeFormElement" />
+
+                    <TextField
+                        v-model="emailCodeForm.email"
+                        name="email"
+                        label="Email"
+                        type="email"
+                        autocomplete="username"
+                        required
+                        autofocus
+                        :error="emailCodeErrors.email"
+                        @update:model-value="clearEmailCodeError('email')"
+                        @blur="touchEmailCode('email')"
+                    />
+
+                    <AppButton type="submit" :loading="emailCodeSending" class="w-full">
+                        Send sign-in code
+                    </AppButton>
+                </form>
+
+                <div v-else class="mt-4 flex flex-col gap-4">
+                    <p class="text-center text-sm text-aq-ink-muted">
+                        Enter the six-digit code sent to
+                        <span class="font-semibold text-aq-ink">{{ emailCodeEmail }}</span
+                        >.
+                    </p>
+
+                    <Message v-if="emailCodeError" severity="error" role="alert">{{
+                        emailCodeError
+                    }}</Message>
+
+                    <form
+                        ref="codeFormEl"
+                        class="flex flex-col gap-4"
+                        novalidate
+                        @submit.prevent="onVerifyEmailCode"
+                    >
+                        <FormErrorSummary :errors="codeErrors" :form-el="codeFormElement" />
+
+                        <OtpField
+                            v-model="codeForm.code"
+                            name="code"
+                            label="Sign-in code"
                             required
                             autofocus
-                            :error="loginErrors.email"
-                            @update:model-value="clearLoginError('email')"
-                            @blur="touchLogin('email')"
+                            :error="codeErrors.code"
+                            @update:model-value="clearCodeError('code')"
+                            @blur="touchCode('code')"
                         />
 
-                        <PasswordField
-                            v-model="form.password"
-                            name="password"
-                            label="Password"
-                            autocomplete="current-password"
-                            required
-                            :error="loginErrors.password"
-                            @update:model-value="clearLoginError('password')"
-                            @blur="touchLogin('password')"
-                        />
-
-                        <div class="flex items-center justify-between gap-4">
-                            <CheckboxField
-                                v-model="form.remember"
-                                name="remember"
-                                label="Remember me"
-                                :error="loginErrors.remember"
-                            />
-
-                            <Link
-                                v-if="props.canResetPassword"
-                                href="/forgot-password"
-                                class="text-sm text-aq-accent transition-colors hover:text-aq-accent-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
-                            >
-                                Forgot password?
-                            </Link>
-                        </div>
-
-                        <AppButton type="submit" shine :loading="form.processing" class="w-full">
-                            Sign in
+                        <AppButton type="submit" :loading="emailCodeVerifying" class="w-full">
+                            Verify and sign in
                         </AppButton>
                     </form>
-                </TabPanel>
 
-                <TabPanel value="email-code">
-                    <div class="pt-4">
-                        <Message
-                            v-if="emailCodeStep === 'email' && emailCodeError"
-                            severity="error"
-                            class="mb-4"
-                        >
-                            {{ emailCodeError }}
-                        </Message>
+                    <button type="button" :class="linkClass" @click="onUseDifferentEmail">
+                        Use a different email
+                    </button>
+                </div>
 
-                        <form
-                            v-if="emailCodeStep === 'email'"
-                            ref="emailCodeFormEl"
-                            class="flex flex-col gap-4"
-                            novalidate
-                            @submit.prevent="onSendEmailCode"
-                        >
-                            <FormErrorSummary
-                                :errors="emailCodeErrors"
-                                :form-el="emailCodeFormElement"
-                            />
+                <button type="button" :class="[backClass, 'mt-5']" @click="backToPassword">
+                    <span aria-hidden="true">&larr;</span>
+                    Back to password sign-in
+                </button>
+            </template>
 
-                            <TextField
-                                v-model="emailCodeForm.email"
-                                name="email"
-                                label="Email"
-                                type="email"
-                                autocomplete="username"
-                                required
-                                :error="emailCodeErrors.email"
-                                @update:model-value="clearEmailCodeError('email')"
-                                @blur="touchEmailCode('email')"
-                            />
+            <template v-else>
+                <div class="text-center">
+                    <h2 class="text-base font-semibold text-aq-ink">Authenticator app</h2>
+                    <p class="mt-1 text-sm text-aq-ink-muted">
+                        Use the six-digit code from the authenticator app you enrolled in Profile
+                        &amp; security. This signs you in without a password.
+                    </p>
+                </div>
 
-                            <p class="text-sm text-aq-ink-muted">
-                                We will email a six-digit code. It expires in two minutes.
-                            </p>
-
-                            <AppButton type="submit" :loading="emailCodeSending" class="w-full">
-                                Send sign-in code
-                            </AppButton>
-                        </form>
-
-                        <div v-else class="flex flex-col gap-4">
-                            <p class="text-sm text-aq-ink-muted">
-                                Enter the six-digit code sent to
-                                <span class="font-semibold text-aq-ink">{{ emailCodeEmail }}</span
-                                >.
-                            </p>
-
-                            <Message v-if="emailCodeError" severity="error">{{
-                                emailCodeError
-                            }}</Message>
-
-                            <form
-                                ref="codeFormEl"
-                                class="flex flex-col gap-4"
-                                novalidate
-                                @submit.prevent="onVerifyEmailCode"
-                            >
-                                <FormErrorSummary :errors="codeErrors" :form-el="codeFormElement" />
-
-                                <TextField
-                                    v-model="codeForm.code"
-                                    name="code"
-                                    label="Sign-in code"
-                                    inputmode="numeric"
-                                    autocomplete="one-time-code"
-                                    :maxlength="6"
-                                    required
-                                    autofocus
-                                    :error="codeErrors.code"
-                                    @update:model-value="clearCodeError('code')"
-                                    @blur="touchCode('code')"
-                                />
-
-                                <AppButton
-                                    type="submit"
-                                    :loading="emailCodeVerifying"
-                                    class="w-full"
-                                >
-                                    Verify and sign in
-                                </AppButton>
-                            </form>
-
-                            <button
-                                type="button"
-                                class="self-center text-sm text-aq-accent underline-offset-4 transition-colors duration-150 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
-                                @click="onUseDifferentEmail"
-                            >
-                                Use a different email
-                            </button>
-                        </div>
-                    </div>
-                </TabPanel>
-
-                <TabPanel value="authenticator">
-                    <form
-                        ref="authenticatorFormEl"
-                        class="flex flex-col gap-4 pt-4"
-                        novalidate
-                        @submit.prevent="onAuthenticatorSubmit"
-                    >
-                        <p class="text-sm text-aq-ink-muted">
-                            Use the six-digit code from the authenticator app you enrolled in
-                            Profile &amp; security. This signs you in without a password.
-                        </p>
-
-                        <FormErrorSummary
-                            :errors="authenticatorErrors"
-                            :form-el="authenticatorFormElement"
-                        />
-
-                        <TextField
-                            v-model="authenticatorForm.email"
-                            name="email"
-                            label="Email"
-                            type="email"
-                            autocomplete="username"
-                            required
-                            :error="authenticatorErrors.email"
-                            @update:model-value="clearAuthenticatorError('email')"
-                            @blur="touchAuthenticator('email')"
-                        />
-
-                        <TextField
-                            v-model="authenticatorForm.code"
-                            name="code"
-                            label="Authenticator code"
-                            inputmode="numeric"
-                            autocomplete="one-time-code"
-                            :maxlength="6"
-                            required
-                            :error="authenticatorErrors.code"
-                            @update:model-value="clearAuthenticatorError('code')"
-                            @blur="touchAuthenticator('code')"
-                        />
-
-                        <AppButton
-                            type="submit"
-                            :loading="authenticatorForm.processing"
-                            class="w-full"
-                        >
-                            Sign in with authenticator
-                        </AppButton>
-
-                        <p class="text-xs leading-relaxed text-aq-ink-muted">
-                            No authenticator yet? Sign in with your password, then scan the QR in
-                            Profile &amp; security.
-                        </p>
-                    </form>
-                </TabPanel>
-            </TabPanels>
-        </Tabs>
-
-        <div class="mt-5">
-            <div class="flex items-center gap-3" aria-hidden="true">
-                <span class="h-px grow bg-aq-line"></span>
-                <span class="text-xs tracking-wide text-aq-ink-muted">or</span>
-                <span class="h-px grow bg-aq-line"></span>
-            </div>
-
-            <a
-                href="/auth/google"
-                class="mt-4 flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-aq-line bg-aq-elevated/40 text-sm font-semibold text-aq-ink transition-colors duration-200 hover:border-aq-line-strong hover:bg-aq-overlay/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
-            >
-                <svg aria-hidden="true" viewBox="0 0 48 48" class="size-4.5 shrink-0">
-                    <path
-                        class="fill-google-red"
-                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+                <form
+                    ref="authenticatorFormEl"
+                    class="mt-4 flex flex-col gap-4"
+                    novalidate
+                    @submit.prevent="onAuthenticatorSubmit"
+                >
+                    <FormErrorSummary
+                        :errors="authenticatorErrors"
+                        :form-el="authenticatorFormElement"
                     />
-                    <path
-                        class="fill-google-blue"
-                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+
+                    <TextField
+                        v-model="authenticatorForm.email"
+                        name="email"
+                        label="Email"
+                        type="email"
+                        autocomplete="username"
+                        required
+                        :error="authenticatorErrors.email"
+                        @update:model-value="clearAuthenticatorError('email')"
+                        @blur="touchAuthenticator('email')"
                     />
-                    <path
-                        class="fill-google-yellow"
-                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+
+                    <OtpField
+                        v-model="authenticatorForm.code"
+                        name="code"
+                        label="Authenticator code"
+                        required
+                        autofocus
+                        :error="authenticatorErrors.code"
+                        @update:model-value="clearAuthenticatorError('code')"
+                        @blur="touchAuthenticator('code')"
                     />
-                    <path
-                        class="fill-google-green"
-                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                    />
-                </svg>
-                Continue with Google
-            </a>
+
+                    <AppButton type="submit" :loading="authenticatorForm.processing" class="w-full">
+                        Sign in with authenticator
+                    </AppButton>
+                </form>
+
+                <p class="mt-4 text-center text-xs leading-relaxed text-aq-ink-muted">
+                    No authenticator yet? Sign in with your password, then scan the QR in Profile
+                    &amp; security.
+                </p>
+
+                <button type="button" :class="[backClass, 'mt-5']" @click="backToPassword">
+                    <span aria-hidden="true">&larr;</span>
+                    Back to password sign-in
+                </button>
+            </template>
         </div>
     </AuthLayout>
 </template>
