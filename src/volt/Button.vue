@@ -44,6 +44,27 @@ const theme = ref<ButtonPassThroughOptions>({
         dark:p-text:bg-transparent dark:enabled:hover:p-text:bg-primary/5 dark:enabled:active:p-text:bg-primary/15
         dark:p-text:border-transparent dark:enabled:hover:p-text:border-transparent dark:enabled:active:p-text:border-transparent
         dark:p-text:text-primary dark:enabled:hover:p-text:text-primary dark:enabled:active:p-text:text-primary
+
+        p-secondary:bg-surface-100 enabled:hover:p-secondary:bg-surface-200 enabled:active:p-secondary:bg-surface-300
+        p-secondary:border-surface-100 enabled:hover:p-secondary:border-surface-200 enabled:active:p-secondary:border-surface-300
+        p-secondary:text-surface-700 dark:p-secondary:bg-surface-800 dark:enabled:hover:p-secondary:bg-surface-700
+        dark:p-secondary:text-surface-100
+        p-outlined:p-secondary:bg-transparent p-outlined:p-secondary:border-surface-200
+        p-outlined:p-secondary:text-surface-600 dark:p-outlined:p-secondary:border-surface-700
+        dark:p-outlined:p-secondary:text-surface-300
+        p-text:p-secondary:bg-transparent p-text:p-secondary:text-surface-600
+        enabled:hover:p-text:p-secondary:bg-surface-100 dark:p-text:p-secondary:text-surface-300
+        dark:enabled:hover:p-text:p-secondary:bg-surface-800
+
+        p-danger:bg-aq-danger enabled:hover:p-danger:bg-aq-danger-strong enabled:active:p-danger:bg-aq-danger-strong
+        p-danger:border-aq-danger enabled:hover:p-danger:border-aq-danger-strong enabled:active:p-danger:border-aq-danger-strong
+        p-danger:text-surface-0
+        p-outlined:p-danger:bg-transparent p-outlined:p-danger:border-aq-danger/50 p-outlined:p-danger:text-aq-danger-strong
+        enabled:hover:p-outlined:p-danger:bg-aq-danger/10 enabled:hover:p-outlined:p-danger:border-aq-danger/70
+        dark:p-outlined:p-danger:text-aq-danger
+        p-text:p-danger:bg-transparent p-text:p-danger:text-aq-danger-strong
+        enabled:hover:p-text:p-danger:bg-aq-danger/10 dark:p-text:p-danger:text-aq-danger
+        dark:enabled:hover:p-text:p-danger:bg-aq-danger/15
     `,
     loadingIcon: `animate-spin`,
     icon: `p-right:order-1 p-bottom:order-2`,

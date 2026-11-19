@@ -1103,7 +1103,10 @@ onUnmounted(() => destroyChart());
                     </TabList>
 
                     <TabPanels>
-                        <TabPanel value="kanban">
+                        <!-- The inset lives on the panel, not on the TabPanels
+                             primitive: the shell already owns the surface, and
+                             the board wants the breathing room inside it. -->
+                        <TabPanel value="kanban" class="p-5">
                             <!-- Empty board invitation, before any columns ship -->
                             <Card
                                 v-if="leads.length === 0"
@@ -1302,7 +1305,7 @@ onUnmounted(() => destroyChart());
                             </div>
                         </TabPanel>
 
-                        <TabPanel value="calendar">
+                        <TabPanel value="calendar" class="p-5">
                             <Suspense>
                                 <BoardCalendar
                                     v-if="boardView === 'calendar'"

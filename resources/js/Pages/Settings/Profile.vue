@@ -1,30 +1,52 @@
 <script setup lang="ts">
-import { computed, onWatcherCleanup, ref, useTemplateRef, watch } from 'vue';
+/**
+ * Settings/Profile — the account screen.
+ *
+ * Four tabs over one page: identity, address, password and two-factor. The
+ * profile and address writes stay on Fortify's routes; the 2FA panel owns its
+ * client-side reads through a module composable. The page renders inside
+ * `AppLayout`, so the workspace shell stays visible instead of dropping the
+ * user onto a bare form.
+ */
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { useConfirm } from 'primevue/useconfirm';
-import { z } from 'zod';
 import {
-    AddressAutocompleteField,
     AppButton,
-    CheckboxField,
+    AvatarCropField,
     DateField,
     FormErrorSummary,
-    ImageDropzone,
-    NumberField,
-    PasswordField,
     PhoneField,
     SelectField,
     TextField,
-    type AddressSelection,
 } from '@/Components/Forms';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { PASSWORD_HINT, PASSWORD_MAX_LENGTH, passwordSchema, statusMessage } from '@/lib/auth';
+import { statusMessage } from '@/lib/auth';
 import { useZodForm } from '@/lib/forms';
-import { emailSchema } from '@/lib/email';
-import { USERNAME_HINT, USERNAME_MAX, usernameSchema } from '@/lib/username';
+import { USERNAME_HINT, USERNAME_MAX } from '@/lib/username';
 import { useProfilePhotoUpload } from '@/Modules/Auth/composables/useProfilePhotoUpload';
-import { useTwoFactorSettings } from '@/Modules/Auth/composables/useTwoFactorSettings';
-import Message from '@/volt/Message.vue';
+import {
+    identityPayload,
+    profileAddressSchema,
+    profileDetailsSchema,
+    updatePasswordSchema,
+    toProfileAddressForm,
+    toProfileDetailsForm,
+} from '@/Modules/Users/schemas/profileSettings';
+import Avatar from '@/volt/Avatar.vue';
+import Tab from '@/volt/Tab.vue';
+import TabList from '@/volt/TabList.vue';
+import TabPanel from '@/volt/TabPanel.vue';
+import TabPanels from '@/volt/TabPanels.vue';
+import Tabs from '@/volt/Tabs.vue';
+import Tag from '@/volt/Tag.vue';
+import AddressSection from './components/AddressSection.vue';
+import PasswordSection from './components/PasswordSection.vue';
+import SecuritySection from './components/SecuritySection.vue';
+import SettingsCard from './components/SettingsCard.vue';
+
+defineOptions({
+    layout: [AppLayout, { title: 'Settings' }],
+});
 
 const props = defineProps<{
     user: App.Data.Auth.UserData;
@@ -34,145 +56,86 @@ const props = defineProps<{
     status?: string | null;
 }>();
 
-const confirm = useConfirm();
+type TabValue = 'profile' | 'address' | 'password' | 'security';
+
+const TAB_VALUES: readonly TabValue[] = ['profile', 'address', 'password', 'security'];
+
+const isTabValue = (value: string): value is TabValue =>
+    TAB_VALUES.some((candidate) => candidate === value);
+
+const tabFromHash = (): TabValue => {
+    if (typeof window === 'undefined') {
+        return 'profile';
+    }
+
+    const raw = window.location.hash.replace('#', '');
+    const candidate = raw === 'two-factor' ? 'security' : raw;
+
+    return isTabValue(candidate) ? candidate : 'profile';
+};
+
 const today = new Date();
+const tab = ref<TabValue>(tabFromHash());
 
-const profileSchema = z.object({
-    first_name: z.string().min(1, 'Enter your first name').max(255),
-    last_name: z.string().max(255),
-    username: usernameSchema,
-    email: emailSchema,
-    phone: z.string().max(32),
-    date_of_birth: z
-        .string()
-        .nullable()
-        .refine(
-            (value) => value === null || value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value),
-            'Enter a valid date',
-        ),
-    address: z.string().max(255),
-    address_2: z.string().max(255),
-    zip_code: z.string().max(32),
-    city: z.string().max(120),
-    state: z.string().max(120),
-    country: z.string().max(120),
-    gender: z.enum(['male', 'female', 'other']).nullable(),
-    latitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -90 && value <= 90),
-            'Latitude must be between -90 and 90',
-        ),
-    longitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -180 && value <= 180),
-            'Longitude must be between -180 and 180',
-        ),
-    terms_and_conditions: z.boolean(),
+const initials = computed<string>(() => {
+    const parts = props.user.name.trim().split(/\s+/).filter(Boolean);
+
+    return (
+        parts
+            .slice(0, 2)
+            .map((part) => part.charAt(0).toUpperCase())
+            .join('') || 'AS'
+    );
 });
 
-const passwordFormSchema = z
-    .object({
-        current_password: z.string().min(1, 'Enter your current password'),
-        password: passwordSchema,
-        password_confirmation: z.string(),
-    })
-    .refine((values) => values.password === values.password_confirmation, {
-        path: ['password_confirmation'],
-        message: 'Passwords do not match',
-    });
+const flashMessage = computed<string | null>(() => statusMessage(props.status ?? null));
 
-const confirmSchema = z.object({
-    code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app'),
-});
+const twoFactorEnabled = ref<boolean>(props.twoFactorEnabled);
+const twoFactorConfirmed = ref<boolean>(props.twoFactorConfirmed);
 
-const profileFormEl = useTemplateRef<HTMLFormElement>('profileFormEl');
+watch(
+    () => props.twoFactorEnabled,
+    (value) => {
+        twoFactorEnabled.value = value;
+    },
+);
+
+watch(
+    () => props.twoFactorConfirmed,
+    (value) => {
+        twoFactorConfirmed.value = value;
+    },
+);
+
+const detailsFormEl = useTemplateRef<HTMLFormElement>('detailsFormEl');
+const addressFormEl = useTemplateRef<HTMLFormElement>('addressFormEl');
 const passwordFormEl = useTemplateRef<HTMLFormElement>('passwordFormEl');
-const confirmFormEl = useTemplateRef<HTMLFormElement>('confirmFormEl');
 
 const {
-    form: profileForm,
-    formEl: profileElement,
-    errors: profileErrors,
-    submit: submitProfile,
-    touch: touchProfile,
-    clearError: clearProfileError,
-    hasErrors: profileHasErrors,
+    form: detailsForm,
+    errors: detailsErrors,
+    submit: submitDetails,
+    touch: touchDetails,
+    clearError: clearDetailsError,
 } = useZodForm({
-    initial: {
-        first_name: props.user.first_name,
-        last_name: props.user.last_name ?? '',
-        username: props.user.username ?? '',
-        email: props.user.email,
-        phone: props.user.phone ?? '',
-        date_of_birth: props.user.date_of_birth,
-        address: props.user.address ?? '',
-        address_2: props.user.address_2 ?? '',
-        zip_code: props.user.zip_code ?? '',
-        city: props.user.city ?? '',
-        state: props.user.state ?? '',
-        country: props.user.country ?? '',
-        gender: (props.user.gender ?? 'male') as 'male' | 'female' | 'other' | null,
-        latitude: props.user.latitude,
-        longitude: props.user.longitude,
-        terms_and_conditions: props.user.terms_and_conditions,
-    },
-    schema: profileSchema,
-    formEl: profileFormEl,
+    initial: toProfileDetailsForm(props.user),
+    schema: profileDetailsSchema,
+    formEl: detailsFormEl,
 });
 
-const onUsernameInput = (): void => {
-    profileForm.username = profileForm.username.toLowerCase();
-    clearProfileError('username');
-};
-
-// Real-time validation with debounce per field (DRY, KISS, clean)
-const debounceTimers = ref<Record<string, number | null>>({});
-
-const debouncedTouch = (field: string, touchFn: (field: string) => void): void => {
-    const key = field;
-    if (debounceTimers.value[key] !== null && debounceTimers.value[key] !== undefined) {
-        window.clearTimeout(debounceTimers.value[key] as number);
-    }
-    debounceTimers.value[key] = window.setTimeout(() => {
-        touchFn(key);
-        debounceTimers.value[key] = null;
-    }, 300);
-};
-
-watch(
-    () => profileForm.username,
-    () => {
-        clearProfileError('username');
-        debouncedTouch('username', touchProfile);
-    },
-    { deep: true },
-);
-
-watch(
-    () => profileForm.email,
-    () => {
-        clearProfileError('email');
-        debouncedTouch('email', touchProfile);
-    },
-    { deep: true },
-);
-
-watch(
-    () => profileForm.phone,
-    () => {
-        clearProfileError('phone');
-        debouncedTouch('phone', touchProfile);
-    },
-    { deep: true },
-);
+const {
+    form: addressForm,
+    errors: addressErrors,
+    submit: submitAddress,
+    touch: touchAddress,
+} = useZodForm({
+    initial: toProfileAddressForm(props.user),
+    schema: profileAddressSchema,
+    formEl: addressFormEl,
+});
 
 const {
     form: passwordForm,
-    formEl: passwordElement,
     errors: passwordErrors,
     submit: submitPassword,
     touch: touchPassword,
@@ -183,102 +146,114 @@ const {
         password: '',
         password_confirmation: '',
     },
-    schema: passwordFormSchema,
+    schema: updatePasswordSchema,
     formEl: passwordFormEl,
 });
 
-const {
-    form: confirmForm,
-    formEl: confirmElement,
-    errors: confirmErrors,
-    submit: submitConfirm,
-    touch: touchConfirm,
-    clearError: clearConfirmError,
-} = useZodForm({
-    initial: { code: '' },
-    schema: confirmSchema,
-    formEl: confirmFormEl,
-});
+const photoFile = ref<File | null>(null);
+const resendingVerification = ref<boolean>(false);
 
-const twoFactorBusy = ref<boolean>(false);
-const profilePhotoFile = ref<File | null>(null);
+const resendVerification = (): void => {
+    resendingVerification.value = true;
 
-const {
-    uploading: profilePhotoUploading,
-    error: profilePhotoError,
-    upload: uploadProfilePhoto,
-    remove: removeProfilePhoto,
-} = useProfilePhotoUpload();
-
-const initials = computed<string>(() => {
-    const parts = `${props.user.first_name} ${props.user.last_name ?? ''}`
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-
-    return (
-        parts
-            .slice(0, 2)
-            .map((part) => part.charAt(0).toUpperCase())
-            .join('') || 'AS'
-    );
-});
-
-const {
-    qrDataUrl,
-    qrLoading,
-    qrError,
-    recoveryCodes,
-    recoveryLoading,
-    recoveryError,
-    loadQr,
-    loadRecoveryCodes,
-    reset: resetTwoFactorSettings,
-} = useTwoFactorSettings();
-
-const flashMessage = computed<string | null>(() => statusMessage(props.status ?? null));
-
-const onProfilePhotoUpload = (): void => {
-    if (profilePhotoFile.value === null) {
-        return;
-    }
-
-    const file = profilePhotoFile.value;
-
-    void uploadProfilePhoto(file).then(() => {
-        profilePhotoFile.value = null;
-    });
-};
-
-const onProfilePhotoRemove = (): void => {
-    void removeProfilePhoto();
-};
-
-const onAddressSelected = (selection: AddressSelection): void => {
-    profileForm.address = selection.address;
-    profileForm.zip_code = selection.zip_code;
-    profileForm.city = selection.city;
-    profileForm.state = selection.state;
-    profileForm.country = selection.country;
-    profileForm.latitude = selection.latitude;
-    profileForm.longitude = selection.longitude;
-
-    // address_2 is deliberately untouched: it is the manual apartment,
-    // suite or unit line and must survive every new address selection.
-    (['address', 'zip_code', 'city', 'state', 'country', 'latitude', 'longitude'] as const).forEach(
-        (field) => {
-            clearProfileError(field);
+    router.post(
+        '/email/verification-notification',
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                resendingVerification.value = false;
+            },
         },
     );
 };
+const {
+    uploading: photoUploading,
+    error: photoError,
+    upload: uploadPhoto,
+    remove: removePhoto,
+} = useProfilePhotoUpload();
 
-const onProfileSubmit = (): void => {
-    submitProfile(() =>
-        profileForm.put('/user/profile-information', {
+const onPhotoChange = (file: File | null): void => {
+    photoFile.value = file;
+
+    if (file !== null) {
+        void uploadPhoto(file);
+
+        return;
+    }
+
+    if (props.user.profile_photo_url !== null) {
+        void removePhoto();
+    }
+};
+
+const addressHasCoordinates = computed<boolean>(
+    () => addressForm.latitude !== null && addressForm.longitude !== null,
+);
+
+const completeness = computed<number>(() => {
+    const parts: Array<string | null> = [
+        props.user.first_name,
+        props.user.last_name,
+        props.user.username,
+        props.user.phone,
+        props.user.date_of_birth,
+        props.user.address,
+        props.user.city,
+        props.user.state,
+        props.user.zip_code,
+        props.user.country,
+        props.user.profile_photo_url,
+    ];
+
+    const completed = parts.filter((part) => typeof part === 'string' && part.trim() !== '').length;
+
+    return Math.round((completed / parts.length) * 100);
+});
+
+const changeTab = (value: string | number): void => {
+    if (typeof value === 'string' && isTabValue(value)) {
+        tab.value = value;
+    }
+};
+
+const syncTabFromHash = (): void => {
+    tab.value = tabFromHash();
+};
+
+const onUsernameInput = (): void => {
+    detailsForm.username = detailsForm.username.toLowerCase();
+    clearDetailsError('username');
+};
+
+const onDetailsSubmit = (): void => {
+    submitDetails(() =>
+        detailsForm.put('/user/profile-information', {
             errorBag: 'updateProfileInformation',
             preserveScroll: true,
         }),
     );
+};
+
+const onAddressSubmit = (): void => {
+    submitAddress(() => {
+        /*
+         * Fortify's updater always validates the identity fields, so the
+         * address write carries the stored identity unchanged. Sending the
+         * visible identity draft would make "Save address" silently save
+         * unsaved name or email edits from the other tab.
+         */
+        addressForm.transform((data) => ({
+            ...identityPayload(props.user),
+            ...data,
+        }));
+
+        addressForm.put('/user/profile-information', {
+            errorBag: 'updateProfileInformation',
+            preserveScroll: true,
+        });
+    });
 };
 
 const onPasswordSubmit = (): void => {
@@ -292,568 +267,416 @@ const onPasswordSubmit = (): void => {
     );
 };
 
-const enableTwoFactor = (): void => {
-    twoFactorBusy.value = true;
-
-    router.post(
-        '/user/two-factor-authentication',
-        {},
-        {
-            preserveScroll: true,
-            onFinish: () => {
-                twoFactorBusy.value = false;
-            },
-        },
+watch(tab, (value) => {
+    window.history.replaceState(
+        window.history.state,
+        '',
+        `${window.location.pathname}${window.location.search}#${value}`,
     );
-};
+});
 
-const onConfirmSubmit = (): void => {
-    submitConfirm(() =>
-        confirmForm.post('/user/confirmed-two-factor-authentication', {
-            errorBag: 'confirmTwoFactorAuthentication',
-            preserveScroll: true,
-            onSuccess: () => {
-                confirmForm.reset('code');
-                void loadRecoveryCodes();
-            },
-        }),
-    );
-};
-
-const regenerateRecoveryCodes = (): void => {
-    twoFactorBusy.value = true;
-
-    router.post(
-        '/user/two-factor-recovery-codes',
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                void loadRecoveryCodes();
-            },
-            onFinish: () => {
-                twoFactorBusy.value = false;
-            },
-        },
-    );
-};
-
-const disableTwoFactor = (): void => {
-    twoFactorBusy.value = true;
-
-    router.delete('/user/two-factor-authentication', {
-        preserveScroll: true,
-        onSuccess: resetTwoFactorSettings,
-        onFinish: () => {
-            twoFactorBusy.value = false;
-        },
-    });
-};
-
-const askDisableTwoFactor = (): void => {
-    confirm.require({
-        header: 'Disable two-factor authentication',
-        message:
-            'Your account will rely on its password only. Recovery codes and the authenticator secret will be removed.',
-        icon: 'pi pi-exclamation-triangle',
-        acceptProps: { label: 'Disable 2FA' },
-        rejectProps: { label: 'Cancel' },
-        accept: disableTwoFactor,
-    });
-};
-
-/**
- * The QR endpoint requires a recent password confirmation. Re-fetch whenever
- * the server tells the page that setup started (or ended) so a preserved
- * component does not keep a stale image.
- */
-watch(
-    () => [props.twoFactorEnabled, props.twoFactorConfirmed] as const,
-    ([enabled, confirmed]) => {
-        if (!enabled || confirmed) {
-            qrDataUrl.value = null;
-            qrError.value = null;
-            return;
-        }
-
-        const controller = new AbortController();
-        onWatcherCleanup(() => controller.abort());
-        void loadQr(controller.signal);
-    },
-    { immediate: true },
-);
+onMounted(() => window.addEventListener('hashchange', syncTabFromHash));
+onUnmounted(() => window.removeEventListener('hashchange', syncTabFromHash));
 </script>
 
 <template>
-    <Head title="Profile & security" />
+    <Head title="Settings — AquaShield" />
 
-    <AppLayout title="Profile & security">
-        <Message v-if="flashMessage" severity="success" class="mb-6">{{ flashMessage }}</Message>
+    <div class="mx-auto w-full max-w-5xl space-y-6">
+        <section
+            class="relative overflow-hidden rounded-2xl border border-aq-shell-line bg-surface-0 p-5 shadow-sm sm:p-6 dark:bg-surface-900"
+        >
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+                <Avatar
+                    v-if="props.user.profile_photo_url"
+                    :image="props.user.profile_photo_url"
+                    shape="circle"
+                    size="xlarge"
+                    class="border border-aq-shell-line shadow-sm"
+                />
+                <Avatar
+                    v-else
+                    :label="initials"
+                    shape="circle"
+                    size="xlarge"
+                    class="border border-aq-shell-line bg-aq-accent/15 font-semibold text-aq-accent shadow-sm"
+                />
 
-        <div class="grid gap-6 xl:grid-cols-2">
-            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6 xl:col-span-2">
-                <h2 class="text-lg font-semibold text-aq-ink">Profile information</h2>
-                <p class="mt-1 text-sm text-aq-ink-muted">
-                    Update the identity, contact and address details used across the workspace.
-                </p>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2
+                            class="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0"
+                        >
+                            {{ props.user.name }}
+                        </h2>
 
-                <div class="mt-5 flex flex-wrap items-center gap-4">
-                    <img
-                        v-if="props.user.profile_photo_url"
-                        :src="props.user.profile_photo_url"
-                        alt=""
-                        class="size-16 rounded-full border border-aq-line object-cover"
-                    />
-                    <span
-                        v-else
-                        aria-hidden="true"
-                        class="grid size-16 place-items-center rounded-full bg-aq-accent/15 text-lg font-semibold text-aq-accent"
-                    >
-                        {{ initials }}
-                    </span>
+                        <Tag :severity="props.user.email_verified ? 'success' : 'warn'">
+                            <i
+                                class="pi mr-1 text-[0.65rem]"
+                                :class="
+                                    props.user.email_verified
+                                        ? 'pi-check-circle'
+                                        : 'pi-exclamation-triangle'
+                                "
+                                aria-hidden="true"
+                            />
+                            {{ props.user.email_verified ? 'Email verified' : 'Email unverified' }}
+                        </Tag>
 
-                    <div class="min-w-0">
-                        <p class="text-sm font-semibold text-aq-ink">Profile photo</p>
-                        <p class="text-xs text-aq-ink-muted">
-                            PNG, JPG or WebP, up to 2 MB. Stored on Cloudflare R2.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="mt-4 max-w-md">
-                    <ImageDropzone
-                        v-model="profilePhotoFile"
-                        label="Upload a new photo"
-                        :max-size-mb="2"
-                        :error="profilePhotoError ?? undefined"
-                        :disabled="profilePhotoUploading"
-                    />
-                </div>
-
-                <div class="mt-3 flex flex-wrap gap-3">
-                    <AppButton
-                        v-if="profilePhotoFile"
-                        type="button"
-                        :loading="profilePhotoUploading"
-                        @click="onProfilePhotoUpload"
-                    >
-                        Save photo
-                    </AppButton>
-                    <AppButton
-                        v-if="props.user.profile_photo_url"
-                        type="button"
-                        :loading="profilePhotoUploading"
-                        @click="onProfilePhotoRemove"
-                    >
-                        Remove photo
-                    </AppButton>
-                </div>
-
-                <form
-                    ref="profileFormEl"
-                    class="mt-6 flex flex-col gap-4"
-                    novalidate
-                    @submit.prevent="onProfileSubmit"
-                >
-                    <FormErrorSummary :errors="profileErrors" :form-el="profileElement" />
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <TextField
-                            v-model="profileForm.first_name"
-                            name="first_name"
-                            label="First name"
-                            autocomplete="given-name"
-                            required
-                            :error="profileErrors.first_name"
-                            @update:model-value="clearProfileError('first_name')"
-                            @blur="touchProfile('first_name')"
-                        />
-
-                        <TextField
-                            v-model="profileForm.last_name"
-                            name="last_name"
-                            label="Last name"
-                            autocomplete="family-name"
-                            :error="profileErrors.last_name"
-                            @update:model-value="clearProfileError('last_name')"
-                            @blur="touchProfile('last_name')"
-                        />
-
-                        <TextField
-                            v-model="profileForm.username"
-                            name="username"
-                            label="Username"
-                            autocomplete="username"
-                            :hint="USERNAME_HINT"
-                            :maxlength="USERNAME_MAX"
-                            :error="profileErrors.username"
-                            @update:model-value="onUsernameInput"
-                            @blur="touchProfile('username')"
-                        />
-
-                        <TextField
-                            v-model="profileForm.email"
-                            name="email"
-                            label="Email"
-                            type="email"
-                            autocomplete="email"
-                            required
-                            :error="profileErrors.email"
-                            @update:model-value="clearProfileError('email')"
-                            @blur="touchProfile('email')"
-                        />
-
-                        <PhoneField
-                            v-model="profileForm.phone"
-                            name="phone"
-                            label="Phone"
-                            :error="profileErrors.phone"
-                            @update:model-value="clearProfileError('phone')"
-                            @blur="touchProfile('phone')"
-                        />
-
-                        <DateField
-                            v-model="profileForm.date_of_birth"
-                            name="date_of_birth"
-                            label="Date of birth"
-                            :max-date="today"
-                            :error="profileErrors.date_of_birth"
-                            @update:model-value="clearProfileError('date_of_birth')"
-                            @blur="touchProfile('date_of_birth')"
-                        />
-
-                        <SelectField
-                            v-model="profileForm.gender"
-                            name="gender"
-                            label="Gender"
-                            :options="[
-                                { label: 'Male', value: 'male' },
-                                { label: 'Female', value: 'female' },
-                                { label: 'Other', value: 'other' },
-                            ]"
-                            :error="profileErrors.gender"
-                            @update:model-value="clearProfileError('gender')"
-                            @blur="touchProfile('gender')"
-                        />
+                        <Tag
+                            :severity="
+                                twoFactorConfirmed
+                                    ? 'success'
+                                    : twoFactorEnabled
+                                      ? 'warn'
+                                      : 'secondary'
+                            "
+                        >
+                            <i
+                                class="pi mr-1 text-[0.65rem]"
+                                :class="twoFactorConfirmed ? 'pi-shield' : 'pi-lock'"
+                                aria-hidden="true"
+                            />
+                            {{
+                                twoFactorConfirmed
+                                    ? '2FA on'
+                                    : twoFactorEnabled
+                                      ? '2FA setup'
+                                      : '2FA off'
+                            }}
+                        </Tag>
                     </div>
 
-                    <div class="mt-2 border-t border-aq-line pt-5">
-                        <h3 class="text-sm font-semibold text-aq-ink">Address</h3>
-                        <p class="mt-1 text-sm text-aq-ink-muted">
-                            Start with the street address. Choosing a suggestion fills the postal
-                            code, city, state, country and coordinates. The second address line
-                            stays exactly as you type it.
-                        </p>
+                    <p class="mt-1 truncate text-sm text-surface-600 dark:text-surface-300">
+                        {{ props.user.email }}
+                        <span
+                            v-if="props.user.username"
+                            class="ms-2 text-surface-500 dark:text-surface-400"
+                        >
+                            @{{ props.user.username }}
+                        </span>
+                    </p>
 
-                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                            <div class="sm:col-span-2">
-                                <AddressAutocompleteField
-                                    v-model="profileForm.address"
-                                    name="address"
-                                    label="Address"
-                                    :api-key="props.googleMapsApiKey"
-                                    :error="profileErrors.address"
-                                    @update:model-value="clearProfileError('address')"
-                                    @select="onAddressSelected"
-                                    @blur="touchProfile('address')"
-                                />
-                            </div>
+                    <div class="mt-4 max-w-md">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-medium text-surface-700 dark:text-surface-200">
+                                Profile completeness
+                            </span>
+                            <span class="tabular-nums text-surface-600 dark:text-surface-300">
+                                {{ completeness }}%
+                            </span>
+                        </div>
 
-                            <TextField
-                                v-model="profileForm.address_2"
-                                name="address_2"
-                                label="Address line 2"
-                                autocomplete="address-line2"
-                                hint="Apartment, suite, unit, building, floor…"
-                                :error="profileErrors.address_2"
-                                @update:model-value="clearProfileError('address_2')"
-                                @blur="touchProfile('address_2')"
-                            />
-
-                            <TextField
-                                v-model="profileForm.zip_code"
-                                name="zip_code"
-                                label="ZIP / Postal code"
-                                autocomplete="postal-code"
-                                inputmode="numeric"
-                                :error="profileErrors.zip_code"
-                                @update:model-value="clearProfileError('zip_code')"
-                                @blur="touchProfile('zip_code')"
-                            />
-
-                            <TextField
-                                v-model="profileForm.city"
-                                name="city"
-                                label="City"
-                                autocomplete="address-level2"
-                                :error="profileErrors.city"
-                                @update:model-value="clearProfileError('city')"
-                                @blur="touchProfile('city')"
-                            />
-
-                            <TextField
-                                v-model="profileForm.state"
-                                name="state"
-                                label="State / Province"
-                                autocomplete="address-level1"
-                                :error="profileErrors.state"
-                                @update:model-value="clearProfileError('state')"
-                                @blur="touchProfile('state')"
-                            />
-
-                            <TextField
-                                v-model="profileForm.country"
-                                name="country"
-                                label="Country"
-                                autocomplete="country-name"
-                                :error="profileErrors.country"
-                                @update:model-value="clearProfileError('country')"
-                                @blur="touchProfile('country')"
-                            />
-
-                            <NumberField
-                                v-model="profileForm.latitude"
-                                name="latitude"
-                                label="Latitude"
-                                hint="Filled by the address search; edit only if you know the exact value."
-                                :min="-90"
-                                :max="90"
-                                :step="0.000001"
-                                :error="profileErrors.latitude"
-                                @update:model-value="clearProfileError('latitude')"
-                                @blur="touchProfile('latitude')"
-                            />
-
-                            <NumberField
-                                v-model="profileForm.longitude"
-                                name="longitude"
-                                label="Longitude"
-                                hint="Filled by the address search; edit only if you know the exact value."
-                                :min="-180"
-                                :max="180"
-                                :step="0.000001"
-                                :error="profileErrors.longitude"
-                                @update:model-value="clearProfileError('longitude')"
-                                @blur="touchProfile('longitude')"
+                        <div
+                            class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-100 dark:bg-surface-800"
+                            role="progressbar"
+                            aria-label="Profile completeness"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            :aria-valuenow="completeness"
+                        >
+                            <div
+                                class="h-full rounded-full bg-aq-accent transition-[width] duration-300 motion-reduce:transition-none"
+                                :style="{ width: `${completeness}%` }"
                             />
                         </div>
-                    </div>
 
-                    <div class="mt-2 border-t border-aq-line pt-5">
-                        <CheckboxField
-                            v-model="profileForm.terms_and_conditions"
-                            name="terms_and_conditions"
-                            label="I accept the terms and conditions"
-                            :error="profileErrors.terms_and_conditions"
-                            @update:model-value="clearProfileError('terms_and_conditions')"
-                            @blur="touchProfile('terms_and_conditions')"
-                        />
+                        <p class="mt-1.5 text-xs text-surface-500 dark:text-surface-400">
+                            A complete profile makes it easier for the team to reach you.
+                        </p>
                     </div>
+                </div>
+            </div>
+        </section>
 
-                    <div class="mt-2">
-                        <AppButton
-                            type="submit"
-                            :loading="profileForm.processing"
-                            :disabled="profileForm.processing || profileHasErrors"
+        <p
+            v-if="flashMessage"
+            role="status"
+            class="flex items-start gap-2 rounded-lg border border-aq-success/30 bg-aq-success/10 px-3 py-2 text-sm text-surface-800 dark:text-surface-100"
+        >
+            <i class="pi pi-check-circle mt-0.5 shrink-0 text-aq-success" aria-hidden="true" />
+            {{ flashMessage }}
+        </p>
+
+        <p
+            v-if="!props.user.email_verified"
+            role="alert"
+            class="flex flex-wrap items-start gap-2 rounded-lg border border-aq-warning/40 bg-aq-warning/10 px-3 py-2 text-sm text-surface-800 dark:text-surface-100"
+        >
+            <i
+                class="pi pi-exclamation-triangle mt-0.5 shrink-0 text-aq-warning"
+                aria-hidden="true"
+            />
+            <span class="flex-1">
+                Your email address is not verified. Open the verification link sent to your inbox
+                before signing in from a new device. Until then, the dashboard keeps redirecting to
+                the verification screen.
+            </span>
+
+            <AppButton
+                type="button"
+                :loading="resendingVerification"
+                :disabled="resendingVerification"
+                @click="resendVerification"
+            >
+                Resend verification email
+            </AppButton>
+        </p>
+
+        <Tabs :value="tab" @update:value="changeTab">
+            <TabList
+                aria-label="Settings sections"
+                class="rounded-xl border border-aq-shell-line bg-surface-0 px-1 dark:bg-surface-900"
+            >
+                <Tab value="profile">
+                    <i class="pi pi-user me-2 text-xs" aria-hidden="true" />
+                    Profile
+                </Tab>
+                <Tab value="address">
+                    <i class="pi pi-map-marker me-2 text-xs" aria-hidden="true" />
+                    Address
+                </Tab>
+                <Tab value="password">
+                    <i class="pi pi-key me-2 text-xs" aria-hidden="true" />
+                    Password
+                </Tab>
+                <Tab value="security">
+                    <i class="pi pi-shield me-2 text-xs" aria-hidden="true" />
+                    Security
+                </Tab>
+            </TabList>
+
+            <!-- The strip is a control, the panels are content: a full step of
+                 the page's own rhythm (24px, the same `space-y-6` that spaces
+                 the sections above) separates them, so the panel reads as
+                 belonging to the page instead of as the bottom half of the
+                 tab strip. The cards sit on the page surface, the way the
+                 rail's groups do. -->
+            <TabPanels class="mt-6">
+                <TabPanel value="profile">
+                    <div class="grid gap-6">
+                        <SettingsCard
+                            title="Profile photo"
+                            description="A clear headshot helps the team recognise you in the workspace."
+                            icon="pi pi-user"
                         >
-                            Save profile
-                        </AppButton>
-                    </div>
-                </form>
-            </section>
+                            <AvatarCropField
+                                v-model="photoFile"
+                                label="Profile photo"
+                                :current-url="props.user.profile_photo_url"
+                                :max-size-mb="2"
+                                hint="PNG, JPG or WebP, up to 2 MB. Crop and zoom before saving; stored on Cloudflare R2."
+                                :error="photoError ?? undefined"
+                                :disabled="photoUploading"
+                                @update:model-value="onPhotoChange"
+                            />
+                        </SettingsCard>
 
-            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6 xl:col-span-2">
-                <h2 class="text-lg font-semibold text-aq-ink">Password</h2>
-                <p class="mt-1 text-sm text-aq-ink-muted">{{ PASSWORD_HINT }}</p>
+                        <SettingsCard
+                            title="Personal information"
+                            description="How your name, contact details and sign-in identity appear in AquaShield."
+                            icon="pi pi-id-card"
+                        >
+                            <template #action>
+                                <Tag :severity="props.user.email_verified ? 'success' : 'warn'">
+                                    {{
+                                        props.user.email_verified
+                                            ? 'Verified email'
+                                            : 'Verify email'
+                                    }}
+                                </Tag>
+                            </template>
 
-                <form
-                    ref="passwordFormEl"
-                    class="mt-5 flex max-w-xl flex-col gap-4"
-                    novalidate
-                    @submit.prevent="onPasswordSubmit"
-                >
-                    <FormErrorSummary :errors="passwordErrors" :form-el="passwordElement" />
-
-                    <PasswordField
-                        v-model="passwordForm.current_password"
-                        name="current_password"
-                        label="Current password"
-                        autocomplete="current-password"
-                        required
-                        :error="passwordErrors.current_password"
-                        @update:model-value="clearPasswordError('current_password')"
-                        @blur="touchPassword('current_password')"
-                    />
-
-                    <PasswordField
-                        v-model="passwordForm.password"
-                        name="password"
-                        label="New password"
-                        autocomplete="new-password"
-                        required
-                        :hint="PASSWORD_HINT"
-                        :maxlength="PASSWORD_MAX_LENGTH"
-                        :error="passwordErrors.password"
-                        @update:model-value="clearPasswordError('password')"
-                        @blur="touchPassword('password')"
-                    />
-
-                    <PasswordField
-                        v-model="passwordForm.password_confirmation"
-                        name="password_confirmation"
-                        label="Confirm new password"
-                        autocomplete="new-password"
-                        required
-                        :maxlength="PASSWORD_MAX_LENGTH"
-                        :error="passwordErrors.password_confirmation"
-                        @update:model-value="clearPasswordError('password_confirmation')"
-                        @blur="touchPassword('password_confirmation')"
-                    />
-
-                    <AppButton type="submit" :loading="passwordForm.processing">
-                        Update password
-                    </AppButton>
-                </form>
-            </section>
-
-            <section class="rounded-xl border border-aq-line bg-aq-elevated/60 p-6 xl:col-span-2">
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-aq-ink">Two-factor authentication</h2>
-                        <p class="mt-1 max-w-2xl text-sm text-aq-ink-muted">
-                            Add a six-digit code from Google Authenticator, Authy or Microsoft
-                            Authenticator on top of your password. Recovery codes are shown once.
-                        </p>
-                    </div>
-
-                    <span
-                        class="rounded-full border border-aq-line px-3 py-1 text-xs font-semibold tracking-wide uppercase"
-                        :class="props.twoFactorConfirmed ? 'text-aq-accent' : 'text-aq-ink-muted'"
-                    >
-                        {{ props.twoFactorConfirmed ? 'Enabled' : 'Not enabled' }}
-                    </span>
-                </div>
-
-                <p class="mt-4 text-sm text-aq-ink-muted">
-                    Changing these settings may ask you to confirm your password first.
-                </p>
-
-                <div v-if="!props.twoFactorEnabled" class="mt-5">
-                    <AppButton type="button" :loading="twoFactorBusy" @click="enableTwoFactor">
-                        Enable two-factor authentication
-                    </AppButton>
-                </div>
-
-                <div v-else-if="!props.twoFactorConfirmed" class="mt-5 grid gap-6 lg:grid-cols-2">
-                    <div>
-                        <h3 class="text-sm font-semibold text-aq-ink">1. Scan the QR code</h3>
-
-                        <p v-if="qrLoading" class="mt-3 text-sm text-aq-ink-muted">
-                            Loading the QR code…
-                        </p>
-
-                        <div v-else-if="qrError" class="mt-3">
-                            <Message severity="error">{{ qrError }}</Message>
-                            <p class="mt-2 text-sm text-aq-ink-muted">
-                                Retrying asks for your password again, then reloads the code.
-                            </p>
-                            <AppButton
-                                type="button"
-                                :loading="twoFactorBusy"
-                                class="mt-3"
-                                @click="enableTwoFactor"
+                            <form
+                                ref="detailsFormEl"
+                                class="flex flex-col gap-4"
+                                novalidate
+                                @submit.prevent="onDetailsSubmit"
                             >
-                                Retry setup
-                            </AppButton>
-                        </div>
+                                <FormErrorSummary
+                                    :errors="detailsErrors"
+                                    :form-el="detailsFormEl"
+                                />
 
-                        <img
-                            v-else-if="qrDataUrl"
-                            :src="qrDataUrl"
-                            alt="Two-factor authentication QR code"
-                            class="mt-3 size-48 rounded-lg"
-                            width="192"
-                            height="192"
-                        />
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <TextField
+                                        v-model="detailsForm.first_name"
+                                        name="first_name"
+                                        label="First name"
+                                        autocomplete="given-name"
+                                        required
+                                        :error="detailsErrors.first_name"
+                                        @update:model-value="clearDetailsError('first_name')"
+                                        @blur="touchDetails('first_name')"
+                                    />
+
+                                    <TextField
+                                        v-model="detailsForm.last_name"
+                                        name="last_name"
+                                        label="Last name"
+                                        autocomplete="family-name"
+                                        :error="detailsErrors.last_name"
+                                        @update:model-value="clearDetailsError('last_name')"
+                                        @blur="touchDetails('last_name')"
+                                    />
+
+                                    <TextField
+                                        v-model="detailsForm.username"
+                                        name="username"
+                                        label="Username"
+                                        autocomplete="username"
+                                        :hint="USERNAME_HINT"
+                                        :maxlength="USERNAME_MAX"
+                                        :error="detailsErrors.username"
+                                        @update:model-value="onUsernameInput"
+                                        @blur="touchDetails('username')"
+                                    />
+
+                                    <TextField
+                                        v-model="detailsForm.email"
+                                        name="email"
+                                        label="Email address"
+                                        type="email"
+                                        autocomplete="email"
+                                        required
+                                        :error="detailsErrors.email"
+                                        @update:model-value="clearDetailsError('email')"
+                                        @blur="touchDetails('email')"
+                                    />
+
+                                    <PhoneField
+                                        v-model="detailsForm.phone"
+                                        name="phone"
+                                        label="Phone"
+                                        placeholder="+1 555 555 0100"
+                                        hint="Include the country code."
+                                        :error="detailsErrors.phone"
+                                        @update:model-value="clearDetailsError('phone')"
+                                        @blur="touchDetails('phone')"
+                                    />
+
+                                    <DateField
+                                        v-model="detailsForm.date_of_birth"
+                                        name="date_of_birth"
+                                        label="Date of birth"
+                                        :max-date="today"
+                                        :error="detailsErrors.date_of_birth"
+                                        @update:model-value="clearDetailsError('date_of_birth')"
+                                        @blur="touchDetails('date_of_birth')"
+                                    />
+
+                                    <SelectField
+                                        v-model="detailsForm.gender"
+                                        name="gender"
+                                        label="Gender"
+                                        placeholder="Not specified"
+                                        :options="[
+                                            { label: 'Male', value: 'male' },
+                                            { label: 'Female', value: 'female' },
+                                            { label: 'Other', value: 'other' },
+                                        ]"
+                                        :error="detailsErrors.gender"
+                                        @update:model-value="clearDetailsError('gender')"
+                                        @blur="touchDetails('gender')"
+                                    />
+                                </div>
+
+                                <div class="pt-1">
+                                    <AppButton
+                                        type="submit"
+                                        :loading="detailsForm.processing"
+                                        :disabled="detailsForm.processing"
+                                    >
+                                        Save profile
+                                    </AppButton>
+                                </div>
+                            </form>
+                        </SettingsCard>
                     </div>
+                </TabPanel>
 
-                    <form
-                        ref="confirmFormEl"
-                        class="flex flex-col gap-4"
-                        novalidate
-                        @submit.prevent="onConfirmSubmit"
+                <TabPanel value="address">
+                    <SettingsCard
+                        title="Address"
+                        description="A verified US address with coordinates helps routing, scheduling and territory assignment."
+                        icon="pi pi-map-marker"
                     >
-                        <h3 class="text-sm font-semibold text-aq-ink">
-                            2. Confirm the six-digit code
-                        </h3>
+                        <template #action>
+                            <Tag :severity="addressHasCoordinates ? 'success' : 'secondary'">
+                                {{ addressHasCoordinates ? 'Google verified' : 'Manual' }}
+                            </Tag>
+                        </template>
 
-                        <FormErrorSummary :errors="confirmErrors" :form-el="confirmElement" />
-
-                        <TextField
-                            v-model="confirmForm.code"
-                            name="code"
-                            label="Authenticator code"
-                            inputmode="numeric"
-                            autocomplete="one-time-code"
-                            :maxlength="6"
-                            required
-                            :error="confirmErrors.code"
-                            @update:model-value="clearConfirmError('code')"
-                            @blur="touchConfirm('code')"
-                        />
-
-                        <AppButton type="submit" :loading="confirmForm.processing">
-                            Confirm and enable
-                        </AppButton>
-                    </form>
-                </div>
-
-                <div v-else class="mt-5 flex flex-col gap-4">
-                    <div class="flex flex-wrap gap-3">
-                        <AppButton
-                            type="button"
-                            :loading="recoveryLoading"
-                            @click="loadRecoveryCodes"
+                        <form
+                            ref="addressFormEl"
+                            class="flex flex-col gap-5"
+                            novalidate
+                            @submit.prevent="onAddressSubmit"
                         >
-                            Show recovery codes
-                        </AppButton>
+                            <FormErrorSummary :errors="addressErrors" :form-el="addressFormEl" />
 
-                        <AppButton
-                            type="button"
-                            :loading="twoFactorBusy"
-                            @click="regenerateRecoveryCodes"
-                        >
-                            Regenerate recovery codes
-                        </AppButton>
+                            <AddressSection
+                                :api-key="props.googleMapsApiKey"
+                                :form="addressForm"
+                                :errors="addressErrors"
+                                @blur="touchAddress"
+                            />
 
-                        <AppButton
-                            type="button"
-                            :loading="twoFactorBusy"
-                            @click="askDisableTwoFactor"
-                        >
-                            Disable two-factor authentication
-                        </AppButton>
-                    </div>
+                            <div>
+                                <AppButton
+                                    type="submit"
+                                    :loading="addressForm.processing"
+                                    :disabled="addressForm.processing"
+                                >
+                                    Save address
+                                </AppButton>
+                            </div>
+                        </form>
+                    </SettingsCard>
+                </TabPanel>
 
-                    <Message v-if="recoveryError" severity="error">{{ recoveryError }}</Message>
-
-                    <div
-                        v-if="recoveryCodes.length > 0"
-                        class="rounded-lg border border-aq-line bg-aq-overlay/40 p-4"
+                <TabPanel value="password">
+                    <SettingsCard
+                        title="Password"
+                        description="Changing your password signs out other browsers on this account."
+                        icon="pi pi-key"
                     >
-                        <h3 class="text-sm font-semibold text-aq-ink">Recovery codes</h3>
-                        <p class="mt-1 text-sm text-aq-ink-muted">
-                            Each code signs you in once if you lose the authenticator. Store them in
-                            a password manager, not in this browser.
-                        </p>
-                        <ul class="mt-3 grid gap-1 font-mono text-sm text-aq-ink sm:grid-cols-2">
-                            <li v-for="code in recoveryCodes" :key="code">
-                                <code>{{ code }}</code>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </AppLayout>
+                        <form
+                            ref="passwordFormEl"
+                            class="flex flex-col gap-5"
+                            novalidate
+                            @submit.prevent="onPasswordSubmit"
+                        >
+                            <FormErrorSummary :errors="passwordErrors" :form-el="passwordFormEl" />
+
+                            <PasswordSection
+                                :form="passwordForm"
+                                :errors="passwordErrors"
+                                @blur="touchPassword"
+                            />
+
+                            <div>
+                                <AppButton
+                                    type="submit"
+                                    :loading="passwordForm.processing"
+                                    :disabled="passwordForm.processing"
+                                >
+                                    Update password
+                                </AppButton>
+                            </div>
+                        </form>
+                    </SettingsCard>
+                </TabPanel>
+
+                <TabPanel value="security">
+                    <SecuritySection
+                        :enabled="twoFactorEnabled"
+                        :confirmed="twoFactorConfirmed"
+                        @update:enabled="twoFactorEnabled = $event"
+                        @update:confirmed="twoFactorConfirmed = $event"
+                    />
+                </TabPanel>
+            </TabPanels>
+        </Tabs>
+    </div>
 </template>

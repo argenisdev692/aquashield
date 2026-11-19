@@ -38,6 +38,13 @@ export type ZodFormApi<T extends FormValues> = T & {
     hasErrors: boolean;
     isDirty: boolean;
     data: () => T;
+    /**
+     * Inertia's transform hook. A split form (details vs address) uses it to
+     * carry the untouched identity fields Fortify always validates, without
+     * writing an unsaved draft into the visible form. The callback returns the
+     * payload shape, which is allowed to be a superset of the form values.
+     */
+    transform: (callback: (data: T) => FormValues) => void;
     clearErrors: () => void;
     reset: (...fields: (keyof T & string)[]) => void;
     post: (url: string, options?: Record<string, unknown>) => void;

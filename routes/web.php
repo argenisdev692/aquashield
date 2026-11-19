@@ -78,6 +78,8 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('throttle:60,1')
         ->name('auth.keep-alive');
 
+    Route::get('/settings', [ProfileController::class, 'index'])
+        ->name('settings.index');
     Route::get('/settings/profile', [ProfileController::class, 'edit'])
         ->name('settings.profile.edit');
     Route::post('/settings/profile/photo', [ProfilePhotoController::class, 'store'])

@@ -22,12 +22,15 @@ interface Props {
     error?: string;
     required?: boolean;
     actionLabel?: string;
+    /** `primary` makes the picker button the obvious action on a photo field. */
+    tone?: 'neutral' | 'primary';
 }
 
 const props = withDefaults(defineProps<Props>(), {
     multiple: false,
     maxSizeMb: 10,
     actionLabel: 'Choose file',
+    tone: 'neutral',
 });
 
 const emit = defineEmits<{
@@ -53,6 +56,16 @@ const describedBy = computed<string | undefined>(() => {
 
     return ids.length > 0 ? ids.join(' ') : undefined;
 });
+
+const actionClass = computed<string>(() =>
+    [
+        'inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary-500 motion-reduce:transition-none',
+        props.tone === 'primary'
+            ? 'border-primary bg-primary text-primary-contrast hover:bg-primary-emphasis'
+            : 'border-content-border bg-surface-0 text-surface-700 hover:bg-surface-100 dark:bg-surface-900 dark:text-surface-100 dark:hover:bg-surface-800',
+        props.disabled ? 'pointer-events-none opacity-60' : '',
+    ].join(' '),
+);
 
 const acceptFiles = (files: File[]): void => {
     const selected = props.multiple ? files : files.slice(0, 1);
@@ -114,10 +127,7 @@ const onDrop = (event: DragEvent): void => {
             <slot :dragging="dragging" />
 
             <div class="mt-3 flex flex-wrap items-center gap-2">
-                <label
-                    :for="inputId"
-                    class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-content-border bg-surface-0 px-3 py-1.5 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-100 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary-500 dark:bg-surface-900 dark:text-surface-100 dark:hover:bg-surface-800 motion-reduce:transition-none"
-                >
+                <label :for="inputId" :class="actionClass">
                     {{ props.actionLabel }}
                 </label>
                 <span class="text-xs text-surface-600 dark:text-surface-300">

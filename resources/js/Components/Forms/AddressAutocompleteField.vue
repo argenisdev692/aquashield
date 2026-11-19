@@ -31,12 +31,16 @@ interface Props {
     required?: boolean;
     disabled?: boolean;
     placeholder?: string;
-    /** Optional CLDR two-letter region restriction, e.g. `['US']`. */
+    /**
+     * CLDR two-letter region restriction. Defaults to the United States
+     * because every address in this workspace is a US service address; pass
+     * another list only when a screen genuinely crosses a border.
+     */
     includedRegionCodes?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    includedRegionCodes: () => [],
+    includedRegionCodes: () => ['US'],
 });
 
 const model = defineModel<string>({ default: '' });
@@ -65,7 +69,10 @@ const resolvedHint = computed<string>(() => {
         return 'Address autocomplete is not configured. Enter the address manually.';
     }
 
-    return props.hint ?? 'Start typing and pick a suggestion to fill the address fields.';
+    return (
+        props.hint ??
+        'Start typing a US address and pick a suggestion to fill the postal code, city, state, country and coordinates.'
+    );
 });
 
 const failureMessage = computed<string | null>(() => loadingError.value ?? errorMessage.value);

@@ -12,6 +12,8 @@ import { formatBytes } from '@/lib/files';
 interface Props {
     label: string;
     maxSizeMb?: number;
+    /** Defaults to exactly the formats the Laravel upload endpoints accept. */
+    accept?: string;
     hint?: string;
     error?: string;
     required?: boolean;
@@ -20,6 +22,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     maxSizeMb: 5,
+    accept: 'image/png,image/jpeg,image/webp',
 });
 
 const model = defineModel<File | null>({ default: null });
@@ -55,9 +58,9 @@ const remove = (): void => {
 <template>
     <DropzoneField
         :label="props.label"
-        accept="image/*"
+        :accept="props.accept"
         :max-size-mb="props.maxSizeMb"
-        :hint="props.hint ?? 'PNG, JPG, WebP or AVIF.'"
+        :hint="props.hint ?? 'PNG, JPG or WebP.'"
         :error="props.error"
         :required="props.required"
         :disabled="props.disabled"

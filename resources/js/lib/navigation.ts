@@ -71,6 +71,17 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         keywords: 'audit activity log history events security trail',
         permission: 'VIEW_ANY_ACTIVITY_LOGS',
     },
+    {
+        // Account-level destinations are not permission-gated: every signed-in
+        // user owns their identity, address, password and two-factor state.
+        label: 'Settings',
+        href: '/settings',
+        icon: 'pi-cog',
+        // The palette has no second account entry of its own — this row is the
+        // one place the account area is advertised — so it carries every word
+        // someone might type for it, including the recovery codes.
+        keywords: 'account settings profile address password 2fa two-factor recovery security',
+    },
 ];
 
 /**

@@ -64,9 +64,14 @@ watch(isDesktop, (desktop) => {
 </script>
 
 <template>
+    <!-- The rail keeps its translucent fill. `backdrop-blur` is deliberately
+         absent: the rail is a flex sibling, never an overlay, so nothing
+         scrolls behind it — the blur sampled a flat background and cost a
+         compositing layer on every width transition without changing a pixel.
+         Add it back only if content ever moves underneath. -->
     <aside
         :id="railId"
-        class="sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 flex-col border-e border-aq-shell-line bg-surface-0/40 backdrop-blur-sm transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex dark:bg-surface-950/40"
+        class="sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 flex-col border-e border-aq-shell-line bg-surface-0/40 transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex dark:bg-surface-950/40"
         :class="collapsed ? 'w-18' : 'w-64'"
     >
         <div class="min-h-0 flex-1 overflow-y-auto p-3">
@@ -74,6 +79,12 @@ watch(isDesktop, (desktop) => {
         </div>
 
         <div class="border-t border-aq-shell-line p-2">
+            <!-- Label first, arrow last. The wording is the affordance: a
+                 control that only shows a chevron is a guess, so the row keeps
+                 "Collapse navigation" next to the arrow that performs it, and
+                 the arrow sits at the trailing edge where a toggle reads as
+                 "move me this way". Collapsed, the row is the icon alone and
+                 the wording is still there for a screen reader. -->
             <button
                 type="button"
                 class="flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium text-surface-600 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
@@ -82,14 +93,17 @@ watch(isDesktop, (desktop) => {
                 :aria-controls="railId"
                 @click="collapsed = !collapsed"
             >
-                <i
-                    class="pi shrink-0 text-sm"
-                    :class="collapsed ? 'pi-angle-double-right' : 'pi-angle-double-left'"
-                    aria-hidden="true"
-                ></i>
                 <span :class="collapsed ? 'sr-only' : 'truncate'">
                     {{ collapsed ? 'Expand navigation' : 'Collapse navigation' }}
                 </span>
+                <i
+                    class="pi shrink-0 text-sm"
+                    :class="[
+                        collapsed ? 'pi-angle-double-right' : 'pi-angle-double-left',
+                        collapsed ? '' : 'ms-auto',
+                    ]"
+                    aria-hidden="true"
+                ></i>
             </button>
         </div>
     </aside>
@@ -128,14 +142,14 @@ watch(isDesktop, (desktop) => {
                 :aria-controls="panelId"
                 @click="collapsed = !collapsed"
             >
-                <i
-                    class="pi shrink-0 text-base"
-                    :class="collapsed ? 'pi-angle-double-right' : 'pi-angle-double-left'"
-                    aria-hidden="true"
-                ></i>
                 <span class="truncate">
                     {{ collapsed ? 'Expand navigation' : 'Collapse navigation' }}
                 </span>
+                <i
+                    class="pi ms-auto shrink-0 text-base"
+                    :class="collapsed ? 'pi-angle-double-right' : 'pi-angle-double-left'"
+                    aria-hidden="true"
+                ></i>
             </button>
         </div>
     </Drawer>

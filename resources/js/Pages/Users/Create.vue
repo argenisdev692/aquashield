@@ -2,7 +2,7 @@
 import { computed, useTemplateRef } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useToast } from 'primevue/usetoast';
-import { FormActions, FormErrorSummary } from '@/Components/Forms';
+import { FormActions, FormErrorSummary, MultiSelectField } from '@/Components/Forms';
 import type { SelectOption } from '@/Components/Forms';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useZodForm } from '@/lib/forms';
@@ -12,7 +12,6 @@ import {
     type CreateUserForm,
 } from '@/Modules/Users/schemas/userProfile';
 import { useUserListInvalidation } from '@/Modules/Users/composables/useUsers';
-import MultiSelectField from './components/MultiSelectField.vue';
 import UserProfileFields from './components/UserProfileFields.vue';
 
 defineOptions({
@@ -40,14 +39,14 @@ const { form, errors, submit, touch, clearError, hasErrors } = useZodForm({
     formEl,
 });
 
-const roleOptions = computed<SelectOption[]>(() =>
+const roleOptions = computed<SelectOption<string>[]>(() =>
     props.catalog.roles.map((role) => ({
         label: `${role.name} · ${role.permissions.length}`,
         value: role.name,
     })),
 );
 
-const permissionOptions = computed<SelectOption[]>(() =>
+const permissionOptions = computed<SelectOption<string>[]>(() =>
     props.catalog.permissions.map((permission) => ({
         label: permission,
         value: permission,
@@ -147,6 +146,8 @@ const onSubmit = (): void => {
                         name="roles"
                         label="Roles"
                         :options="roleOptions"
+                        filter
+                        filter-placeholder="Filter…"
                         hint="The number after each role is the permissions it grants."
                         :error="errors.roles"
                         @update:model-value="clearError('roles')"
@@ -157,6 +158,8 @@ const onSubmit = (): void => {
                         name="permissions"
                         label="Direct permissions"
                         :options="permissionOptions"
+                        filter
+                        filter-placeholder="Filter…"
                         hint="Added on top of the roles. You can only grant what you hold."
                         :error="errors.permissions"
                         @update:model-value="clearError('permissions')"

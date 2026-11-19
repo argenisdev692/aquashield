@@ -44,7 +44,7 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
                 'string',
                 'email',
                 'max:255',
-                new AllowedEmailDomain(),
+                new AllowedEmailDomain,
                 Rule::unique('users', 'email')->ignore($user->getKey()),
             ],
             'phone' => ['nullable', 'string', 'max:32'],

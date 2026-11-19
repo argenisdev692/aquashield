@@ -43,6 +43,9 @@ it('keeps the nonce strict csp and upgrades insecure subresources over https', f
 
     expect($csp)
         ->toContain("font-src 'self'")
+        // `blob:` is the avatar cropper and the upload previews; 'self' does not
+        // match the blob scheme, so dropping it blanks every client-side image.
+        ->toContain("img-src 'self' data: blob:")
         ->toContain("style-src-elem 'self' 'unsafe-inline'")
         ->toContain("script-src 'self' 'nonce-")
         ->toContain('upgrade-insecure-requests');

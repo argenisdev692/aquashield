@@ -33,6 +33,7 @@ const FORTIFY_STATUS_MESSAGES: Readonly<Record<string, string>> = {
     'recovery-codes-generated': 'New recovery codes generated. Store them somewhere safe.',
     'profile-photo-updated': 'Profile photo updated.',
     'profile-photo-removed': 'Profile photo removed.',
+    'verification-link-sent': 'A new verification link has been sent to your email address.',
 };
 
 export const statusMessage = (status: string | null): string | null => {

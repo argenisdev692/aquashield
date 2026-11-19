@@ -32,7 +32,15 @@ return [
             'connect_src' => [],
             // PrimeVue/Volt draw their icon set as inline `data:image/svg+xml`
             // URIs. Without `data:` every icon in the app is blocked by CSP.
-            'img_src' => ['data:'],
+            //
+            // `blob:` covers the two client-generated images: the avatar
+            // cropper and the upload previews, both `URL.createObjectURL(file)`
+            // assigned to an <img>. `'self'` does NOT match the blob scheme —
+            // the browser logs "Refused to load the image 'blob:…'" and the
+            // preview renders blank. Object URLs are same-origin and only this
+            // app's nonce-strict bundle can mint one, so no third-party surface
+            // is added.
+            'img_src' => ['data:', 'blob:'],
             'font_src' => [],
         ],
     ],

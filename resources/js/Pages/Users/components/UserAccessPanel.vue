@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, useTemplateRef, watch } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import { AppButton, FormErrorSummary } from '@/Components/Forms';
+import { AppButton, FormErrorSummary, MultiSelectField } from '@/Components/Forms';
 import type { SelectOption } from '@/Components/Forms';
 import { useZodForm } from '@/lib/forms';
 import { useUserListInvalidation } from '@/Modules/Users/composables/useUsers';
 import { userPermissionsSchema, userRolesSchema } from '@/Modules/Users/schemas/userAccess';
-import MultiSelectField from './MultiSelectField.vue';
 import Tag from '@/volt/Tag.vue';
 
 /**
@@ -74,14 +73,14 @@ watch(
     { deep: true },
 );
 
-const roleOptions = computed<SelectOption[]>(() =>
+const roleOptions = computed<SelectOption<string>[]>(() =>
     props.catalog.roles.map((role) => ({
         label: `${role.name} · ${role.permissions.length}`,
         value: role.name,
     })),
 );
 
-const permissionOptions = computed<SelectOption[]>(() =>
+const permissionOptions = computed<SelectOption<string>[]>(() =>
     props.catalog.permissions.map((permission) => ({
         label: permission,
         value: permission,
@@ -184,6 +183,8 @@ const savePermissions = (): void => {
                         name="roles"
                         label="Assigned roles"
                         :options="roleOptions"
+                        filter
+                        filter-placeholder="Filter…"
                         hint="The number after each role is the permissions it grants. You can only grant access you hold."
                         :error="roleErrors.roles"
                         @update:model-value="clearRoleError('roles')"
@@ -225,6 +226,8 @@ const savePermissions = (): void => {
                         name="permissions"
                         label="Direct permissions"
                         :options="permissionOptions"
+                        filter
+                        filter-placeholder="Filter…"
                         hint="These sit on top of the role set and are audited separately."
                         :error="permissionErrors.permissions"
                         @update:model-value="clearPermissionError('permissions')"

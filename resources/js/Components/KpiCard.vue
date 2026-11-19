@@ -79,7 +79,7 @@ const staggerDelay = (position: number): string => `${Math.min(position * 70, 28
             <template #title>
                 <div class="flex items-start justify-between gap-3">
                     <span
-                        class="min-w-0 text-xs font-semibold uppercase tracking-[0.14em] text-surface-500 dark:text-surface-400"
+                        class="min-w-0 text-xs font-medium tracking-widest text-surface-500 uppercase dark:text-surface-400"
                     >
                         {{ label }}
                     </span>
@@ -94,7 +94,7 @@ const staggerDelay = (position: number): string => `${Math.min(position * 70, 28
             </template>
             <template #content>
                 <p
-                    class="text-3xl font-bold tracking-tight text-surface-900 tabular-nums dark:text-surface-0"
+                    class="text-3xl leading-none font-bold tracking-tight text-surface-900 tabular-nums dark:text-surface-0"
                 >
                     {{ value }}
                 </p>

@@ -232,8 +232,8 @@ const onFocusOut = (event: FocusEvent): void => {
                 :aria-invalid="invalid ? 'true' : undefined"
                 :class="
                     invalid
-                        ? 'border-aq-danger focus-visible:outline-aq-danger'
-                        : 'border-aq-line focus-visible:outline-aq-accent'
+                        ? 'border-aq-danger focus-visible:outline-aq-danger transition-colors duration-150 motion-reduce:transition-none'
+                        : 'border-aq-line focus-visible:outline-aq-accent transition-colors duration-150 motion-reduce:transition-none'
                 "
                 class="h-11 min-w-0 flex-1 basis-0 rounded-lg border bg-aq-elevated/40 text-center text-lg font-semibold text-aq-ink tabular-nums transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                 @input="onInput(index, $event)"

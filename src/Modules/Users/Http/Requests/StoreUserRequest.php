@@ -37,7 +37,7 @@ final class StoreUserRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                new AllowedEmailDomain(),
+                new AllowedEmailDomain,
                 Rule::unique(User::class),
             ],
             'phone' => ['nullable', 'string', 'max:32'],

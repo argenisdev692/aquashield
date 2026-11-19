@@ -135,14 +135,11 @@ const commands = computed<Command[]>(() => {
             keywords: 'theme appearance colour color dark light',
             run: toggleTheme,
         },
-        {
-            id: 'profile',
-            group: 'Preferences',
-            label: 'Profile & security',
-            icon: 'pi-user-edit',
-            keywords: 'account email password 2fa two-factor recovery security',
-            run: () => router.visit('/settings/profile'),
-        },
+        /* No second account entry: the nav model already publishes "Settings"
+           → `/settings`, and a palette that offers the same destination twice
+           under two labels is the same redundancy the account menu had. The
+           direct jump to the account screen lives in the avatar menu, where
+           the person is the context. */
         {
             id: 'sign-out',
             group: 'Session',
@@ -162,6 +159,21 @@ const accountItems = computed<AccountMenuItem[]>(() => {
     }
 
     items.push({ separator: true });
+
+    /**
+     * One destination per row.
+     *
+     * The menu used to offer "Account settings" (`/settings`) and
+     * "Profile & security" (`/settings/profile`) side by side. Both land on a
+     * page titled "Settings" — the first is the overview, the second the
+     * screen behind it — so the person opening their own avatar menu could not
+     * tell which was which, and picked at random. Two rows, one meaning.
+     *
+     * What survives is the direct one: the account screen with its identity,
+     * address, password and two-factor tabs. The overview stays reachable
+     * where it belongs, as the rail's "Settings" destination, and it deep-links
+     * every one of those tabs.
+     */
     items.push({
         label: 'Profile & security',
         icon: 'pi pi-user-edit',
@@ -199,11 +211,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
             Skip to content
         </a>
 
+        <!-- The header owns the full 4rem *including* its hairline. With the
+             height on the inner div the border added a 65th pixel, so the rail's
+             `top-16` / `calc(100dvh - 4rem)` were only true because z-40 hid the
+             overlap. Border-box keeps the shell arithmetic honest. -->
         <header
-            class="sticky top-0 z-40 border-b border-aq-shell-line bg-surface-0/75 backdrop-blur-xl dark:bg-surface-950/70"
+            class="sticky top-0 z-40 h-16 border-b border-aq-shell-line bg-surface-0/75 backdrop-blur-xl dark:bg-surface-950/70"
         >
             <div
-                class="mx-auto flex h-16 w-full max-w-384 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8"
+                class="mx-auto flex h-full w-full max-w-384 items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8"
             >
                 <button
                     type="button"

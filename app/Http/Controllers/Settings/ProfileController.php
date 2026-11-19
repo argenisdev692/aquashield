@@ -26,6 +26,21 @@ final class ProfileController extends Controller
         private readonly StoragePort $storage,
     ) {}
 
+    /**
+     * The settings hub: a map of the account surface that deep-links into the
+     * matching tab on `settings/profile`. It fetches nothing beyond the shared
+     * user projection, so opening it never costs a second round trip.
+     */
+    public function index(Request $request): Response
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        return inertia('Settings/Index', [
+            'user' => UserData::fromModel($user, $this->storage)->toArray(),
+        ]);
+    }
+
     public function edit(Request $request): Response
     {
         /** @var User $user */
