@@ -37,6 +37,24 @@ it('renders the email code screen for a guest', function (): void {
     );
 });
 
+it('returns to the address step when the reset flag is sent', function (): void {
+    $this->withSession(['otp.email' => 'someone@example.com'])
+        ->get('/login/otp')
+        ->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Auth/OtpLogin')
+                ->where('email', 'someone@example.com'),
+        );
+
+    $this->withSession(['otp.email' => 'someone@example.com'])
+        ->get('/login/otp?reset=1')
+        ->assertInertia(
+            fn (Assert $page) => $page
+                ->component('Auth/OtpLogin')
+                ->where('email', null),
+        );
+});
+
 it('sends a six-digit code to a known address', function (): void {
     Notification::fake();
 

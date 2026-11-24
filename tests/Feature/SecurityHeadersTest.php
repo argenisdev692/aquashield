@@ -43,7 +43,9 @@ it('keeps the nonce strict csp and upgrades insecure subresources over https', f
 
     expect($csp)
         ->toContain("font-src 'self'")
-        ->toContain("style-src-elem 'self' 'unsafe-inline'")
+        ->toContain("style-src-elem 'self'")
+        ->not->toContain("style-src-elem 'self' 'unsafe-inline'")
+        ->toContain("style-src-attr 'unsafe-inline'")
         ->toContain("script-src 'self' 'nonce-")
         ->toContain('upgrade-insecure-requests');
 });

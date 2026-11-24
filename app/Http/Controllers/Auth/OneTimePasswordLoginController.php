@@ -35,6 +35,13 @@ final class OneTimePasswordLoginController extends Controller
 {
     public function create(Request $request): Response
     {
+        // `?reset=1` is the "use a different email" escape from the code step.
+        // Without it the session address pins the page to step two and the
+        // visitor has no way back to the form.
+        if ($request->boolean('reset')) {
+            $request->session()->forget(['otp.email', 'status']);
+        }
+
         $email = $request->session()->get('otp.email');
         $status = $request->session()->get('status');
 
@@ -50,7 +57,11 @@ final class OneTimePasswordLoginController extends Controller
         $user = User::query()->where('email', $email)->first();
 
         try {
-            $user?->sendOneTimePassword();
+            // An invited or suspended account must not receive a sign-in code:
+            // the neutral response stays identical, but the code is never sent.
+            if ($user instanceof User && $user->isActive()) {
+                $user->sendOneTimePassword();
+            }
         } catch (Throwable $exception) {
             // A mail outage must not become an account-existence oracle, and it
             // must not turn a public form into a 500. Report it for operators;
@@ -91,6 +102,13 @@ final class OneTimePasswordLoginController extends Controller
 
         if ($user === null) {
             return $this->verificationFailed($request, 'That code is invalid or has expired.');
+        }
+
+        if (! $user->isActive()) {
+            return $this->verificationFailed(
+                $request,
+                'This account is not active. Activate it from your invitation email or contact an administrator.',
+            );
         }
 
         $result = $user->consumeOneTimePassword((string) $request->validated('code'));

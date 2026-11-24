@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
-use Spatie\Permission\Models\Permission;
+use Modules\CompanyData\Models\CompanyData;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -75,7 +75,7 @@ it('rejects invalid input with 422', function (): void {
         ->assertJsonValidationErrors(['name', 'company_name', 'email']);
 });
 
-it('updates the singleton with a token and the update permission', function (): void {
+it('answers 404 when the unprovisioned singleton is updated', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
     Sanctum::actingAs($this->user, ['*']);
 
@@ -83,8 +83,26 @@ it('updates the singleton with a token and the update permission', function (): 
         'name' => 'Victor Lara',
         'company_name' => 'AquaShield Restoration USA',
         'email' => 'info@aquashieldrestorationusa.com',
-    ])->assertOk()->assertJsonPath('company_name', 'AquaShield Restoration USA');
+    ])->assertNotFound();
+
+    $this->assertDatabaseCount('company_data', 0);
+});
+
+it('updates the provisioned singleton with a token and the update permission', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+
+    $company = apiCompanyRecord($this->user);
+
+    Sanctum::actingAs($this->user, ['*']);
+
+    $this->putJson('/api/company-data', [
+        'name' => 'Victor Lara',
+        'company_name' => 'AquaShield Restoration LLC',
+        'email' => 'info@aquashieldrestorationusa.com',
+    ])->assertOk()->assertJsonPath('company_name', 'AquaShield Restoration LLC');
 
     $this->assertDatabaseCount('company_data', 1);
     $this->assertDatabaseHas('company_data', ['user_id' => $this->user->id]);
+
+    expect(CompanyData::current()?->uuid)->toBe($company->uuid);
 });

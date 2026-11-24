@@ -23,20 +23,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Outbound Mail Adapter
-    |--------------------------------------------------------------------------
-    |
-    | Selects the Shared MailInterface implementation (see
-    | Shared\Providers\SharedServiceProvider): "resend" or "brevo".
-    | Unknown values fall back to Brevo. Provider switch = env change,
-    | never a code change.
-    |
-    */
-
-    'adapter' => env('MAIL_ADAPTER', 'resend'),
-
-    /*
-    |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
     |
@@ -64,7 +50,9 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Explicit, not the PHP default. A dead SMTP relay must fail in
+            // ten seconds, never hold a queue worker open.
+            'timeout' => 10,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
@@ -80,6 +68,9 @@ return [
             // ],
         ],
 
+        // The Resend HTTPS API is the production path. Its Guzzle client is
+        // built with explicit timeouts in AppServiceProvider and wrapped by
+        // CircuitBreakerTransport; this config only selects the driver.
         'resend' => [
             'transport' => 'resend',
         ],

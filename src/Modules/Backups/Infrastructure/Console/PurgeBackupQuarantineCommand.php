@@ -7,7 +7,7 @@ namespace Modules\Backups\Infrastructure\Console;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Console\Command;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Models\BackupArchive;
 use Shared\Domain\Ports\AuditPort;
 

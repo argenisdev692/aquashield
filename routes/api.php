@@ -21,7 +21,7 @@ Route::prefix('auth')->group(function (): void {
         ->middleware('throttle:api-login')
         ->name('api.auth.login');
 
-    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'account.active', 'throttle:api'])->group(function (): void {
         Route::get('/me', [AuthController::class, 'me'])->name('api.auth.me');
         Route::post('/refresh', [AuthController::class, 'refresh'])->name('api.auth.refresh');
         Route::post('/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
@@ -30,5 +30,5 @@ Route::prefix('auth')->group(function (): void {
 
 // Backwards-compatible alias for the old closure endpoint, now allowlisted.
 Route::get('/user', [AuthController::class, 'me'])
-    ->middleware(['auth:sanctum', 'throttle:api'])
+    ->middleware(['auth:sanctum', 'account.active', 'throttle:api'])
     ->name('api.user');

@@ -68,8 +68,8 @@ it('queues a security email and writes an audit row on password change', functio
 
     $this->actingAs($user)->put('/user/password', [
         'current_password' => 'current1',
-        'password' => '123456',
-        'password_confirmation' => '123456',
+        'password' => '12345678',
+        'password_confirmation' => '12345678',
     ])->assertSessionHasNoErrors();
 
     Queue::assertPushed(

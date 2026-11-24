@@ -41,7 +41,13 @@ Route::middleware('web')->group(function (): void {
 
             Route::get('/export/{format}', BackupExportController::class)
                 ->whereIn('format', ['csv', 'xlsx', 'pdf'])
-                ->middleware(['permission:EXPORT_BACKUPS', 'throttle:10,1'])
+                // Same read capability as the index: EXPORT_BACKUPS alone must
+                // never widen an inventory the actor cannot list.
+                ->middleware([
+                    'permission:VIEW_ANY_BACKUPS',
+                    'permission:EXPORT_BACKUPS',
+                    'throttle:10,1',
+                ])
                 ->name('export');
 
             Route::get('/{backup}', [BackupController::class, 'show'])

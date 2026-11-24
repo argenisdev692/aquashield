@@ -31,16 +31,6 @@ final class CompanyProfile
 {
     private const string CACHE_KEY = 'company.profile';
 
-    /**
-     * Cache key for the public API payload served to the external landing sites.
-     *
-     * Declared here rather than inside the Company module so that the one place
-     * that flushes company caches — {@see forget()}, called by the model's
-     * `saved` / `deleted` hooks — is also the one place that names the keys.
-     * `CompanyServiceProvider` injects this into the query handler that fills it.
-     */
-    public const string PUBLIC_CACHE_KEY = self::CACHE_KEY.'.public';
-
     public const string FALLBACK_LOGO = 'img/logo.webp';
 
     public const string FALLBACK_LOGO_WHITE = 'img/logo-white.webp';
@@ -82,48 +72,61 @@ final class CompanyProfile
      */
     public static function data(): array
     {
-        return Cache::remember(self::CACHE_KEY, now()->addMinutes(30), static function (): array {
-            $company = self::firstCompanyRow() ?? [];
+        try {
+            return Cache::remember(self::CACHE_KEY, now()->addMinutes(30), static fn (): array => self::buildData());
+        } catch (Throwable) {
+            // A cache outage must not take the welcome page or email header down.
+            return self::buildData();
+        }
+    }
 
-            return [
-                'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
-                // AI context for the Post module's topic ideation (never rendered
-                // in emails/hero — only consumed server-side, harmless addition).
-                'description' => self::stringOrNull($company, 'description'),
-                'url' => self::stringOrNull($company, 'website') ?: self::configString('app.url'),
-                'logo_url' => self::logoUrl(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
-                'logo_white_url' => self::logoUrl(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
-                'mark_url' => self::logoUrl(self::stringOrNull($company, 'mark_path'), self::FALLBACK_MARK),
-                'logo_email_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_path'), self::EMAIL_FALLBACK_LOGO),
-                'logo_email_white_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_white_path'), self::EMAIL_FALLBACK_LOGO_WHITE),
-                'address' => self::stringOrNull($company, 'address'),
-                'address_2' => self::stringOrNull($company, 'address_2'),
-                'zip_code' => self::stringOrNull($company, 'zip_code'),
-                'city' => self::stringOrNull($company, 'city'),
-                'state' => self::stringOrNull($company, 'state'),
-                'country' => self::stringOrNull($company, 'country'),
-                'country_code' => self::stringOrNull($company, 'country_code'),
-                'phone' => self::stringOrNull($company, 'phone'),
-                'support_email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
-                'latitude' => self::floatOrNull($company, 'latitude'),
-                'longitude' => self::floatOrNull($company, 'longitude'),
-                'socials' => array_filter([
-                    'linkedin' => self::stringOrNull($company, 'linkedin_link'),
-                    'twitter' => self::stringOrNull($company, 'twitter_link'),
-                    'instagram' => self::stringOrNull($company, 'instagram_link'),
-                    'facebook' => self::stringOrNull($company, 'facebook_link'),
-                    'tiktok' => self::stringOrNull($company, 'tiktok_link'),
-                    'github' => self::stringOrNull($company, 'github_link'),
-                ]),
-            ];
-        });
+    /**
+     * @return CompanyArray
+     */
+    private static function buildData(): array
+    {
+        $company = self::firstCompanyRow() ?? [];
+
+        return [
+            'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
+            // AI context for the Post module's topic ideation (never rendered
+            // in emails/hero — only consumed server-side, harmless addition).
+            'description' => self::stringOrNull($company, 'description'),
+            'url' => self::urlOrNull($company, 'website') ?: self::configString('app.url'),
+            'logo_url' => self::logoUrl(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
+            'logo_white_url' => self::logoUrl(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
+            'mark_url' => self::logoUrl(self::stringOrNull($company, 'mark_path'), self::FALLBACK_MARK),
+            'logo_email_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_path'), self::EMAIL_FALLBACK_LOGO),
+            'logo_email_white_url' => self::emailSafeLogoUrl(self::stringOrNull($company, 'logo_white_path'), self::EMAIL_FALLBACK_LOGO_WHITE),
+            'address' => self::stringOrNull($company, 'address'),
+            'address_2' => self::stringOrNull($company, 'address_2'),
+            'zip_code' => self::stringOrNull($company, 'zip_code'),
+            'city' => self::stringOrNull($company, 'city'),
+            'state' => self::stringOrNull($company, 'state'),
+            'country' => self::stringOrNull($company, 'country'),
+            'country_code' => self::stringOrNull($company, 'country_code'),
+            'phone' => self::stringOrNull($company, 'phone'),
+            'support_email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
+            'latitude' => self::floatOrNull($company, 'latitude'),
+            'longitude' => self::floatOrNull($company, 'longitude'),
+            'socials' => array_filter([
+                'linkedin' => self::urlOrNull($company, 'linkedin_link'),
+                'twitter' => self::urlOrNull($company, 'twitter_link'),
+                'instagram' => self::urlOrNull($company, 'instagram_link'),
+                'facebook' => self::urlOrNull($company, 'facebook_link'),
+                'tiktok' => self::urlOrNull($company, 'tiktok_link'),
+            ]),
+        ];
     }
 
     public static function forget(): void
     {
-        Cache::forget(self::CACHE_KEY);
-        Cache::forget(self::CACHE_KEY.'.pdf');
-        Cache::forget(self::PUBLIC_CACHE_KEY);
+        try {
+            Cache::forget(self::CACHE_KEY);
+        } catch (Throwable) {
+            // The write already committed; a cache outage only means the
+            // previous payload survives until its TTL expires.
+        }
     }
 
     /**
@@ -151,37 +154,45 @@ final class CompanyProfile
      */
     public static function pdfBranding(): array
     {
-        return Cache::remember(self::CACHE_KEY.'.pdf', now()->addMinutes(30), static function (): array {
-            $company = self::firstCompanyRow() ?? [];
+        // Deliberately uncached: the payload carries tax ids, bank details and
+        // invoice notes. A single-row read per PDF is cheaper than storing that
+        // data unencrypted in the shared cache.
+        return self::buildPdfBranding();
+    }
 
-            return [
-                'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
-                'legal_name' => self::stringOrNull($company, 'name'),
-                'website' => self::stringOrNull($company, 'website') ?: self::configString('app.url'),
-                'email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
-                'phone' => self::stringOrNull($company, 'phone'),
-                'address' => self::composeAddress($company),
-                'country' => self::stringOrNull($company, 'country'),
-                'country_code' => self::stringOrNull($company, 'country_code'),
-                'nif_nipc' => self::stringOrNull($company, 'nif_nipc'),
-                'nie' => self::stringOrNull($company, 'nie'),
-                'bank_beneficiary' => self::stringOrNull($company, 'bank_beneficiary'),
-                'bank_iban' => self::stringOrNull($company, 'bank_iban'),
-                'bank_bic' => self::stringOrNull($company, 'bank_bic'),
-                'bank_name' => self::stringOrNull($company, 'bank_name'),
-                'invoice_notes' => self::stringOrNull($company, 'invoice_notes'),
-                'logo_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
-                'logo_dark_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
-                'socials' => array_filter([
-                    'linkedin' => self::stringOrNull($company, 'linkedin_link'),
-                    'twitter' => self::stringOrNull($company, 'twitter_link'),
-                    'instagram' => self::stringOrNull($company, 'instagram_link'),
-                    'facebook' => self::stringOrNull($company, 'facebook_link'),
-                    'tiktok' => self::stringOrNull($company, 'tiktok_link'),
-                    'github' => self::stringOrNull($company, 'github_link'),
-                ]),
-            ];
-        });
+    /**
+     * @return array{name: string, legal_name: ?string, website: ?string, email: ?string, phone: ?string, address: ?string, country: ?string, country_code: ?string, nif_nipc: ?string, nie: ?string, bank_beneficiary: ?string, bank_iban: ?string, bank_bic: ?string, bank_name: ?string, invoice_notes: ?string, logo_data_uri: string, logo_dark_data_uri: string, socials: array<string, string>}
+     */
+    private static function buildPdfBranding(): array
+    {
+        $company = self::firstCompanyRow() ?? [];
+
+        return [
+            'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
+            'legal_name' => self::stringOrNull($company, 'name'),
+            'website' => self::urlOrNull($company, 'website') ?: self::configString('app.url'),
+            'email' => self::stringOrNull($company, 'email') ?: self::configString('mail.from.address'),
+            'phone' => self::stringOrNull($company, 'phone'),
+            'address' => self::composeAddress($company),
+            'country' => self::stringOrNull($company, 'country'),
+            'country_code' => self::stringOrNull($company, 'country_code'),
+            'nif_nipc' => self::stringOrNull($company, 'nif_nipc'),
+            'nie' => self::stringOrNull($company, 'nie'),
+            'bank_beneficiary' => self::stringOrNull($company, 'bank_beneficiary'),
+            'bank_iban' => self::stringOrNull($company, 'bank_iban'),
+            'bank_bic' => self::stringOrNull($company, 'bank_bic'),
+            'bank_name' => self::stringOrNull($company, 'bank_name'),
+            'invoice_notes' => self::stringOrNull($company, 'invoice_notes'),
+            'logo_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
+            'logo_dark_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
+            'socials' => array_filter([
+                'linkedin' => self::urlOrNull($company, 'linkedin_link'),
+                'twitter' => self::urlOrNull($company, 'twitter_link'),
+                'instagram' => self::urlOrNull($company, 'instagram_link'),
+                'facebook' => self::urlOrNull($company, 'facebook_link'),
+                'tiktok' => self::urlOrNull($company, 'tiktok_link'),
+            ]),
+        ];
     }
 
     /**
@@ -265,7 +276,16 @@ final class CompanyProfile
                 return null;
             }
 
-            $record = DB::table('company_data')->orderBy('id')->first();
+            $query = DB::table('company_data');
+
+            // Legacy installs may still carry the removed soft-delete column
+            // until the singleton hardening migration runs; never serve a
+            // trashed profile while the column exists.
+            if (Schema::hasColumn('company_data', 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            $record = $query->orderBy('id')->first();
 
             return $record === null ? null : (array) $record;
         } catch (Throwable) {
@@ -279,6 +299,27 @@ final class CompanyProfile
     private static function stringOrNull(array $row, string $column): ?string
     {
         return array_key_exists($column, $row) && $row[$column] !== null ? (string) $row[$column] : null;
+    }
+
+    /**
+     * Public links only ever ride http/https. This also neutralises rows
+     * written before the FormRequest scheme restriction existed.
+     *
+     * @param array<string, mixed> $row
+     */
+    private static function urlOrNull(array $row, string $column): ?string
+    {
+        $value = self::stringOrNull($row, $column);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $scheme = parse_url($value, PHP_URL_SCHEME);
+
+        return is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true)
+            ? $value
+            : null;
     }
 
     /**

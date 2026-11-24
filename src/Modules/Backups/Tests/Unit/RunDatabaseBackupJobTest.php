@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Mockery\MockInterface;
-use Modules\Backups\Application\Repositories\DatabaseBackupRunner;
+use Modules\Backups\Application\Ports\DatabaseBackupRunner;
 use Modules\Backups\Domain\Exceptions\BackupRunFailed;
 use Modules\Backups\Jobs\RunDatabaseBackupJob;
 use Shared\Domain\Ports\AuditPort;

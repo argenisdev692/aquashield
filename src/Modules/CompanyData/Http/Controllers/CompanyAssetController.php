@@ -6,12 +6,14 @@ namespace Modules\CompanyData\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\UploadedFile;
-use Modules\CompanyData\Application\Actions\DeleteCompanyAssetAction;
-use Modules\CompanyData\Application\Actions\StoreCompanyAssetAction;
-use Modules\CompanyData\Application\Queries\CompanyAssetsQuery;
-use Modules\CompanyData\Application\Repositories\CompanyRepository;
-use Modules\CompanyData\Domain\Enums\CompanyAsset;
+use Illuminate\Validation\ValidationException;
+use Modules\CompanyData\Actions\DeleteCompanyAssetAction;
+use Modules\CompanyData\Actions\StoreCompanyAssetAction;
+use Modules\CompanyData\Enums\CompanyAsset;
 use Modules\CompanyData\Http\Requests\StoreCompanyAssetRequest;
+use Modules\CompanyData\Models\CompanyData;
+use Modules\CompanyData\Queries\CompanyAssetsQuery;
+use Modules\CompanyData\Support\CompanyAssetProcessingException;
 
 /**
  * Brand-asset transport for the edit screen.
@@ -26,12 +28,11 @@ final class CompanyAssetController
         private readonly StoreCompanyAssetAction $storeCompanyAsset,
         private readonly DeleteCompanyAssetAction $deleteCompanyAsset,
         private readonly CompanyAssetsQuery $companyAssets,
-        private readonly CompanyRepository $companies,
     ) {}
 
     public function store(StoreCompanyAssetRequest $request, CompanyAsset $asset): JsonResponse
     {
-        $company = $this->companies->current();
+        $company = CompanyData::current();
 
         abort_if($company === null, 404);
 
@@ -39,14 +40,18 @@ final class CompanyAssetController
 
         abort_unless($file instanceof UploadedFile, 422);
 
-        $updated = $this->storeCompanyAsset->execute($company, $asset, $file);
+        try {
+            $updated = $this->storeCompanyAsset->execute($company, $asset, $file);
+        } catch (CompanyAssetProcessingException $exception) {
+            throw ValidationException::withMessages(['file' => $exception->getMessage()]);
+        }
 
         return response()->json($this->companyAssets->execute($updated)->toArray());
     }
 
     public function destroy(CompanyAsset $asset): JsonResponse
     {
-        $company = $this->companies->current();
+        $company = CompanyData::current();
 
         abort_if($company === null, 404);
 

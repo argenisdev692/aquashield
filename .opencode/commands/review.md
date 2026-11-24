@@ -24,16 +24,17 @@ diff touches.
 ## 3. Look for, in this order
 
 1. **Security** — missing authorisation on a new route, an id that is not `whereUuid`'d, a response
-   that serialises a raw model, a secret or PII reaching a log, a `v-html`, a client-only permission
-   check, a missing 403 test on an ownership-scoped endpoint
+   that serialises a raw model, a secret or PII reaching a log, a `dangerouslySetInnerHTML`, a
+   client-only permission check, a missing 403 test on an ownership-scoped endpoint
 2. **Correctness** — logic errors, unhandled edge cases, null/undefined paths, race conditions,
    transaction scope around an HTTP call or a dispatch
 3. **Contracts** — an API contract broken by a Data class change; frontend types not regenerated after
    a DTO change; a cache key that no longer covers the filter it depends on
 4. **Architecture** — a dependency pointing outward, a new layer with no test, an optional folder with
    no trigger, a layer declared in one mode and built in another
-5. **Rule violations** — `any`, a hand-written type mirroring a `Data` class, a deprecated PrimeVue
-   v4 API, a bare `with()`, a `JsonResource`, a hardcoded colour
+5. **Rule violations** — `any`, a hand-written type mirroring a `Data` class, a TanStack Table v8
+   API (`useReactTable`, `get*RowModel` options) in a v9 codebase, a client-side sort in a server
+   list, a bare `with()`, a `JsonResource`, a hardcoded colour
 6. **Dead weight** — a port with one implementation and no test, an adapter with no consumer, a
    `Contracts/` folder created "just in case"
 

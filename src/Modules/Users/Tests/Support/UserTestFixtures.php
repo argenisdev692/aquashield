@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Users\Tests\Support;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use Shared\Domain\Enums\Permission as PermissionName;
+use Shared\Domain\Enums\Role as RoleName;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
@@ -21,17 +23,17 @@ final class UserTestFixtures
      * @var list<string>
      */
     public const array PERMISSIONS = [
-        'VIEW_ANY_USER',
-        'VIEW_USER',
-        'CREATE_USER',
-        'UPDATE_USER',
-        'DELETE_USER',
-        'RESTORE_USER',
-        'BULK_DELETE_USER',
-        'BULK_RESTORE_USER',
-        'EXPORT_USER',
-        'ASSIGN_ROLES_USER',
-        'ASSIGN_PERMISSIONS_USER',
+        PermissionName::ViewAnyUser->value,
+        PermissionName::ViewUser->value,
+        PermissionName::CreateUser->value,
+        PermissionName::UpdateUser->value,
+        PermissionName::DeleteUser->value,
+        PermissionName::RestoreUser->value,
+        PermissionName::BulkDeleteUser->value,
+        PermissionName::BulkRestoreUser->value,
+        PermissionName::ExportUser->value,
+        PermissionName::AssignRolesUser->value,
+        PermissionName::AssignPermissionsUser->value,
     ];
 
     public static function seedPermissions(): void
@@ -42,7 +44,7 @@ final class UserTestFixtures
             Permission::findOrCreate($name, 'web');
         }
 
-        Role::findOrCreate('SUPER_ADMIN', 'web')
+        Role::findOrCreate(RoleName::SuperAdmin->value, 'web')
             ->syncPermissions(Permission::all());
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -51,7 +53,21 @@ final class UserTestFixtures
     public static function superAdmin(): User
     {
         $user = User::factory()->create();
-        $user->assignRole('SUPER_ADMIN');
+        $user->assignRole(RoleName::SuperAdmin->value);
+
+        return $user;
+    }
+
+    /**
+     * A user holding every Users permission but not the SUPER_ADMIN role.
+     *
+     * The route group's `can:manage-staff` gate must still return 403: the
+     * capability is a role-derived Gate, not a permission bundle.
+     */
+    public static function delegatedAdmin(): User
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(self::PERMISSIONS);
 
         return $user;
     }

@@ -20,6 +20,8 @@ enum SecurityEvent: string
     case RecoveryCodesRegenerated = '2fa.recovery_codes_regenerated';
     case AccountLocked = 'auth.account_locked';
     case EmailChanged = 'email.changed';
+    case PasskeyRegistered = 'passkey.registered';
+    case PasskeyDeleted = 'passkey.deleted';
 
     public function subject(): string
     {
@@ -30,6 +32,8 @@ enum SecurityEvent: string
             self::RecoveryCodesRegenerated => 'New two-factor recovery codes were generated',
             self::AccountLocked => 'Security alert: sign-in to your AquaShield account was locked',
             self::EmailChanged => 'Your AquaShield sign-in email was changed',
+            self::PasskeyRegistered => 'A passkey was added to your AquaShield account',
+            self::PasskeyDeleted => 'A passkey was removed from your AquaShield account',
         };
     }
 
@@ -42,6 +46,8 @@ enum SecurityEvent: string
             self::RecoveryCodesRegenerated => 'Recovery codes regenerated',
             self::AccountLocked => 'Sign-in temporarily locked',
             self::EmailChanged => 'Sign-in email changed',
+            self::PasskeyRegistered => 'Passkey added',
+            self::PasskeyDeleted => 'Passkey removed',
         };
     }
 
@@ -54,13 +60,15 @@ enum SecurityEvent: string
             self::RecoveryCodesRegenerated => 'The recovery codes for your account were replaced. Older codes no longer work.',
             self::AccountLocked => 'Sign-in was locked after repeated incorrect password attempts. The lock lifts automatically; you do not need to contact support.',
             self::EmailChanged => 'The email address used to sign in to your AquaShield account was changed. If you did not authorize this change, contact support immediately.',
+            self::PasskeyRegistered => 'A passkey can now sign in to your account without a password. If you did not add it, remove it in Settings → Security and change your password.',
+            self::PasskeyDeleted => 'A passkey can no longer sign in to your account. If you did not remove it, add a new passkey and change your password.',
         };
     }
 
     public function severity(): string
     {
         return match ($this) {
-            self::TwoFactorDisabled, self::AccountLocked, self::EmailChanged => 'warning',
+            self::TwoFactorDisabled, self::AccountLocked, self::EmailChanged, self::PasskeyDeleted => 'warning',
             default => 'info',
         };
     }

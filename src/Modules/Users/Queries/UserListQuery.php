@@ -7,6 +7,7 @@ namespace Modules\Users\Queries;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Modules\Users\Data\UserFilterData;
 
 /**
@@ -26,7 +27,7 @@ final class UserListQuery
      */
     public function builder(UserFilterData $filters): Builder
     {
-        return User::query()
+        $query = User::query()
             ->when(
                 $filters->search !== null && $filters->search !== '',
                 static function (Builder $query) use ($filters): void {
@@ -42,12 +43,16 @@ final class UserListQuery
                 },
             )
             ->when(
-                $filters->role !== null,
+                $filters->role !== [],
                 static fn (Builder $query): Builder => $query->role($filters->role),
             )
             ->when(
                 $filters->permission !== null,
                 static fn (Builder $query): Builder => $query->permission($filters->permission),
+            )
+            ->when(
+                $filters->accountStatus !== null,
+                static fn (Builder $query): Builder => $query->where('status', $filters->accountStatus),
             )
             ->when(
                 $filters->status === 'trashed',
@@ -59,13 +64,34 @@ final class UserListQuery
             )
             ->when(
                 $filters->dateFrom !== null,
-                static fn (Builder $query): Builder => $query->whereDate('created_at', '>=', $filters->dateFrom),
+                static fn (Builder $query): Builder => $query->where(
+                    'created_at',
+                    '>=',
+                    $filters->dateFrom.' 00:00:00',
+                ),
             )
             ->when(
                 $filters->dateTo !== null,
-                static fn (Builder $query): Builder => $query->whereDate('created_at', '<=', $filters->dateTo),
-            )
-            ->orderBy($filters->sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
+                static function (Builder $query) use ($filters): Builder {
+                    $nextDay = Carbon::parse($filters->dateTo)->addDay()->toDateString();
+
+                    return $query->where('created_at', '<', $nextDay.' 00:00:00');
+                },
+            );
+
+        $direction = $filters->sortOrder === -1 ? 'desc' : 'asc';
+
+        // `name` is an accessor, not a column. Expand it to the canonical pair
+        // instead of letting an orderBy on a non-column reach the database.
+        if ($filters->sortField === 'name') {
+            return $query
+                ->orderBy('first_name', $direction)
+                ->orderBy('last_name', $direction)
+                ->orderBy('id');
+        }
+
+        return $query
+            ->orderBy($filters->sortField, $direction)
             ->orderBy('id');
     }
 

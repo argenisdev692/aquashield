@@ -6,7 +6,7 @@ namespace Modules\Backups\Tests\Support;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Models\BackupArchive;
 use Ramsey\Uuid\Uuid;
 use RuntimeException;

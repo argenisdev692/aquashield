@@ -63,6 +63,17 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'authPermissions' => $permissions,
+            /*
+             * Capability, not a role list: the shell hides the Users rail entry
+             * unless the account can manage staff. The route group re-checks
+             * the same Gate, so hiding the link is defence in depth.
+             */
+            'canManageStaff' => $user instanceof User && $user->can('manage-staff'),
+            'canManageAccess' => $user instanceof User && $user->can('manage-access'),
+            'flash' => [
+                'status' => session('status'),
+                'error' => session('error'),
+            ],
             // null whenever the visitor owes no decision, which is the common
             // case: one shared prop, typed from `CookieConsentData` via
             // `typescript:transform`, and the Vue banner renders nothing for it.
@@ -80,6 +91,21 @@ class HandleInertiaRequests extends Middleware
                 ),
             'user' => $user instanceof User
                 ? UserData::fromModel($user, app(StoragePort::class))->toArray()
+                : null,
+
+            /*
+             * True only for a signed-in user with no passkey and no recorded
+             * dismissal. One indexed `exists()` per authenticated page; the
+             * dashboard is the only consumer, and the prompt is a courtesy,
+             * never a gate.
+             *
+             * `getRawOriginal` rather than the attribute accessor: strict mode
+             * (`Model::shouldBeStrict`) throws on an attribute a freshly created
+             * model never loaded, and `null` is exactly the right answer there.
+             */
+            'passkeyPrompt' => $user instanceof User
+                ? $user->getRawOriginal('passkey_prompt_dismissed_at') === null
+                    && $user->passkeys()->doesntExist()
                 : null,
         ];
     }

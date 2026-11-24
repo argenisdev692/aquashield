@@ -202,8 +202,40 @@ it('declares no class that nothing else references', function () use ($modulePhp
     expect($orphans)->toBe([], "A class nothing references is a presumptive feature (Fowler) — delete it, or give it a consumer today. YAGNI, not a plan:\n  ".implode("\n  ", $orphans));
 })->skip(fn () => $modulePhp === [], 'src/Modules is empty — nothing to orphan yet.');
 
-/* ------------------------------------------------- 3. no speculative folders */
+/* ------------------------------------ 3. no raw model serialisation */
 
+it('does not serialise a raw model from a controller', function () use ($firstPartyPhp, $projectPath) {
+    // Invariant 14 in spirit: a response shape is a Data object, never the
+    // persistence model. The Resources/-folder check cannot see
+    // `response()->json($model->toArray())`, which is exactly how a raw model
+    // reaches the wire with fields nobody allowlisted.
+    $offenders = [];
+
+    foreach ($firstPartyPhp as $rel) {
+        if (! str_contains($rel, '/Http/Controllers/')) {
+            continue;
+        }
+
+        $src = (string) file_get_contents("$projectPath/$rel");
+
+        // Only files that actually import an Eloquent model are candidates;
+        // `response()->json($dto->toArray())` on a value object is legitimate.
+        $importsModel = preg_match('/^use\s+[\w\\\\]*\\\\Models\\\\\w+;/m', $src) === 1;
+
+        if ($importsModel && preg_match('/response\(\)->json\(\s*\$\w+->toArray\(\)\s*\)/', $src) === 1) {
+            $offenders[] = $rel;
+        }
+    }
+
+    expect($offenders)->toBe(
+        [],
+        'A controller serialises the Eloquent model directly. Wrap it in a Data DTO '
+        ."(`XData::from(\$model)`) so the response stays an allowlist:\n  "
+        .implode("\n  ", $offenders),
+    );
+});
+
+/* ------------------------------------------------- 4. no speculative folders */
 it('ships no speculative Contracts folder in a module', function () use ($moduleNames, $modulesPath) {
     $found = [];
 

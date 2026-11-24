@@ -41,6 +41,7 @@ class UpdateUserPassword implements UpdatesUserPasswords
 
         $user->forceFill([
             'password' => Hash::make($input['password']),
+            'must_change_password' => false,
         ])->save();
 
         $context = AuthRequestContext::properties();

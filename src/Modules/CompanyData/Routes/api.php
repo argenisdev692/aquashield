@@ -23,6 +23,6 @@ Route::middleware('api')->prefix('api')->group(function (): void {
         ->name('api.company-data.manage');
 
     Route::put('/company-data', [CompanyDataController::class, 'update'])
-        ->middleware(['auth:sanctum', 'can:update-company-data'])
+        ->middleware(['auth:sanctum', 'can:update-company-data', 'throttle:30,1'])
         ->name('api.company-data.update');
 });

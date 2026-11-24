@@ -10,9 +10,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\View as ViewFactory;
 use Illuminate\Support\ServiceProvider;
 use Shared\Domain\Ports\AuditPort;
-use Shared\Domain\Ports\DocsVerificationPort;
 use Shared\Domain\Ports\ExportPort;
-use Shared\Domain\Ports\SpeechSynthesizerPort;
 use Shared\Domain\Ports\StoragePort;
 use Shared\Infrastructure\AI\AIClientInterface;
 use Shared\Infrastructure\AI\LaravelAIAdapter;
@@ -21,10 +19,7 @@ use Shared\Infrastructure\Audit\SpatieActivityLogAdapter;
 use Shared\Infrastructure\Company\CompanyProfile;
 use Shared\Infrastructure\Console\Commands\PingRedisCommand;
 use Shared\Infrastructure\Console\Commands\SyncR2CorsCommand;
-use Shared\Infrastructure\Docs\Context7ClientInterface;
-use Shared\Infrastructure\Docs\Context7DocsAdapter;
 use Shared\Infrastructure\Export\SimpleExcelExportAdapter;
-use Shared\Infrastructure\Mail\BrevoMailAdapter;
 use Shared\Infrastructure\Mail\MailInterface;
 use Shared\Infrastructure\Mail\ResendMailAdapter;
 use Shared\Infrastructure\OpenApi\SpatieDataToSchema;
@@ -34,8 +29,6 @@ use Shared\Infrastructure\Research\TavilyClientInterface;
 use Shared\Infrastructure\Research\TavilyResearchAdapter;
 use Shared\Infrastructure\Resilience\CircuitBreaker\CircuitBreaker;
 use Shared\Infrastructure\Resilience\CircuitBreaker\CircuitBreakerInterface;
-use Shared\Infrastructure\Speech\ElevenLabsSpeechAdapter;
-use Shared\Infrastructure\Speech\LaravelAiSpeechAdapter;
 use Shared\Infrastructure\Storage\R2StorageAdapter;
 
 /**
@@ -52,27 +45,17 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->bind(ExportPort::class, SimpleExcelExportAdapter::class);
         $this->app->bind(AIClientInterface::class, LaravelAIAdapter::class);
         // One scope per request/job: carries the active CacheablePrompt from
-        // PromptCachingAIClient to the agent's providerOptions().
-        $this->app->singleton(PromptCacheScope::class);
+        // PromptCachingAIClient to the agent's providerOptions(). `scoped` (not
+        // `singleton`) so a long-lived worker or Octane request cannot observe
+        // the previous lifecycle's prompt.
+        $this->app->scoped(PromptCacheScope::class);
         $this->app->bind(TavilyClientInterface::class, TavilyResearchAdapter::class);
         $this->app->bind(FirecrawlClientInterface::class, FirecrawlScrapeAdapter::class);
 
-        // Both docs contracts resolve to the same adapter — the Domain port for
-        // grounded snippets, the client interface for callers that need the
-        // resolved Context7 library id itself.
-        $this->app->bind(DocsVerificationPort::class, Context7DocsAdapter::class);
-        $this->app->bind(Context7ClientInterface::class, Context7DocsAdapter::class);
-        $this->app->bind(SpeechSynthesizerPort::class, static fn ($app): SpeechSynthesizerPort => match ((string) config('services.speech.synthesizer', 'elevenlabs')) {
-            'laravel-ai' => $app->make(LaravelAiSpeechAdapter::class),
-            default => $app->make(ElevenLabsSpeechAdapter::class),
-        });
-        // Outbound mail provider is a config switch, not a code change — see the
-        // "adapter" key in config/mail.php. Unknown values fall back to Brevo so a
-        // typo in MAIL_ADAPTER degrades to the previous transport, not to no mail.
-        $this->app->bind(MailInterface::class, static fn ($app): MailInterface => match ((string) config('mail.adapter')) {
-            'resend' => $app->make(ResendMailAdapter::class),
-            default => $app->make(BrevoMailAdapter::class),
-        });
+        // The outbound provider is Resend. The adapter is intentionally the
+        // only implementation: resilience (HTTP timeout + circuit breaker)
+        // lives in the shared mail transport, not in a second provider class.
+        $this->app->bind(MailInterface::class, ResendMailAdapter::class);
 
         // NOTE: no `csp-nonce` binding here on purpose. The single source is
         // spatie/laravel-csp (`csp-nonce` scoped binding + `@cspNonce` Blade

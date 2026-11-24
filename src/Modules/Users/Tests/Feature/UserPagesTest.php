@@ -24,7 +24,7 @@ it('renders the users index with the first page and its filter contract', functi
     $target = User::factory()->create([
         'first_name' => 'Juana',
         'last_name' => 'Perez',
-        'email' => 'juana@example.com',
+        'email' => 'juana@gmail.com',
     ]);
 
     $this->actingAs($this->admin)
@@ -42,6 +42,7 @@ it('renders the users index with the first page and its filter contract', functi
             ->where('filters.sort_order', 1)
             ->has('catalog.roles', 1)
             ->where('catalog.roles.0.name', 'SUPER_ADMIN')
+            ->where('rows.0.is_super_admin', false)
             ->where('canCreate', true)
             ->where('canExport', true)
             ->where('canBulkDelete', true)
@@ -53,20 +54,12 @@ it('renders the users index with the first page and its filter contract', functi
         );
 });
 
-it('shares only the permissions that belong to the acting user', function (): void {
-    $viewer = User::factory()->create();
-    $viewer->givePermissionTo('VIEW_ANY_USER');
+it('forbids a non-super-admin from the users index even with every Users permission', function (): void {
+    $viewer = UserTestFixtures::delegatedAdmin();
 
     $this->actingAs($viewer)
         ->get('/users')
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where(
-                'authPermissions',
-                fn (Collection $permissions) => $permissions->count() === 1
-                    && $permissions->contains('VIEW_ANY_USER'),
-            )
-        );
+        ->assertForbidden();
 });
 
 it('keeps the JSON list contract for data-table clients', function (): void {
@@ -106,12 +99,27 @@ it('renders the show screen with row-level abilities', function (): void {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Users/Show')
             ->where('user.uuid', $target->uuid)
+            ->where('user.is_super_admin', false)
             ->where('canUpdate', true)
             ->where('canDelete', true)
             ->where('canRestore', true)
             ->where('canAssignRoles', true)
             ->where('canAssignPermissions', true)
+            ->where('canSendPasswordReset', true)
+            ->where('canResendInvitation', false)
+            ->where('invitationExpiresInHours', 48)
+            ->where('passwordResetExpiresInMinutes', 60)
             ->has('catalog.roles', 1)
+        );
+});
+
+it('marks a super administrator through a server capability flag', function (): void {
+    $this->actingAs($this->admin)
+        ->get('/users/'.$this->admin->uuid)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Users/Show')
+            ->where('user.is_super_admin', true)
         );
 });
 
@@ -127,6 +135,51 @@ it('renders a soft-deleted user so restore stays reachable', function (): void {
             ->where('user.uuid', $target->uuid)
             ->whereNot('user.deleted_at', null)
             ->where('canRestore', true)
+        );
+});
+
+it('exposes exactly one access-link capability per lifecycle state', function (): void {
+    $active = User::factory()->create();
+    $invited = User::factory()->invited()->create();
+    $suspended = User::factory()->suspended()->create();
+    $deleted = User::factory()->create();
+    $deleted->delete();
+
+    $this->actingAs($this->admin)
+        ->get('/users/'.$active->uuid)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canSendPasswordReset', true)
+            ->where('canResendInvitation', false)
+        );
+
+    $this->actingAs($this->admin)
+        ->get('/users/'.$invited->uuid)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canSendPasswordReset', false)
+            ->where('canResendInvitation', true)
+        );
+
+    $this->actingAs($this->admin)
+        ->get('/users/'.$suspended->uuid)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canSendPasswordReset', false)
+            ->where('canResendInvitation', false)
+        );
+
+    $this->actingAs($this->admin)
+        ->get('/users/'.$deleted->uuid)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canSendPasswordReset', false)
+            ->where('canResendInvitation', false)
+        );
+
+    $deleted->restore();
+
+    $this->actingAs($this->admin)
+        ->get('/users/'.$deleted->uuid)
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canSendPasswordReset', true)
+            ->where('canResendInvitation', false)
         );
 });
 
@@ -163,7 +216,7 @@ it('persists and exposes the address projection', function (): void {
     $this->actingAs($this->admin)
         ->postJson('/users', [
             'first_name' => 'Ada',
-            'email' => 'ada@example.com',
+            'email' => 'ada@gmail.com',
             'address' => '1 Main St',
             'address_2' => 'Apt 4',
             'zip_code' => '77002',
@@ -180,7 +233,7 @@ it('persists and exposes the address projection', function (): void {
         ->assertJsonPath('latitude', 29.7604)
         ->assertJsonPath('longitude', -95.3698);
 
-    $user = User::query()->where('email', 'ada@example.com')->firstOrFail();
+    $user = User::query()->where('email', 'ada@gmail.com')->firstOrFail();
 
     $this->actingAs($this->admin)
         ->get('/users/'.$user->uuid)
@@ -201,10 +254,10 @@ it('redirects an Inertia create to the new user page and queues the invitation',
         ->post('/users', [
             'first_name' => 'Juan',
             'last_name' => 'Perez',
-            'email' => 'juan@example.com',
+            'email' => 'juan@gmail.com',
         ]);
 
-    $user = User::query()->where('email', 'juan@example.com')->firstOrFail();
+    $user = User::query()->where('email', 'juan@gmail.com')->firstOrFail();
 
     $response->assertRedirect(route('users.show', ['user' => $user->uuid]));
     Queue::assertPushed(SendUserInvitationJob::class);
@@ -213,7 +266,8 @@ it('redirects an Inertia create to the new user page and queues the invitation',
         ->get(route('users.show', ['user' => $user->uuid]))
         ->assertOk();
 
-    expect($user->hasVerifiedEmail())->toBeTrue();
+    expect($user->status->value)->toBe('invited')
+        ->and($user->hasVerifiedEmail())->toBeFalse();
 });
 
 it('redirects Inertia validation errors back with the error bag', function (): void {

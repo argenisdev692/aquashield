@@ -8,16 +8,15 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
     "types": ["vite/client", "google.maps"],
     "paths": {
-      "@/volt/*": ["./src/volt/*"],
       "@/pages/*": ["./resources/js/Pages/*"],
       "@/layouts/*": ["./resources/js/Layouts/*"],
       "@/*": ["./resources/js/*"]
     }
   },
-  "include": ["resources/js/**/*.ts", "resources/js/**/*.vue", "src/**/*.ts", "src/**/*.vue"],
+  "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "public", "vendor"]
 }

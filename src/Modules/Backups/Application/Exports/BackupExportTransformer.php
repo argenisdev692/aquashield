@@ -6,6 +6,7 @@ namespace Modules\Backups\Application\Exports;
 
 use Modules\Backups\Application\Queries\BackupIndexQuery;
 use Modules\Backups\Data\BackupFilterData;
+use Shared\Support\SpreadsheetCell;
 
 /**
  * Projects the same filtered inventory the index returns into export rows.
@@ -52,22 +53,13 @@ final readonly class BackupExportTransformer
     {
         foreach ($this->query->all($this->filters) as $row) {
             yield [
-                'filename' => $this->cell($row->filename),
-                'disk' => $this->cell($row->disk),
-                'taken_at' => $this->cell($row->takenAt),
-                'size' => $this->cell($row->sizeHuman),
+                'filename' => SpreadsheetCell::sanitise($row->filename),
+                'disk' => SpreadsheetCell::sanitise($row->disk),
+                'taken_at' => SpreadsheetCell::sanitise($row->takenAt),
+                'size' => SpreadsheetCell::sanitise($row->sizeHuman),
                 'age_days' => $row->ageDays,
                 'status' => $row->isTrashed ? 'Quarantined' : 'Active',
             ];
         }
-    }
-
-    /**
-     * Neutralise spreadsheet formula injection even though every value here is
-     * server-generated. Defence in depth costs one comparison.
-     */
-    private function cell(string $value): string
-    {
-        return preg_match('/^[=+\-@]/', $value) === 1 ? "'".$value : $value;
     }
 }

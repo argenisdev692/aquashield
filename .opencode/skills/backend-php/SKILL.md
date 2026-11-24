@@ -15,7 +15,7 @@ no untyped params, no `mixed` without a narrowing guard at the boundary.
 
 ## 1. PHP 8.5 features that are real
 
-Verified against PHP 8.5.9. All of these exist:
+Verified against PHP 8.5.13. All of these exist:
 
 | Feature                                           | Use for                                                                                 |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -73,8 +73,10 @@ activitylog v5) are in §5, not here — a rename is a compile error you will se
 **Service providers.** Register app providers in `bootstrap/providers.php`. Module providers are
 hand-registered — Laravel 11+ only auto-discovers `app/Providers/`.
 
-**Models.** `HasUuids` for primary keys (UUIDv7 since Laravel 12). Declare `$fillable` explicitly —
-never `$guarded = []` on a model with a mass-assignment path.
+**Models.** `HasUuids` for the public UUID identifier (UUIDv7 since Laravel 12). This repo keeps an
+internal numeric `id`; `uniqueIds()` returns `['uuid']`, and `uuid` is the only identifier that
+crosses HTTP. Declare `$fillable` explicitly — never `$guarded = []` on a model with a
+mass-assignment path.
 
 Strict mode is environment-split, and this is deliberate:
 
@@ -107,6 +109,11 @@ Post::withWhereHas('author', fn ($q) => $q->where('active', true))->get();
 ```
 
 Never a bare `with('posts')` on a list endpoint — it loads every column of every related row.
+
+**Queued credential links.** A job that mails a signed link or a password reset re-checks its
+terminal states after `fresh()` — `trashed()`, the lifecycle status and the single-use marker.
+`deleteWhenMissingModels` does not cover soft deletes, and `fresh()` bypasses the soft-delete scope,
+so a deleted account still passes `isActive()`/`isInvited()`. Return without sending.
 
 **Transactions** wrap multi-write operations only, and never around an HTTP call or a dispatch.
 
@@ -201,7 +208,7 @@ caller will not catch.
 
 | Package                                 | Version    | Belongs in                                                       |
 | --------------------------------------- | ---------- | ---------------------------------------------------------------- |
-| `laravel/framework`                     | 13.33      | —                                                                |
+| `laravel/framework`                     | 13.43      | —                                                                |
 | `laravel/fortify`                       | ^1.40      | auth — the domain is Fortify's, not ours                         |
 | `laravel/passkeys`                      | transitive | auth                                                             |
 | `laravel/sanctum`                       | ^4.0       | API tokens                                                       |
@@ -385,6 +392,9 @@ final class StoreBookingRequest extends FormRequest
   (`required|array|min:1|max:500`, each `uuid`); the shared payload contract is
   `Shared\Application\DTOs\BulkUuidsData`.
 - Query filters validate through `{Entity}FilterData` (Spatie Data), never a FormRequest.
+- Array filters whose items are checked against the database (`exists`, `unique`) carry a `max:`
+  cap (e.g. `['nullable', 'array', 'max:50']`). An uncapped array is N validation queries in one
+  request — OWASP API4 — even when `distinct` will ultimately reject the duplicates.
 - Business invariants live in the Action or the domain; `rules()` stays transport-only.
 
 ### 11.10 Pest — the quartet, then a DB-free unit test

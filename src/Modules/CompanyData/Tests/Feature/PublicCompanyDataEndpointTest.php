@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use Database\Seeders\CompanyDataSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
 use Shared\Infrastructure\Company\CompanyProfile;
 use Tests\TestCase;
 
@@ -47,6 +47,25 @@ it('serves public branding without authentication', function (): void {
         ->assertJsonMissingPath('bank_iban')
         ->assertJsonMissingPath('nif_nipc')
         ->assertJsonMissingPath('signature_path');
+});
+
+it('drops a non-http social link written before validation existed', function (): void {
+    $owner = User::factory()->create();
+
+    $company = new CompanyData;
+    $company->fill([
+        'company_name' => 'Legacy Company',
+        'email' => 'legacy@example.com',
+        'facebook_link' => 'javascript:alert(1)',
+    ]);
+    $company->user_id = $owner->id;
+    $company->save();
+
+    CompanyProfile::forget();
+
+    $this->getJson('/api/company-data')
+        ->assertOk()
+        ->assertJsonPath('socials.facebook', null);
 });
 
 it('falls back to the app branding when no company row exists', function (): void {

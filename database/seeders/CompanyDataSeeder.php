@@ -7,7 +7,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
 use Shared\Infrastructure\Company\CompanyProfile;
 
 /**
@@ -66,7 +66,6 @@ class CompanyDataSeeder extends Seeder
         // an R2 object key written by the asset endpoint, never a full URL
         // (a frozen origin makes a later bucket migration unrecoverable).
         $company->user_id = $owner->id;
-        $company->signature_path = '/signatures/victor_lara_signature.png';
         $company->logo_path = 'img/logo.webp';
         $company->logo_white_path = 'img/logo-white.webp';
         $company->mark_path = 'img/logo-mark.webp';

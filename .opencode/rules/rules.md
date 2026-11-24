@@ -20,7 +20,7 @@ trigger: always_on
 | Any backend or frontend change (security applies to both) | `.opencode/skills/owasp/SKILL.md` (portable core, always-on) + `.opencode/skills/owasp/STACK.md` (this stack's bindings) |
 | PHP / Laravel / business logic                            | `.opencode/skills/backend-php/SKILL.md`                                                                                  |
 | Directory structure, layers, module layout                | `.opencode/skills/backend-php/SKILL-ARCHITECTURE.md`                                                                     |
-| Vue / Inertia / Pinia / PrimeVue / Tailwind               | `.opencode/skills/frontend/SKILL.md`                                                                                     |
+| React / Inertia / TanStack / shadcn / Tailwind            | `.opencode/skills/frontend/SKILL.md`                                                                                     |
 | Frontend directory tree, file placement                   | `.opencode/skills/frontend/SKILL-ARCHITECTURE.md`                                                                        |
 | New feature, non-trivial or ambiguous scope               | `.opencode/skills/SSD/SKILL.md` — 7-phase spec-driven flow                                                               |
 | Simple FLAT CRUD scaffolding                              | `GUIDE/module-make.md` + `stubs/architecture/`                                                                           |
@@ -28,10 +28,11 @@ trigger: always_on
 
 If a skill covers the task, read it first. No exceptions.
 
-**What exists today:** `src/Modules/` is **empty** — no domain module is implemented. The architecture
-suite in `tests/Architecture/` is therefore intentionally vacuous (it skips itself), and
-`resources/js/generated/` holds only a `.gitkeep`. `src/Shared/` is populated. Never claim a module,
-screen or DTO exists because a rule above names it.
+**What exists today:** `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and
+`Users` (FLAT), plus `Backups` and `LeadAppointment` (PROGRESSIVE) — each with its own `ARCHITECTURE.md` and tests. The architecture suite in
+`tests/Architecture/` runs against them (41 tests green on 2026-11-24), and
+`resources/js/generated/generated.d.ts` is populated. `src/Shared/` is populated. Never claim a
+module, screen or DTO exists because a rule above names it — check the disk.
 
 # [MUST] Judgement calls — the short form
 
@@ -55,28 +56,31 @@ six lines are the ones an agent gets wrong most often:
 And the reframe that matters most for an agent: **skipping a layer is a decision with a reason, not
 an omission.** Omitting it because it was not required is compliance, not a shortcut.
 
-# Stack — verified 2026-09-28
+# Stack — verified 2026-11-23
 
-|                  | Version                                             | Note                                                                                                                                                                     |
-| ---------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| PHP              | 8.5.9                                               | `\|>`, `clone($obj, [...])`, `array_first/last()`, `#[\NoDiscard]`, `Uri\Rfc3986\Uri` all present. Property hooks and asymmetric visibility are **8.4**                  |
-| Laravel          | 13.33.0                                             | `HasUuids` (UUIDv7). `HasVersion7Uuids` was **removed** in L12. `JsonApiResource` and `PreventRequestForgery` are first-party                                            |
-| Vue              | 3.5.43                                              | **3.5 is the floor.** 3.6 is still a **release candidate** — reactivity rebuilt on alien-signals, plus opt-in **Vapor Mode**. Do not adopt, do not pin an `-rc.N` string |
-| Inertia          | 3.7.1 client / 3.4.0 server                         | v3 GA. SSR disabled: `INERTIA_SSR_ENABLED=false`. ESM-only, Node ≥24                                                                                                     |
-| PrimeVue         | **5.0.1**                                           | First release under the PrimeUI umbrella. **Not v4.** v5 has no breaking API changes — it _deprecates_, removed in v6                                                    |
-| PrimeVue license | required                                            | `VITE_PRIMEUI_LICENSE` must be set or v5 logs `license is not configured`. Free Community key: primeui.dev/licenses/community                                            |
-| Tailwind         | 4.3.3                                               | No `tailwind.config.js`, no PostCSS. `@source` must cover `src/**/*.vue` or Volt classes are dropped from the build                                                      |
-| Pinia / Colada   | 4.0.3 / 1.4.6                                       | Colada gives `useQuery`, `useMutation`, `defineQuery`, `defineMutation`                                                                                                  |
-| Volt             | `volt-vue 0.0.0-alpha.4`, components in `src/volt/` | **The CLI is alpha and generates the whole UI layer.** 50 components + `utils.ts`. `git diff` after every `volt-vue add`; never hardcode the count                       |
-| FullCalendar     | 7.1.0                                               | View plugins are `@fullcalendar/vue3/<view>` subpaths. The standalone `@fullcalendar/daygrid` etc. packages were **removed in v7**                                       |
-| motion-v         | 2.5.0                                               | Official Motion for Vue. **`framer-motion` is React-only — never install it**                                                                                            |
-| TypeScript       | 6.0.3                                               | `strict: true`, `noEmit`. **6.0 is the last JS-based release** — the Go-native 7.0 is next. Adopt no newly-deprecated compiler option                                    |
-| Vite             | 8.3.1                                               | With `laravel-vite-plugin` 3.2. `build.sourcemap: false` is still a documented OWASP gap — see `owasp/STACK.md` §17                                                      |
+|                  | Version                       | Note                                                                                                                                                                                                                        |
+| ---------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PHP              | 8.5.13                        | `\|>`, `clone($obj, [...])`, `array_first/last()`, `#[\NoDiscard]`, `Uri\Rfc3986\Uri` all present. Property hooks and asymmetric visibility are **8.4**                                                                     |
+| Laravel          | 13.43.0                       | `HasUuids` (UUIDv7). `HasVersion7Uuids` was **removed** in L12. `JsonApiResource` and `PreventRequestForgery` are first-party                                                                                               |
+| React            | 19.3.1                        | **The latest stable 19.x line is 19.3** (GA 2026-09-09; npm 19.3.1). 19.2 stabilised `<Activity>` + `useEffectEvent`; 19.3 stabilised `<ViewTransition>`, Fragment refs, `browser()` and Trusted Types. No class components |
+| Inertia          | 3.11.0 client / 3.4.0 server  | v3 GA. SSR disabled: `INERTIA_SSR_ENABLED=false`. ESM-only, Node ≥24, React ≥19                                                                                                                                             |
+| shadcn/ui        | CLI 4.23.0 · Base UI 1.9.0    | Components are source in `resources/js/Components/ui/`. `components.json` style `base-nova`. **Base UI is the default; Radix is not installed**                                                                             |
+| Tailwind         | 4.3.5                         | No `tailwind.config.js`, no PostCSS. `@source` must cover `../**/*.tsx` and `../../src/**/*.tsx` or classes are dropped from the build                                                                                      |
+| TanStack Query   | 5.108.0                       | v5 object API: `queryOptions`, `useQuery`, `useSuspenseQuery`, `usePrefetchQuery`, `useMutation`, `useQueryClient`. No `onSuccess` on `useQuery`                                                                            |
+| TanStack Table   | 9.3.1                         | v9: `useTable` + required `features` (`tableFeatures` / `stockFeatures`), row models on the features object. ESM-only, ES2022                                                                                               |
+| React Compiler   | 1.0.0                         | `babel-plugin-react-compiler` in `vite.config.js`. Memoises automatically — do not add `useMemo`/`useCallback` by reflex                                                                                                    |
+| FullCalendar     | 7.1.5 (`@fullcalendar/react`) | Views are `@fullcalendar/react/<view>` subpaths. The standalone `@fullcalendar/daygrid` etc. packages were **removed in v7**                                                                                                |
+| Motion for React | 14.14.0 (`framer-motion`)     | Official Motion for React. **`motion-v` is Vue-only and banned**                                                                                                                                                            |
+| TypeScript       | 7.0.2                         | `strict: true`, `noEmit`, native Go `tsc` (8–12× faster). 7.0 has **no programmatic API** (7.1 adds it); alias `npm:@typescript/typescript6` only if a compiler-API tool is added. The gate is `npx tsc --noEmit`           |
+| Vite             | 8.3.8                         | With `laravel-vite-plugin` 3.2. `build.sourcemap: false` is still a documented OWASP gap — see `owasp/STACK.md` §17                                                                                                         |
+
+> **The Vue 3.5 app is gone.** Pinia, Pinia Colada, PrimeVue, Volt, `tailwindcss-primeui`, `motion-v`, `.vue` files and `composables/` directories are migration leftovers, not alternatives. New
+> code is React 19.3 + Inertia 3 + TanStack Query + shadcn/ui on Base UI. If you find one of those leftovers, port it to the module `hooks/` + `Components/ui/` shape or flag it — never extend it.
 
 **Tooling that is installed but not in the gate:** `rector/rector` + `driftingly/rector-laravel` (no
 `rector.php` config, no gate step — available for a deliberate modernisation pass, never automatic),
 `bacon/bacon-qr-code`, `phpoffice/phpword`, `spatie/laravel-backup`, `spatie/laravel-cookie-consent`,
-`spatie/laravel-sitemap`, `spatie/laravel-honeypot`, `resend/resend-laravel`, `laravel/socialite`,
+`spatie/laravel-honeypot`, `resend/resend-laravel`, `laravel/socialite`,
 `propaganistas/laravel-phone`, `league/flysystem-aws-s3-v3`. If a task touches one of these, that
 package's rules are the vendor's docs — say so rather than inventing a rule for it.
 
@@ -97,27 +101,45 @@ package's rules are the vendor's docs — say so rather than inventing a rule fo
 
 # [MUST] Frontend
 
-- `<script setup lang="ts">` on every `.vue`. No Options API in new code.
+- **Function components + hooks only.** `.tsx`, no class components, no Options API equivalent.
+  **Vue 3.5, Pinia, Pinia Colada and PrimeVue/Volt are not part of this stack.**
 - **ZERO `any`** — no `any`, no `as any`, no implicit `any`, no `@ts-ignore`. Use `unknown` + a narrowing guard.
 - **Backend types are GENERATED.** `php artisan typescript:transform` emits
   `resources/js/generated/generated.d.ts` from the Spatie `Data` classes. Hand-writing an interface
   that mirrors a backend `Data` class is a FAIL — it is exactly how `any` and drift creep in.
-- **Vue 3.5 APIs are mandatory, not optional:** `useTemplateRef<T>()` · `useId()` for generated ids ·
-  destructured props with defaults (**`withDefaults` is banned**) · `defineModel<T>()` for every
-  custom `v-model` · `onWatcherCleanup()` in any watcher that starts a timer/request · `defineSlots<T>()`.
-- **Server state → Pinia Colada. Client state → Pinia setup stores. Never mix.**
-  Every query declares both `staleTime` and `gcTime`; paginated lists use `placeholderData: (prev) => prev`.
-- UI primitives only through **Volt** components in `src/volt/` (`@/volt/*`). No other UI library.
-  Volt components are code-ownership copies — edit their `pt` pass-through config, never inline classes
-  at the call site.
-- Toasts: `Toast` + `useToast()`. `<Toast />` must be mounted once. Forms: `@primevue/forms` + Zod v4.
+- **React 19.3 APIs are mandatory, not optional:** `useId()` for generated ids · `ref` as a normal
+  prop (no new `forwardRef`) · `useEffectEvent()` for an event read inside an effect ·
+  `<Activity mode>` for hide/restore · `<ViewTransition>` + `addTransitionType()` for animated
+  transitions · `use()` for an already-in-flight promise · `useOptimistic` / `useActionState` only
+  in a genuinely local action flow. Never mutate props or state.
+- **React Compiler is on.** Write Rules-of-React-compliant code; do **not** add `useMemo` /
+  `useCallback` by reflex. A `'use no memo'` escape hatch needs a written reason.
+- **Server state has one owner per screen.** Inertia page props are the server state of a page
+  visit; filter/page changes are `router.visit` partial reloads. TanStack Query in
+  `Modules/{ctx}/hooks/` is for **client-owned** async panels that outlive a visit — dashboard
+  widgets, polling, prefetch, optimistic lists. Never fetch the same endpoint with both on one
+  screen. Client UI state stays local (`useState` / `useReducer`); no global store is installed.
+  Every query declares both `staleTime` and `gcTime`; paginated lists use
+  `placeholderData: (prev) => prev`; query options live in a `queryOptions()` factory.
+- **Suspense + skeleton is the default loading contract.** A panel whose data must exist before it
+  renders uses `useSuspenseQuery` inside a `<Suspense fallback={<Skeleton …>}>`; a filter/page
+  change over existing data uses `useQuery` + `placeholderData` + an inline busy state. The skeleton
+  mirrors the final layout — no spinner-only full page, no layout shift on reveal.
+- **Tables → TanStack Table v9 or the `DataTableKit`.** Server-side always
+  (`manualPagination` / `manualSorting` / `manualFiltering`); the browser never sorts, filters,
+  slices or paginates rows it received from the server.
+- UI primitives only through **shadcn/ui** source in `resources/js/Components/ui/`, on Base UI.
+  No PrimeVue, no Vue SFCs, no Radix, no second UI library, no call-site restyling of a primitive.
+- Forms: `useZodForm` + `Components/Forms`; Inertia owns the request and the 422 bag. No second
+  form-state owner. There is no toast library — do not invent a second notification system.
+- Confirmations: a Base UI `Dialog` (`CrudDialog`) — never `window.confirm()` or `window.alert()`.
 - Theme toggling uses ONLY the `.dark` class on `<html>`. The `dark:` variant is bound via
   `@custom-variant dark (&:is(.dark *))` in `app.css`.
-- **No hardcoded colours** — no hex, no `bg-red-600`, no `bg-[#hex]`. Use `var(--token)` or the
-  PrimeUI bridge classes (`bg-primary`, `text-surface-700`).
-- Animation: Vue's native `<Transition>`/`<TransitionGroup>` first. Volt overlays already animate —
-  do not re-wrap them. Reach for `motion-v` only for layout animations, gestures, or scroll-linked work,
-  and lazy-load it (it is ~125 kB raw).
+- **No hardcoded colours and no raw palette classes** — no hex, no `bg-red-600`, no `bg-[#hex]`.
+  Use `var(--token)`, the `aq-*` scale or the `surface-*` bridge.
+- Animation: CSS transitions first. **`framer-motion`** for layout/gesture/scroll work, variants
+  from `lib/motion.ts`, lazy-loaded and `prefers-reduced-motion` safe. `motion-v` is Vue-only and
+  banned.
 
 # [MUST] Codebase exploration
 
@@ -151,10 +173,12 @@ child the project name, tier, bounded scope and the question — never "look aro
 
 ## E3 — Keep the index clean
 
-- **This repo's graph project is `C-Users-Lenovo-Herd-aquashield`** — the name `index_repository` derives
-  from the path, so never pass an explicit `name:` (that is how a second, stale project gets created).
-  Verify with `index_status` (`indexed_at`, `nodes`/`edges`) before trusting it; `list_projects` showing
-  two entries with the same `root_path` means exactly one of them is stale.
+- **This repo's graph project is `C-Users-Lenovo-Herd-aquashield-react`** — the name `index_repository`
+  derives from the path, so never pass an explicit `name:` (that is how a second, stale project gets
+  created). `C-Users-Lenovo-Herd-aquashield` is a **different** project: the previous repo at
+  `C:/Users/Lenovo/Herd/aquashield`. Verify with `index_status` (`indexed_at`, `nodes`/`edges`) before
+  trusting it; `list_projects` showing two entries with the same `root_path` means exactly one of them
+  is stale.
 - `.cbmignore` (repo root, gitignore syntax) lists what must **not** be indexed: generated output,
   runtime state, superseded docs. Add an entry only for something no answer could ever need; churn in
   `index_status.parse_partial` (compiled Blade cache, build output) is the usual signal.
@@ -162,11 +186,67 @@ child the project name, tier, bounded scope and the question — never "look aro
   confirm with `index_status`. A clean `parse_partial` list and the expected `not_indexed` entries are
   the proof.
 
+## E4 — Orient from the graph at session start
+
+The first request of a session arrives with no context: the module that owns the code, the
+conventions in force, and even the existence of the thing are unknown. **Inspect the graph before
+opening a file.** "Ingresa a X", "haz fix de Y", "revisa Z" are **orientation** requests, not
+blind-edit requests — a direct `Read`/`grep` on an unfamiliar repo is how modules get invented and
+conventions get broken.
+
+| #   | Call                                                            | Answers                                                |
+| --- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| 1   | `index_status(project: "C-Users-Lenovo-Herd-aquashield-react")` | is the index alive, how stale, what is not covered     |
+| 2   | `get_architecture`                                              | which modules exist and what owns what                 |
+| 3   | `search_graph(name_pattern: ".*<Entity>.*")`                    | does the thing exist, and what is its qualified name   |
+| 4   | `trace_path` → `get_code_snippet`                               | who calls it, and what it actually does                |
+| 5   | `check_index_coverage(paths: [...])`                            | is the evidence you are about to cite actually indexed |
+
+- **Scout** (cheap, provisional): steps 1 + 3. Enough to know whether the thing exists and who owns
+  it. Never make a negative claim ("there is no X") on a Scout run.
+- **Verify** (the default for a change): steps 1, 3, 4, 5. This is the tier a fix ships on.
+- Orientation wider than the symbols you were named goes to the `codebase-memory-scout` subagent
+  (E2) — the conclusion returns, the payloads do not.
+- `index_status` and `get_architecture` are cheap; `search_graph` without `fields`/`detail` is not.
+  Ask for names first, then read the one implementation you need.
+- After a compaction or a reset, redo step 1 — the generation may have moved under you.
+
+**Report the tier and the graph tools you used** in the closing message. Never claim the graph was
+used unless graph tool calls actually occurred; a summary of the diff is not a substitute for the
+evidence behind it.
+
+After the change: re-index (see the closing gate), then `check_index_coverage` on the changed paths.
+Uncommitted edits are invisible to git-based change detection, so a stale generation is a real risk,
+not a theoretical one.
+
 Never invent modules, files, classes or routes. Coverage is best-effort — `check_index_coverage` for
 every cited path and re-verify with `grep` before any negative claim ("there is no X").
 
 **Known blind spots:** routes are runtime closures the indexer cannot resolve — read `routes/*.php`
 directly. Blade views are opaque nodes; a view is NOT evidence of a backend feature.
+
+### `parse_partial` here is a parser limit, not a defect
+
+The indexer's parsers predate this stack, so three **valid** constructs are reported as partially
+parsed. Verified 2026-11-20: `php -l` clean, `php artisan view:cache` compiles every view, and
+the affected symbols are still in the graph.
+
+| Construct                                                                                               | Files                                                                                   | Workaround                                      |
+| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| PHP 8.5 `clone($obj, [...])`                                                                            | `src/Shared/Infrastructure/AI/PromptCache/CacheablePrompt.php:41`                       | `search_graph` still returns `withTail`         |
+| A call inside a Blade directive argument — `@section('x', __('y'))`, `@section('x', $event->subject())` | `resources/views/errors/*.blade.php`, `resources/views/emails/security-alert.blade.php` | read the view                                   |
+| Tailwind v4 at-rules — `@custom-variant`, `@source`                                                     | `resources/css/app.css:8,10-15`                                                         | read the file; the Vite build is the real check |
+
+**Never rewrite working source to quiet the indexer.** The flag is a caveat on the graph, not a bug
+in the app. Where the construct matters, `search_graph` + `get_code_snippet` still return it; where
+they do not, read the file.
+
+### `freshness: metadata_changed` is not a coverage hole
+
+It means the file changed after the coverage record was written — nothing was dropped. Pair it with
+`status: no_recorded_issue` and the absence of a node for that path in the `missed` store
+(`query_graph(graph: "missed")`): the path is covered. Confirm with `search_code` for the text you
+expect, then move on. Both signals are best-effort and must be disclosed, never silently trusted.
 
 **`vendor/` and `node_modules/` are never the answer to a question about this app.**
 
@@ -193,7 +273,7 @@ npm run module:done
 | 0b  | `php artisan doctor`       | 26 environment diagnostics — see below                         |
 | 1   | `npm run format`           | Prettier applied                                               |
 | 2   | `npm run syn`              | `.claude/` and `.cursor/` regenerated from `.opencode/`        |
-| 3   | `npm run types:check`      | `vue-tsc --noEmit` — zero type errors                          |
+| 3   | `npm run types:check`      | `tsc --noEmit` — zero type errors                              |
 | 4   | `npm run build`            | Vite production build succeeds                                 |
 | 5   | `composer analyse`         | PHPStan + Larastan level 5 — zero errors                       |
 | 6   | `composer pint:test`       | Pint style **including `--blade`** — zero pending fixes        |
@@ -206,8 +286,9 @@ verbatim from the structured fields rather than paraphrasing it; and never treat
 error" as evidence — **the exit code is the verdict.** See `owasp/STACK.md` §17.
 
 `laravel/pao` also means a "skipped" Pest test prints as skipped rather than vanishing. A suite that
-is entirely skipped has passed _vacuously_ — check the skip count before reporting green. Today the
-module tests in `tests/Architecture/` are all skipped by design, because `src/Modules/` is empty.
+is entirely skipped has passed _vacuously_ — check the skip count before reporting green.
+`tests/Architecture/` runs 41 tests against the six modules today; a run that reports them all
+skipped has a broken glob, not a green suite.
 
 ### `laravel/doctor` — the agent sanity check
 
@@ -283,10 +364,10 @@ reason not to hand-write them.
 saying "raise it module by module". That is a policy with no mechanism behind it, so state it plainly:
 **level 5 is global and stays 5 until someone deliberately raises it.** Raising it is a dated,
 reviewed change with its own PR — never a side effect of touching a file, and never silenced with
-`@phpstan-ignore` to make a gate pass. `src/volt/*` is excluded because PHPStan cannot read `.vue`.
+`@phpstan-ignore` to make a gate pass. `resources/js/` is type-checked by `tsc`, not PHPStan.
 
-With `src/Modules/` empty, step 5 currently analyses `app` and `src/Shared` only. That is the honest
-state, not a passing check of the whole codebase.
+All three PHPStan roots — `app`, `src/Shared` and `src/Modules` — are populated, so step 5 checks the
+whole backend, not a subset.
 
 While iterating:
 
@@ -294,14 +375,14 @@ While iterating:
 vendor/bin/pint --dirty        # in-flight formatter, modified files only
 composer analyse               # PHPStan alone
 npm run test:module -- Booking # only the module's tests
-npm run types:watch            # vue-tsc in watch mode
-npm run dev:async              # vite + vue-tsc together
+npm run types:watch            # tsc --noEmit in watch mode
+npm run dev:async              # vite + tsc together
 ```
 
 Then **re-index the graph** — an MCP call, not a shell command:
 
 ```
-index_repository(repo_path: "C:/Users/Lenovo/Herd/aquashield", mode: "full")
+index_repository(repo_path: "C:/Users/Lenovo/Herd/aquashield-react", mode: "full")
 ```
 
 `mode: "full"` is the closing gate; `fast` is only the in-flight refresh. Verify with `index_status`:
@@ -312,33 +393,43 @@ deleting any symbol, route, or `implements` always does.
 
 **Never report a module complete on a partial run.** If a step fails, say so with the real output.
 
-### Known gate state — read this before blaming your change (as of 2026-10-18)
+### Known gate state — verified 2026-11-24
 
-The gate is **red on arrival**, for reasons that predate any module work:
-
-| Step                                                              | State                                                                |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `syn:check` · `format:check` · `types:check` · `build` · `doctor` | green                                                                |
-| `analyse` (PHPStan L5)                                            | **27 errors, all in `src/Shared/`**                                  |
-| `pint:test`                                                       | **23 files, all in `src/Shared/` + `resources/views/app.blade.php`** |
-| `php artisan test`                                                | green — 33 tests, 9 skipped (the module assertions)                  |
-
-The PHPStan errors are carried over from a previous application, not written here: a dangling
-`App\Models\CompanyData` that no longer exists, dead `catch (FailoverableException)` blocks, four
-traits used zero times, and a batch of `??` offsets that PHPStan can prove are never null. They are
-real findings and they are **not** fixed by any config change.
+| Step                                         | State                                                                                                                         |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `syn:check` · `format:check` · `types:check` | green — TS 7.0.2 native `tsc`                                                                                                 |
+| `build`                                      | green — Vite 8.3.8; the `Welcome` chunk (1.09 MB) triggers the >500 kB warning                                                |
+| `analyse` (PHPStan L5)                       | green — **0 errors**                                                                                                          |
+| `pint:test`                                  | green                                                                                                                         |
+| `php artisan test`                           | green - **716 passed, 0 skipped**                                                                                             |
+| `doctor`                                     | **failed this run** — 21 passed, 1 skipped, 1 failed (`Composer autoload works` timed out at 60 s); `composer audit` is clean |
 
 What that means for you:
 
 - Do **not** "fix" a gate failure by lowering the PHPStan level, adding a baseline, or adding
   `@phpstan-ignore`. All three are explicitly banned above.
+- A `doctor` failure is **not** a module finding when it is the `Composer autoload works`
+  diagnostic; `composer audit` is clean as of 2026-11-24. Never silence doctor to make it pass.
+- A repeated `Composer autoload works` timeout on Windows is an environment finding, **not** a
+  PSR-4 or class-resolution defect, and the `composer dump-autoload -o` remediation below is a dead
+  end — it exits 1 too and leaves the autoloader untouched. It can pass on a warm run and time out
+  on a cold one; this audit hit the timeout. Root cause, measured 2026-11-19 on
+  this box: the diagnostic shells out to
+  `composer dump-autoload --dry-run --optimize --strict-psr --strict-ambiguous`, which builds an
+  optimized classmap for **54 013 classes** over a **63 771-file** vendor tree. That exhausts the
+  ambient PHP CLI `memory_limit` (**1024M** here), so PHP dies with exit 1 right after printing
+  `Generating optimized autoload files` — the fatal text is swallowed by composer's error
+  handler, which is why the diagnostic only ever reports a timeout. Proof: the identical command
+  with `php -d memory_limit=-1` exits **0** with no PSR and no ambiguity findings.
+  Composer's `DumpAutoloadCommand` has no memory-limit handling and ignores
+  `config.memory-limit`, so this cannot be fixed from `composer.json` — it needs
+  `memory_limit = -1` (or `2G`) for the CLI SAPI in the Herd `php.ini`. Even then the build can take
+  minutes here, past the diagnostic's 60 s budget. Treat a timeout as environmental and move on;
+  never change the project to satisfy it.
 - A new module must be clean **on its own files**. `phpstan analyse src/Modules/{Module}` and
-  `pint --test src/Modules/{Module}` prove that without the inherited noise.
-- Clearing the `src/Shared` backlog is a separate, deliberate task. Do not fold it into a module
-  commit.
-- `tests/Architecture/` is a real testsuite (added 2026-09-28) and **was silently missing from
-  `php artisan test` before that** — which is why `9 skipped` is the honest count and not a
-  regression. If a suite disappears from the count, check `phpunit.xml` before assuming green.
+  `pint --test src/Modules/{Module}` prove that.
+- `tests/Architecture/` is a real suite and currently runs 41 tests against the six modules. If it
+  disappears from the count, check `phpunit.xml` before assuming green.
 
 # Working on the skills themselves
 

@@ -36,8 +36,10 @@ turns out to be CRUD should be demoted, not layered.
 Research lives inside Phase 3 as a mandatory step. Use **Tavily** for release state (`time_range:
 "month"` when the question implies _now_) and **Context7** for the installed major's API. A version
 string written from memory is the most common way this flow produces plausible, wrong code — and this
-repo has concrete examples: PrimeVue 5 _deprecates_ rather than breaks and context7's PrimeVue docs
-are v4, Vue 3.6 is still an RC, TypeScript 6.0 is a bridge to the native 7.0.
+repo has concrete examples: shadcn/ui moved to Base UI as the default in July 2026 while Radix remains
+supported, TanStack Table v9 renamed `useReactTable` → `useTable` and made `features` mandatory,
+TypeScript 7.0.2 is installed; 7.0 has no programmatic API (7.1 adds it), so compiler-API tooling
+needs the `typescript6` alias.
 
 ## Golden rule
 

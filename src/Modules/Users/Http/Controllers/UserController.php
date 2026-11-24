@@ -11,23 +11,33 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Response as InertiaResponse;
-use Modules\Users\Actions\BulkDeleteUsersAction;
-use Modules\Users\Actions\BulkRestoreUsersAction;
+use Modules\Users\Actions\AssignRoleToUsersAction;
 use Modules\Users\Actions\CreateUserAction;
-use Modules\Users\Actions\DeleteUserAction;
-use Modules\Users\Actions\RestoreUserAction;
+use Modules\Users\Actions\DeleteUsersAction;
+use Modules\Users\Actions\ResendInvitationAction;
+use Modules\Users\Actions\ResendInvitationsAction;
+use Modules\Users\Actions\RestoreUsersAction;
 use Modules\Users\Actions\SendPasswordResetLinkAction;
 use Modules\Users\Actions\UpdateUserAction;
+use Modules\Users\Actions\UpdateUsersStatusAction;
+use Modules\Users\Data\BulkActionResultData;
 use Modules\Users\Data\CreateUserData;
 use Modules\Users\Data\ManagedUserData;
 use Modules\Users\Data\UpdateUserData;
 use Modules\Users\Data\UserFilterData;
+use Modules\Users\Enums\UserStatus;
+use Modules\Users\Http\Requests\BulkAssignRoleRequest;
 use Modules\Users\Http\Requests\BulkDeleteUserRequest;
+use Modules\Users\Http\Requests\BulkResendInvitationRequest;
 use Modules\Users\Http\Requests\BulkRestoreUserRequest;
+use Modules\Users\Http\Requests\BulkUpdateStatusRequest;
 use Modules\Users\Http\Requests\StoreUserRequest;
 use Modules\Users\Http\Requests\UpdateUserRequest;
 use Modules\Users\Queries\UserAccessCatalogQuery;
 use Modules\Users\Queries\UserListQuery;
+use Modules\Users\Support\AccessCeiling;
+use Modules\Users\Support\InvitationLink;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 /**
  * Admin CRUD for users.
@@ -44,11 +54,14 @@ final readonly class UserController
         private UserAccessCatalogQuery $catalog,
         private CreateUserAction $createUser,
         private UpdateUserAction $updateUser,
-        private DeleteUserAction $deleteUser,
-        private RestoreUserAction $restoreUser,
+        private DeleteUsersAction $deleteUsers,
+        private RestoreUsersAction $restoreUsers,
         private SendPasswordResetLinkAction $sendPasswordResetLink,
-        private BulkDeleteUsersAction $bulkDeleteUsers,
-        private BulkRestoreUsersAction $bulkRestoreUsers,
+        private ResendInvitationAction $resendInvitation,
+        private UpdateUsersStatusAction $updateUsersStatus,
+        private AssignRoleToUsersAction $assignRoleToUsers,
+        private ResendInvitationsAction $resendInvitations,
+        private AccessCeiling $ceiling,
     ) {}
 
     /**
@@ -74,14 +87,17 @@ final readonly class UserController
                 'filters' => $filters,
                 'catalog' => $this->catalog->execute(),
                 'currentUserUuid' => $actor->uuid,
-                'canView' => $actor->can('VIEW_USER'),
+                'activeSuperAdminCount' => $this->ceiling->activeSuperAdminCount(),
+                'canView' => $actor->can(PermissionName::ViewUser->value),
                 'canCreate' => $actor->can('create', User::class),
-                'canUpdate' => $actor->can('UPDATE_USER'),
-                'canDelete' => $actor->can('DELETE_USER'),
-                'canRestore' => $actor->can('RESTORE_USER'),
-                'canExport' => $actor->can('EXPORT_USER'),
-                'canBulkDelete' => $actor->can('BULK_DELETE_USER'),
-                'canBulkRestore' => $actor->can('BULK_RESTORE_USER'),
+                'canUpdate' => $actor->can(PermissionName::UpdateUser->value),
+                'canManageStatus' => $actor->can(PermissionName::UpdateUser->value),
+                'canAssignRoles' => $actor->can(PermissionName::AssignRolesUser->value),
+                'canDelete' => $actor->can(PermissionName::DeleteUser->value),
+                'canRestore' => $actor->can(PermissionName::RestoreUser->value),
+                'canExport' => $actor->can(PermissionName::ExportUser->value),
+                'canBulkDelete' => $actor->can(PermissionName::BulkDeleteUser->value),
+                'canBulkRestore' => $actor->can(PermissionName::BulkRestoreUser->value),
             ]);
         }
 
@@ -121,14 +137,33 @@ final readonly class UserController
         return inertia('Users/Show', [
             'user' => ManagedUserData::fromModel($user),
             'catalog' => $this->catalog->execute(),
+            'activeSuperAdminCount' => $this->ceiling->activeSuperAdminCount(),
             // Row-level abilities, not just route permissions: the ceiling and
             // the last-super-admin guard mean two actors with UPDATE_USER can
             // legitimately see different buttons on the same row.
             'canUpdate' => Gate::forUser($actor)->allows('update', $user),
             'canDelete' => Gate::forUser($actor)->allows('delete', $user),
             'canRestore' => Gate::forUser($actor)->allows('restore', $user),
+            'canSuspend' => Gate::forUser($actor)->allows('suspend', $user),
+            'canActivate' => Gate::forUser($actor)->allows('activate', $user),
+            // Access-link capabilities are state-specific and mutually
+            // exclusive: invited → invitation, active → password-set link,
+            // suspended/deleted → none. The server owns the rule; the page only
+            // renders the boolean it receives.
+            'canResendInvitation' => $user->isInvited()
+                && Gate::forUser($actor)->allows('resendInvitation', $user),
+            'canSendPasswordReset' => $user->isActive()
+                && ! $user->trashed()
+                && Gate::forUser($actor)->allows('update', $user),
             'canAssignRoles' => Gate::forUser($actor)->allows('assignRoles', $user),
             'canAssignPermissions' => Gate::forUser($actor)->allows('assignPermissions', $user),
+            // The confirmation dialog quotes the real TTLs so the copy cannot
+            // drift from the job / broker configuration.
+            'invitationExpiresInHours' => InvitationLink::EXPIRES_IN_HOURS,
+            'passwordResetExpiresInMinutes' => (int) config(
+                'auth.passwords.'.config('auth.defaults.passwords').'.expire',
+                60,
+            ),
         ]);
     }
 
@@ -150,7 +185,7 @@ final readonly class UserController
     public function store(StoreUserRequest $request): JsonResponse|RedirectResponse
     {
         $user = $this->createUser->execute(
-            CreateUserData::from($request->validated()),
+            CreateUserData::from($request->safe()->except(['temporary_password_confirmation'])),
             $this->actor($request),
         );
 
@@ -158,7 +193,12 @@ final readonly class UserController
             return response()->json(ManagedUserData::fromModel($user), 201);
         }
 
-        return to_route('users.show', ['user' => $user->uuid]);
+        return to_route('users.show', ['user' => $user->uuid])->with(
+            'status',
+            $user->isInvited()
+                ? 'Account created. The activation email has been queued.'
+                : 'Account created with a temporary password. The user must change it at first sign-in.',
+        );
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse|RedirectResponse
@@ -173,7 +213,8 @@ final readonly class UserController
             return response()->json(ManagedUserData::fromModel($user));
         }
 
-        return to_route('users.show', ['user' => $user->uuid]);
+        return to_route('users.show', ['user' => $user->uuid])
+            ->with('status', 'User updated.');
     }
 
     /**
@@ -197,26 +238,47 @@ final readonly class UserController
         );
     }
 
+    /**
+     * Rotates the invitation timestamp and queues a fresh signed link. The old
+     * link stops working immediately, even though its signature is still valid.
+     */
+    public function resendInvitation(Request $request, User $user): JsonResponse|RedirectResponse
+    {
+        $this->resendInvitation->execute($user, $this->actor($request));
+
+        if ($this->wantsJson($request)) {
+            return response()->json(['status' => 'queued'], 202);
+        }
+
+        return back()->with(
+            'status',
+            'A new activation link has been queued for '.$user->email.'.',
+        );
+    }
+
     public function destroy(Request $request, User $user): Response|RedirectResponse
     {
-        $this->deleteUser->execute($user, $this->actor($request));
+        $this->deleteUsers->execute($this->actor($request), [$user->uuid]);
 
         if ($this->wantsJson($request)) {
             return response()->noContent();
         }
 
-        return to_route('users.index');
+        // `back()` keeps the caller's URL — the filtered page, the page number —
+        // so deleting a row from a filtered view no longer resets the table.
+        return back()->with('status', 'User deleted.');
     }
 
     public function restore(Request $request, User $user): JsonResponse|RedirectResponse
     {
-        $user = $this->restoreUser->execute($user, $this->actor($request));
+        $restored = $this->restoreUsers->execute($this->actor($request), [$user->uuid])->firstOrFail();
 
         if ($this->wantsJson($request)) {
-            return response()->json(ManagedUserData::fromModel($user));
+            return response()->json(ManagedUserData::fromModel($restored));
         }
 
-        return to_route('users.show', ['user' => $user->uuid]);
+        return to_route('users.show', ['user' => $restored->uuid])
+            ->with('status', 'User restored.');
     }
 
     public function bulkDelete(BulkDeleteUserRequest $request): Response|RedirectResponse
@@ -224,13 +286,13 @@ final readonly class UserController
         /** @var list<string> $uuids */
         $uuids = $request->validated()['uuids'];
 
-        $this->bulkDeleteUsers->execute($this->actor($request), $uuids);
+        $this->deleteUsers->execute($this->actor($request), $uuids);
 
         if ($this->wantsJson($request)) {
             return response()->noContent();
         }
 
-        return to_route('users.index');
+        return to_route('users.index')->with('status', 'Selected users deleted.');
     }
 
     public function bulkRestore(BulkRestoreUserRequest $request): Response|RedirectResponse
@@ -238,13 +300,77 @@ final readonly class UserController
         /** @var list<string> $uuids */
         $uuids = $request->validated()['uuids'];
 
-        $this->bulkRestoreUsers->execute($this->actor($request), $uuids);
+        $this->restoreUsers->execute($this->actor($request), $uuids);
 
         if ($this->wantsJson($request)) {
             return response()->noContent();
         }
 
-        return to_route('users.index');
+        return to_route('users.index')->with('status', 'Selected users restored.');
+    }
+
+    public function bulkStatus(BulkUpdateStatusRequest $request): JsonResponse|RedirectResponse
+    {
+        /** @var array{uuids: list<string>, status: string} $data */
+        $data = $request->validated();
+
+        $result = $this->updateUsersStatus->execute(
+            $this->actor($request),
+            $data['uuids'],
+            UserStatus::from($data['status']),
+        );
+
+        if ($this->wantsJson($request)) {
+            return response()->json($result);
+        }
+
+        return back()->with('status', $this->summary($result, 'account updated', 'accounts updated'));
+    }
+
+    public function bulkAssignRole(BulkAssignRoleRequest $request): JsonResponse|RedirectResponse
+    {
+        /** @var array{uuids: list<string>, role: string} $data */
+        $data = $request->validated();
+
+        $result = $this->assignRoleToUsers->execute(
+            $this->actor($request),
+            $data['uuids'],
+            $data['role'],
+        );
+
+        if ($this->wantsJson($request)) {
+            return response()->json($result);
+        }
+
+        return back()->with('status', $this->summary($result, 'role updated', 'roles updated'));
+    }
+
+    public function bulkResendInvitations(BulkResendInvitationRequest $request): JsonResponse|RedirectResponse
+    {
+        /** @var array{uuids: list<string>} $data */
+        $data = $request->validated();
+
+        $result = $this->resendInvitations->execute(
+            $this->actor($request),
+            $data['uuids'],
+        );
+
+        if ($this->wantsJson($request)) {
+            return response()->json($result);
+        }
+
+        return back()->with('status', $this->summary($result, 'invitation sent', 'invitations sent'));
+    }
+
+    private function summary(BulkActionResultData $result, string $singular, string $plural): string
+    {
+        $message = $result->updated.' '.($result->updated === 1 ? $singular : $plural).'.';
+
+        if ($result->skipped !== []) {
+            $message .= ' '.$result->skippedCount().' skipped.';
+        }
+
+        return $message;
     }
 
     /**

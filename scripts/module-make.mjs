@@ -866,7 +866,7 @@ const exportUse = wantExport
 const exportRoute = wantExport
     ? `    Route::get('/export/{format}', [${Entity}ExportController::class, '__invoke'])
         ->whereIn('format', [${formatList}])
-        ->middleware('permission:EXPORT_${PERM}')
+        ->middleware(['permission:VIEW_${PERM}', 'permission:EXPORT_${PERM}'])
         ->name('export');\n`
     : '';
 
@@ -1644,7 +1644,7 @@ Next (see .opencode/commands/backend-new-crud.md PHASE 4-5):
   composer dump-autoload
   php artisan migrate
   php artisan test --compact --filter=${Module}
-  # frontend still manual: /frontend-new (Index/Show/Create/Edit + Colada queries)
+  # frontend still manual: /frontend-new (Index/Show/Create/Edit + TanStack Query hooks)
   # complex module? STOP — promote to /backend-new (PROGRESSIVE), this output is the wrong shape.
 `);
 

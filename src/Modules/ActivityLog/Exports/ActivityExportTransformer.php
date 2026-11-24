@@ -7,6 +7,7 @@ namespace Modules\ActivityLog\Exports;
 use App\Models\User;
 use Modules\ActivityLog\Data\ActivityFilterData;
 use Modules\ActivityLog\Queries\ActivityListQuery;
+use Shared\Support\SpreadsheetCell;
 
 /**
  * Projects the same filtered audit query the table uses. The export never
@@ -58,24 +59,15 @@ final readonly class ActivityExportTransformer
             $causer = $entry->causer;
 
             yield [
-                'created_at' => $this->cell($entry->created_at?->format('Y-m-d H:i') ?? ''),
-                'log_name' => $this->cell((string) ($entry->log_name ?? 'default')),
-                'event' => $this->cell((string) ($entry->event ?? '')),
-                'description' => $this->cell((string) $entry->description),
-                'causer' => $this->cell($causer instanceof User ? $causer->name : 'System'),
-                'subject' => $this->cell(
+                'created_at' => SpreadsheetCell::sanitise($entry->created_at?->format('Y-m-d H:i') ?? ''),
+                'log_name' => SpreadsheetCell::sanitise((string) ($entry->log_name ?? 'default')),
+                'event' => SpreadsheetCell::sanitise((string) ($entry->event ?? '')),
+                'description' => SpreadsheetCell::sanitise((string) $entry->description),
+                'causer' => SpreadsheetCell::sanitise($causer instanceof User ? $causer->name : 'System'),
+                'subject' => SpreadsheetCell::sanitise(
                     $entry->subject_type === null ? '' : class_basename($entry->subject_type),
                 ),
             ];
         }
-    }
-
-    /**
-     * Spreadsheet formula injection defence. Audit values are server-written,
-     * but a description can carry a model value that starts with `=`.
-     */
-    private function cell(string $value): string
-    {
-        return preg_match('/^[=+\-@]/', $value) === 1 ? "'".$value : $value;
     }
 }

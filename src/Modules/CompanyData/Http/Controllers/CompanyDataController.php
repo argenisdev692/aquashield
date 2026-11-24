@@ -9,24 +9,23 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Response;
-use Modules\CompanyData\Application\Actions\SaveCompanyDataAction;
-use Modules\CompanyData\Application\Dtos\CompanyDataDto;
-use Modules\CompanyData\Application\Dtos\SaveCompanyDataData;
-use Modules\CompanyData\Application\Queries\CompanyAssetsQuery;
-use Modules\CompanyData\Application\Repositories\CompanyRepository;
+use Modules\CompanyData\Actions\SaveCompanyDataAction;
+use Modules\CompanyData\Data\CompanyDataDto;
+use Modules\CompanyData\Data\SaveCompanyDataData;
 use Modules\CompanyData\Http\Requests\UpdateCompanyDataRequest;
+use Modules\CompanyData\Models\CompanyData;
+use Modules\CompanyData\Queries\CompanyAssetsQuery;
 
 final class CompanyDataController
 {
     public function __construct(
         private readonly SaveCompanyDataAction $saveCompanyData,
-        private readonly CompanyRepository $companies,
         private readonly CompanyAssetsQuery $companyAssets,
     ) {}
 
     public function show(): JsonResponse
     {
-        $company = $this->companies->current();
+        $company = CompanyData::current();
 
         abort_if($company === null, 404);
 
@@ -40,7 +39,7 @@ final class CompanyDataController
      */
     public function edit(Request $request): Response
     {
-        $company = $this->companies->current();
+        $company = CompanyData::current();
 
         abort_if($company === null, 404);
 
@@ -53,8 +52,11 @@ final class CompanyDataController
             'assets' => $this->companyAssets->execute($company),
             // The route only requires VIEW; an update-less visitor still sees
             // the profile, with the form read-only instead of a 403 on submit.
-            'canUpdate' => $user instanceof User
-                && $user->getAllPermissions()->contains('name', 'UPDATE_COMPANY_DATA'),
+            'canUpdate' => $user instanceof User && $user->can('UPDATE_COMPANY_DATA'),
+            // Browser key for Places Autocomplete (New), restricted by HTTP
+            // referrer in Google Cloud. Public by design — the server never
+            // calls Places for this screen; the address field does.
+            'googleMapsApiKey' => (string) config('services.google.maps_key', ''),
         ]);
     }
 
@@ -65,20 +67,14 @@ final class CompanyDataController
      */
     public function update(UpdateCompanyDataRequest $request): JsonResponse|RedirectResponse
     {
-        $user = $request->user();
-
-        if ($user === null) {
-            abort(401);
-        }
-
         $data = SaveCompanyDataData::from($request->validated());
 
-        $company = $this->saveCompanyData->execute($data, (int) $user->getAuthIdentifier());
+        $company = $this->saveCompanyData->execute($data);
 
         if (! $request->expectsJson()) {
             return to_route('company-data.edit');
         }
 
-        return response()->json($company->toArray());
+        return response()->json(CompanyDataDto::from($company)->toArray());
     }
 }

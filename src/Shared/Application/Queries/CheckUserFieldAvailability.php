@@ -14,6 +14,10 @@ use App\Models\User;
  * excludes one row so an unchanged value (self-edit) reads as available. A
  * malformed email short-circuits to "unavailable" so the UI never reports a
  * value the backend would later reject as free.
+ *
+ * Soft-deleted rows are included: their unique index still occupies the value,
+ * so reporting it as free would turn the client check into a lie that only
+ * fails on submit.
  */
 final class CheckUserFieldAvailability
 {
@@ -37,6 +41,7 @@ final class CheckUserFieldAvailability
         }
 
         return ! User::query()
+            ->withTrashed()
             ->where($field, $value)
             ->when($ignoreUuid !== null, fn ($query) => $query->where('uuid', '!=', $ignoreUuid))
             ->exists();

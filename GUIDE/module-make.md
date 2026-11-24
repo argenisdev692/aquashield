@@ -196,6 +196,6 @@ never writes a stream itself.
 ## Frontend
 
 Intentionally NOT generated. Build it with `/frontend-new`:
-`Pages/{Module}/Index|Show|Create|Edit` + Colada queries + Zod schemas.
+`Pages/{Module}/Index|Show|Create|Edit` + TanStack Query hooks + Zod schemas.
 Backend `Data` classes are the single source — run
-`php artisan typescript:transform` before writing any `.vue`.
+`php artisan typescript:transform` before writing any `.tsx`.

@@ -9,6 +9,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Shared\Domain\Enums\Role as RoleName;
 
 /**
  * Seeder for application users and initial role assignments.
@@ -29,14 +30,14 @@ class UserSeeder extends Seeder
                 'username' => 'victor.lara',
                 'email' => 'info@aquashieldrestorationusa.com',
                 'password' => Hash::make('info01='),
-                'role' => 'SUPER_ADMIN',
+                'role' => RoleName::SuperAdmin->value,
             ],
             [
                 'first_name' => 'Argenis Gonzalez',
                 'username' => 'argenis.gonzalez',
                 'email' => 'argenis692@gmail.com',
                 'password' => Hash::make('argenis01='),
-                'role' => 'SUPER_ADMIN',
+                'role' => RoleName::SuperAdmin->value,
             ],
 
             // CORE & OPERATIONAL USERS
@@ -45,7 +46,7 @@ class UserSeeder extends Seeder
                 'username' => 'admin.accounts',
                 'email' => 'admin@aquashieldrestorationusa.com',
                 'password' => Hash::make('admin01='),
-                'role' => 'ADMIN',
+                'role' => RoleName::Admin->value,
             ],
             [
                 'first_name' => 'Manager',
@@ -208,7 +209,7 @@ class UserSeeder extends Seeder
                 'username' => 'demo.account',
                 'email' => 'demo@aquashield.test',
                 'password' => Hash::make('demo01='),
-                'role' => 'SUPER_ADMIN',
+                'role' => RoleName::SuperAdmin->value,
             ],
         ];
 

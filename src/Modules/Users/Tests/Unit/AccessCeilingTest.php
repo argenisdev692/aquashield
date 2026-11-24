@@ -5,8 +5,12 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Modules\Users\Actions\AssignRolesAction;
+use Modules\Users\Enums\UserStatus;
+use Modules\Users\Policies\UserPolicy;
 use Modules\Users\Support\AccessCeiling;
 use Modules\Users\Tests\Support\UserTestFixtures;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -35,9 +39,20 @@ it('compares effective permissions, not role names', function (): void {
 it('lets a super admin manage anyone', function (): void {
     $superAdmin = UserTestFixtures::superAdmin();
     $target = User::factory()->create();
-    $target->givePermissionTo('EXPORT_USER');
+    $target->givePermissionTo(PermissionName::ExportUser->value);
 
     expect($this->ceiling->canManage($superAdmin, $target))->toBeTrue();
+});
+
+it('scopes the view policy to the actor ceiling', function (): void {
+    UserTestFixtures::role('MANAGER', [PermissionName::ViewUser->value]);
+    $manager = UserTestFixtures::userWithRole('MANAGER');
+    $target = User::factory()->create();
+    $target->givePermissionTo(PermissionName::DeleteUser->value);
+
+    $policy = app(UserPolicy::class);
+
+    expect($policy->view($manager, $target))->toBeFalse();
 });
 
 it('refuses a role that carries a permission the actor lacks', function (): void {
@@ -71,12 +86,44 @@ it('refuses a direct permission the actor lacks and allows one they hold', funct
         ->toThrow(ValidationException::class);
 });
 
-it('protects the last super admin and releases the guard once another exists', function (): void {
+it('protects the last active super admin and releases the guard once another exists', function (): void {
     $first = UserTestFixtures::superAdmin();
 
-    expect($this->ceiling->isLastSuperAdmin($first))->toBeTrue();
+    expect($this->ceiling->isLastActiveSuperAdmin($first))->toBeTrue();
 
     UserTestFixtures::superAdmin();
 
-    expect($this->ceiling->isLastSuperAdmin($first))->toBeFalse();
+    expect($this->ceiling->isLastActiveSuperAdmin($first))->toBeFalse();
+});
+
+it('does not count a suspended or invited super admin as a usable administrator', function (): void {
+    $active = UserTestFixtures::superAdmin();
+    $suspended = UserTestFixtures::superAdmin();
+    $suspended->forceFill(['status' => UserStatus::Suspended])->save();
+
+    expect($this->ceiling->isLastActiveSuperAdmin($active))->toBeTrue()
+        ->and($this->ceiling->activeSuperAdminCount())->toBe(1);
+});
+
+it('refuses deleting or suspending the last active super admin from any actor', function (): void {
+    $actor = UserTestFixtures::superAdmin();
+    $actor->forceFill(['status' => UserStatus::Suspended])->save();
+    $target = UserTestFixtures::superAdmin();
+
+    $policy = app(UserPolicy::class);
+
+    expect($policy->delete($actor, $target))->toBeFalse()
+        ->and($policy->suspend($actor, $target))->toBeFalse();
+});
+
+it('refuses demoting the last active super admin in the role action', function (): void {
+    $actor = UserTestFixtures::superAdmin();
+    $actor->forceFill(['status' => UserStatus::Suspended])->save();
+    $target = UserTestFixtures::superAdmin();
+
+    expect(fn () => app(AssignRolesAction::class)
+        ->execute($target, $actor, ['MANAGER']))
+        ->toThrow(ValidationException::class);
+
+    expect($target->refresh()->hasRole('SUPER_ADMIN'))->toBeTrue();
 });

@@ -6,6 +6,7 @@ namespace Modules\Users\Jobs;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -16,9 +17,10 @@ use Illuminate\Queue\SerializesModels;
  *
  * The update action clears `email_verified_at`; until this job delivers and the
  * recipient confirms, the new address is not trusted. The call is queued so an
- * SMTP outage cannot fail the profile save.
+ * SMTP outage cannot fail the profile save. A double dispatch for the same
+ * account is deduplicated for one minute.
  */
-final class SendEmailVerificationJob implements ShouldQueue
+final class SendEmailVerificationJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -32,12 +34,27 @@ final class SendEmailVerificationJob implements ShouldQueue
     /** @var list<int> */
     public array $backoff = [10, 60];
 
+    public int $uniqueFor = 60;
+
     public bool $deleteWhenMissingModels = true;
 
     public function __construct(public User $user) {}
 
+    public function uniqueId(): string
+    {
+        return $this->user->uuid;
+    }
+
     public function handle(): void
     {
-        $this->user->sendEmailVerificationNotification();
+        $user = $this->user->fresh();
+
+        // `fresh()` bypasses the soft-delete scope, so a deleted account still
+        // returns here. Never mail a verification link to a removed account.
+        if (! $user instanceof User || $user->trashed()) {
+            return;
+        }
+
+        $user->sendEmailVerificationNotification();
     }
 }

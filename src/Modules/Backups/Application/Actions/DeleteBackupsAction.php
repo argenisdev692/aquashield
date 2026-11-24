@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Backups\Application\Actions;
 
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
-use Modules\Backups\Domain\Models\BackupArchive;
+use Modules\Backups\Domain\Models\BackupInventory;
 use Modules\Backups\Domain\Services\BackupLifecycleGuard;
 use Shared\Domain\Ports\AuditPort;
 
@@ -32,8 +32,8 @@ final readonly class DeleteBackupsAction
      */
     public function execute(array $uuids, ?object $causer): void
     {
-        $active = $this->archives->active();
-        $targets = $this->resolve($uuids, $active);
+        $active = BackupInventory::fromList($this->archives->active());
+        $targets = $active->select($uuids);
 
         // Validate the whole batch before touching storage: a partial delete is
         // worse than a refused one.
@@ -50,31 +50,5 @@ final readonly class DeleteBackupsAction
                 'size_bytes' => $target->sizeBytes,
             ], $causer, 'backups');
         }
-    }
-
-    /**
-     * @param list<string> $uuids
-     * @param list<BackupArchive> $active
-     * @return list<BackupArchive>
-     */
-    private function resolve(array $uuids, array $active): array
-    {
-        $indexed = [];
-
-        foreach ($active as $archive) {
-            $indexed[$archive->uuid] = $archive;
-        }
-
-        $targets = [];
-
-        foreach ($uuids as $uuid) {
-            if (! isset($indexed[$uuid])) {
-                throw BackupNotFound::forUuid($uuid);
-            }
-
-            $targets[] = $indexed[$uuid];
-        }
-
-        return $targets;
     }
 }

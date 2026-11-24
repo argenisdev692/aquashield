@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidPhone } from '@/lib/phone';
+import { phoneField } from '@/lib/phone';
 
 /**
  * Client contract for the CompanyData singleton.
@@ -13,14 +13,33 @@ import { isValidPhone } from '@/lib/phone';
  * everything; this schema only saves a round trip.
  */
 
-type CompanyDataDto = Modules.CompanyData.Application.Dtos.CompanyDataDto;
+type CompanyDataDto = Modules.CompanyData.Data.CompanyDataDto;
 
 /** Empty is allowed; anything else must be a full URL (the server rule is `url`). */
 const optionalUrl = (message: string) =>
     z
         .string()
         .trim()
-        .refine((value) => value === '' || z.url().safeParse(value).success, { error: message });
+        .refine(
+            (value) => {
+                if (value === '') {
+                    return true;
+                }
+
+                if (!z.url().safeParse(value).success) {
+                    return false;
+                }
+
+                try {
+                    const parsed = new URL(value);
+
+                    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+                } catch {
+                    return false;
+                }
+            },
+            { error: message },
+        );
 
 /** Empty is allowed; otherwise a finite number within ±limit (server: `between`). */
 const optionalCoordinate = (limit: number, message: string) =>
@@ -52,13 +71,9 @@ export const companyProfileSchema = z.object({
         .trim()
         .max(255, '255 characters maximum')
         .pipe(z.email('Enter a valid email')),
-    phone: z
-        .string()
-        .trim()
-        .refine((value) => value === '' || isValidPhone(value), {
-            error: 'Enter a valid phone number',
-        }),
-    description: z.string().trim(),
+    // `max: 20` mirrors UpdateCompanyDataRequest exactly.
+    phone: phoneField({ max: 20 }),
+    description: z.string().trim().max(5000, '5000 characters maximum'),
 
     nif_nipc: z.string().trim().max(20, '20 characters maximum'),
     nie: z.string().trim().max(20, '20 characters maximum'),
@@ -66,10 +81,10 @@ export const companyProfileSchema = z.object({
     bank_iban: z.string().trim().max(34, '34 characters maximum'),
     bank_bic: z.string().trim().max(11, '11 characters maximum'),
     bank_name: z.string().trim().max(255, '255 characters maximum'),
-    invoice_notes: z.string().trim(),
+    invoice_notes: z.string().trim().max(5000, '5000 characters maximum'),
 
-    address: z.string().trim(),
-    address_2: z.string().trim(),
+    address: z.string().trim().max(500, '500 characters maximum'),
+    address_2: z.string().trim().max(500, '500 characters maximum'),
     zip_code: z.string().trim().max(10, '10 characters maximum'),
     city: z.string().trim().max(255, '255 characters maximum'),
     state: z.string().trim().max(255, '255 characters maximum'),

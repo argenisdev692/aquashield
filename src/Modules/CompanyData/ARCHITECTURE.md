@@ -1,76 +1,66 @@
-# CompanyData — ARCHITECTURE.md (PROGRESSIVE variant, only with ≥2 triggers)
+# CompanyData — ARCHITECTURE.md (FLAT)
 
-> Copy this file to `src/Modules/{Module}/ARCHITECTURE.md` and fill in the
-> brackets. Full rules → `.opencode/skills/backend-php/SKILL-ARCHITECTURE.md`.
-> The test `tests/Architecture/ModuleComplexityTest.php` parses the `mode:` line
-> and verifies `Domain/` and `Application/` purity.
+mode: FLAT
 
-mode: PROGRESSIVE
+## Why FLAT
 
-## Why PROGRESSIVE (≥2 triggers met — tick them)
+One Eloquent singleton (the company profile) plus four brand-asset uploads. No
+state machine and no second consuming module. The singleton is an invariant
+("exactly one row"), but it is one rule expressed by `CompanyData::current()`
+and the single write path — not a reason to add layers. The PROGRESSIVE
+declaration of 2026-10-28 never met the ≥2 trigger threshold; the module was
+demoted on 2026-11-22 and the files moved — the logic was not deleted.
 
-- [x] ≥3 models with business rules: CompanyData model (40+ fields) + CompanyProfile service + Business rules around company validation and relationships
-- [x] Invariants: Company data is a central invariant for the application — every request needs company branding, contact info, banking info for invoicing
-- [ ] Tests that swap out persistence/external: Tests with mocked StoragePort for R2 uploads
-- [ ] Extraction roadmap: Planned separation from the application core as company management grows
+## Triggers evaluated (0-1 of 4 to stay FLAT)
 
-> **Audit note (2026-10-28):** only one Eloquent model and no state-machine invariant exist,
-> so the ≥2 trigger threshold is not honestly met. Demotion to FLAT is proposed in the audit;
-> the mode is left unchanged until the owner decides (a mode change is not an auto-fix).
+- [ ] ≥3 models with business rules — one model, one row.
+- [x] Invariants — exactly one company row. `CompanyData::current()` defines the
+      read; the action updates that row in place and throws 404 when it is not
+      provisioned. The `singleton` unique column is the database guard. One
+      trigger, below the ≥2 threshold, so FLAT stands.
+- [ ] Tests that need to swap out persistence or an external service — the
+      asset path is tested through `Shared\Domain\Ports\StoragePort`, which is
+      already the seam. The module's own port had one implementation.
+- [ ] Roadmap: extraction to a microservice — no.
 
-## Boundaries and public contracts
+## Layout
 
-- Public contract: public `GET /api/company-data` shaped by
-  `Application\Dtos\CompanyBrandingDto` (Scramble-documented, no auth), plus the
-  session `GET/PUT /company-data` shaped by `Application\Dtos\CompanyDataDto`
-  (no `id`, `user_id` or `signature_path`).
-- Port used internally: `Application\Repositories\CompanyRepository`, bound to
-  `EloquentCompanyRepository` by the module provider.
-- Events it emits: none yet — the singleton has no consumer event.
-- What is NEVER exposed: Eloquent models, `user_id`, raw `id`, `signature_path`,
-  bank/tax fields on the public endpoint.
+- `Models/CompanyData.php` — the singleton; `CompanyData::current()` is the
+  module's definition of "the row". `CompanyProfile` mirrors the active-oldest
+  query in Shared so it can stay decoupled from this module (accepted
+  duplication; see Accepted debt).
+- `Data/` — Spatie Data response/request contracts (the TypeScript source).
+- `Actions/` — `SaveCompanyDataAction`, `StoreCompanyAssetAction`,
+  `DeleteCompanyAssetAction`.
+- `Queries/CompanyAssetsQuery.php` — key → renderable URL, one fallback rule.
+- `Enums/CompanyAsset.php`, `Support/R2CompanyAssetStorage.php`.
+- `Http/`, `Routes/{web,api}.php`, `Providers/`, `Tests/`.
 
-## Applicable invariants (see skill §3)
+## Accepted debt
 
-1. `Domain/` imports no framework, ORM, HTTP, or infrastructure.
-2. `Application/` imports only domain + abstractions + `Illuminate\Contracts\*`
-   (interfaces). No Eloquent, no facades, no HTTP.
-3. Controllers: validate → invoke ONE use case → map the response.
-4. Repos live in `Infrastructure/Persistence/`: `CompanyRepository` interface + `EloquentCompanyRepository`.
-5. Every dependency points inward; existing violations get fixed, never copied.
-6. No module reaches another module's `Domain/` or `Application/`.
-7. Every class here has a consumer — `DesignSmellsTest.php` fails orphans and
-   `Contracts/`-style folders.
-8. No dumb pass-through: a method that only forwards its own arguments is a
-   failing test (`PRINCIPLES/SKILL.md` §4).
+- `R2CompanyAssetStorage` reaches R2 through `Shared\Domain\Ports\StoragePort`.
+  If a second adapter or a test double for the module's own asset contract is
+  ever needed, introduce that port then — not before.
+- The public `GET /api/company-data` surface is real (welcome page and external
+  landing sites) and stays.
+- The active-oldest rule exists twice on purpose: `CompanyData::current()` for
+  the module and `CompanyProfile::firstCompanyRow()` for Shared branding, which
+  must not depend on a module. Any change to the singleton rule must update both.
 
-## This is an OCP bet — name it and date it
+## What is never exposed
 
-Declaring PROGRESSIVE is an _extensibility point_: it costs construction **and**
-delay (Fowler), the delay even when the trigger was right. Uncle Bob called the
-Open/Closed Principle "a big lie … that depended upon prescience and perfect
-foresight". The de-escalation rule below is what makes the bet safe.
+Eloquent models, `user_id`, the raw `id`, `signature_path`, and bank/tax fields
+on the public endpoint.
 
-- Bet made on: 2026-10-28
-- Review due: 2027-04-28 — two quarters from the bet date
-- What would prove this was over-engineering: no second consumer of
-  `CompanyRepository` and no invariant beyond the singleton by 2027-04-28.
+## Tests
 
-## Accepted debt and de-escalation condition
-
-`CompanyRepository` still speaks in Eloquent models (`current()`/`save()`), so the
-Application port depends on `Infrastructure/Persistence/CompanyData`. That is the
-one real boundary debt in this module. It is tolerated only while the singleton
-stays this small; demote to FLAT when 0/4 triggers hold for two quarters and no
-test-covered invariants remain. Demoting means moving the files back to flat —
-not deleting logic.
-
-## Tests holding the layers up (no-lock rule)
-
-- `Tests/Feature/CompanyDataEndpointTest.php` — 401/403/422, singleton upsert,
-  response allowlist and `CompanyProfile` cache flush.
-- `Tests/Unit/SaveCompanyDataActionTest.php` — DB-free handler test with a mocked
-  `CompanyRepository`.
-- `tests/Architecture/ModuleComplexityTest.php` — `arch()` enforces the layer
-  boundaries; there is no `Domain/` in this module, so the no-lock rule applies
-  to the Application port above.
+- `Tests/Feature/CompanyDataEndpointTest.php` — 401/403/404/422, update in
+  place, response allowlist, financial-field audit and `CompanyProfile` cache
+  flush.
+- `Tests/Feature/CompanyAssetEndpointTest.php` — upload/clear through a fake
+  `StoragePort`, private signature URL, and the asset-change activity entry.
+- `Tests/Feature/PublicCompanyDataEndpointTest.php` — public branding and the
+  no-row fallback.
+- `Tests/Unit/SaveCompanyDataActionTest.php` — create-then-update in place.
+- `tests/Architecture/ModuleComplexityTest.php` — a FLAT module ships no
+  `Domain/`, `Application/` or `Infrastructure/` folder.

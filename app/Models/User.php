@@ -25,13 +25,15 @@ use Illuminate\Notifications\DatabaseNotificationCollection;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\Passkey;
+use Laravel\Passkeys\PasskeyAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\PersonalAccessToken;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
+use Modules\Users\Enums\UserStatus;
 use Spatie\OneTimePasswords\Models\Concerns\HasOneTimePasswords;
 use Spatie\OneTimePasswords\Models\OneTimePassword;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -43,6 +45,12 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string|null $username
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property UserStatus $status
+ * @property Carbon|null $invitation_sent_at
+ * @property Carbon|null $activated_at
+ * @property Carbon|null $suspended_at
+ * @property bool $must_change_password
+ * @property Carbon|null $passkey_prompt_dismissed_at
  * @property string|null $password
  * @property int $failed_login_attempts
  * @property Carbon|null $locked_until
@@ -141,6 +149,20 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static Builder<static>|User withoutTrashed()
  * @method static Builder<static>|User whereDeletedAt($value)
  *
+ * @property-read Collection<int, Passkey> $passkeys
+ * @property-read int|null $passkeys_count
+ *
+ * @method static Builder<static>|User wherePasskeyPromptDismissedAt($value)
+ *
+ * @property-read Collection<int, SavedView> $savedViews
+ * @property-read int|null $saved_views_count
+ *
+ * @method static Builder<static>|User whereActivatedAt($value)
+ * @method static Builder<static>|User whereInvitationSentAt($value)
+ * @method static Builder<static>|User whereMustChangePassword($value)
+ * @method static Builder<static>|User whereStatus($value)
+ * @method static Builder<static>|User whereSuspendedAt($value)
+ *
  * @mixin \Eloquent
  */
 #[Fillable([
@@ -149,6 +171,11 @@ use Spatie\Permission\Traits\HasRoles;
     'username',
     'email',
     'password',
+    'status',
+    'invitation_sent_at',
+    'activated_at',
+    'suspended_at',
+    'must_change_password',
     'phone',
     'date_of_birth',
     'address',
@@ -165,12 +192,13 @@ use Spatie\Permission\Traits\HasRoles;
     'google_id',
     'uuid',
     'registered_by_id',
+    'passkey_prompt_dismissed_at',
 ])]
 #[Hidden(['password', 'remember_token', 'google_id'])]
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasOneTimePasswords, HasRoles, HasUuids, MustVerifyEmailTrait, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasOneTimePasswords, HasRoles, HasUuids, MustVerifyEmailTrait, Notifiable, PasskeyAuthenticatable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * Get the columns that should receive a unique identifier.
@@ -204,6 +232,12 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'passkey_prompt_dismissed_at' => 'datetime',
+            'status' => UserStatus::class,
+            'invitation_sent_at' => 'datetime',
+            'activated_at' => 'datetime',
+            'suspended_at' => 'datetime',
+            'must_change_password' => 'boolean',
             'password' => 'hashed',
             'failed_login_attempts' => 'integer',
             'locked_until' => 'datetime',
@@ -211,6 +245,33 @@ class User extends Authenticatable implements MustVerifyEmail
             'longitude' => 'float',
             'terms_and_conditions' => 'boolean',
         ];
+    }
+
+    /**
+     * Staff lifecycle predicates.
+     *
+     * They live on the aggregate because every transport (Fortify, passkeys,
+     * OTP, API tokens and the admin guard) asks the same question. The role
+     * hierarchy is deliberately NOT here — that belongs to AccessCeiling.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === UserStatus::Active;
+    }
+
+    public function isInvited(): bool
+    {
+        return $this->status === UserStatus::Invited;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === UserStatus::Suspended;
+    }
+
+    public function requiresPasswordChange(): bool
+    {
+        return $this->must_change_password;
     }
 
     /**
@@ -250,6 +311,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function companyData(): HasOne
     {
         return $this->hasOne(CompanyData::class);
+    }
+
+    /**
+     * Named table views owned by this user.
+     *
+     * @return HasMany<SavedView, $this>
+     */
+    public function savedViews(): HasMany
+    {
+        return $this->hasMany(SavedView::class);
     }
 
     /**

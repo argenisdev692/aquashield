@@ -15,25 +15,83 @@
         }
     ],
     "paths": {
-        "/activity": {
+        "/v1/appointments": {
             "get": {
-                "operationId": "activity.index",
+                "operationId": "v1.appointments.index",
                 "tags": [
-                    "ActivityLog"
+                    "Appointment"
                 ],
                 "responses": {
                     "200": {
-                        "description": "`ActivityListData`",
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ActivityListData"
+                                    "type": "object"
                                 }
                             }
                         }
                     },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1.appointments.store",
+                "tags": [
+                    "Appointment"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/bulk-delete": {
+            "post": {
+                "operationId": "v1.appointments.bulk-delete",
+                "tags": [
+                    "Appointment"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -41,15 +99,31 @@
                 }
             }
         },
-        "/activity/{activity}": {
-            "get": {
-                "operationId": "activity.show",
+        "/v1/appointments/bulk-restore": {
+            "post": {
+                "operationId": "v1.appointments.bulk-restore",
                 "tags": [
-                    "ActivityLog"
+                    "Appointment"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}": {
+            "get": {
+                "operationId": "v1.appointments.show",
+                "tags": [
+                    "Appointment"
                 ],
                 "parameters": [
                     {
-                        "name": "activity",
+                        "name": "uuid",
                         "in": "path",
                         "required": true,
                         "schema": {
@@ -59,11 +133,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "`ActivityDetailData`",
+                        "description": "",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ActivityDetailData"
+                                    "type": "object"
                                 }
                             }
                         }
@@ -71,8 +145,341 @@
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1.appointments.destroy",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}/restore": {
+            "patch": {
+                "operationId": "v1.appointments.restore",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}/confirm": {
+            "post": {
+                "operationId": "v1.appointments.confirm",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}/reschedule": {
+            "post": {
+                "operationId": "v1.appointments.reschedule",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RescheduleAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}/cancel": {
+            "post": {
+                "operationId": "v1.appointments.cancel",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CancelAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/{uuid}/complete": {
+            "post": {
+                "operationId": "v1.appointments.complete",
+                "tags": [
+                    "Appointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`AppointmentData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AppointmentData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/appointments/export/{format}": {
+            "get": {
+                "operationId": "v1.appointments.export",
+                "tags": [
+                    "AppointmentExport"
+                ],
+                "parameters": [
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "The export is limited to 10000 rows. Narrow the filters."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -199,6 +606,613 @@
                 }
             }
         },
+        "/v1/availability-rules": {
+            "get": {
+                "operationId": "v1.availability-rules.index",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AvailabilityRuleData"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1.availability-rules.store",
+                "tags": [
+                    "Availability"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAvailabilityRuleRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AvailabilityRuleData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityRuleData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-rules/bulk-delete": {
+            "post": {
+                "operationId": "v1.availability-rules.bulk-delete",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-rules/bulk-restore": {
+            "post": {
+                "operationId": "v1.availability-rules.bulk-restore",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-rules/{uuid}": {
+            "put": {
+                "operationId": "v1.availability-rules.update",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAvailabilityRuleRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AvailabilityRuleData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityRuleData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1.availability-rules.destroy",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-rules/{uuid}/restore": {
+            "patch": {
+                "operationId": "v1.availability-rules.restore",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AvailabilityRuleData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityRuleData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions": {
+            "get": {
+                "operationId": "v1.availability-exceptions.index",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AvailabilityExceptionData"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1.availability-exceptions.store",
+                "tags": [
+                    "Availability"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAvailabilityExceptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`AvailabilityExceptionData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityExceptionData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions/bulk-delete": {
+            "post": {
+                "operationId": "v1.availability-exceptions.bulk-delete",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions/bulk-restore": {
+            "post": {
+                "operationId": "v1.availability-exceptions.bulk-restore",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions/bulk-range": {
+            "post": {
+                "operationId": "v1.availability-exceptions.bulk-range",
+                "tags": [
+                    "Availability"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkRangeExceptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "created": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "created"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions/{uuid}": {
+            "put": {
+                "operationId": "v1.availability-exceptions.update",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveAvailabilityExceptionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`AvailabilityExceptionData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityExceptionData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1.availability-exceptions.destroy",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability-exceptions/{uuid}/restore": {
+            "patch": {
+                "operationId": "v1.availability-exceptions.restore",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`AvailabilityExceptionData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AvailabilityExceptionData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability/calendar": {
+            "get": {
+                "operationId": "v1.availability.calendar",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "region",
+                        "in": "query",
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Region"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {}
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/availability/sync-holidays": {
+            "post": {
+                "operationId": "v1.availability.sync-holidays",
+                "tags": [
+                    "Availability"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "purged": {
+                                                    "type": "integer"
+                                                },
+                                                "created": {
+                                                    "type": "integer",
+                                                    "const": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "purged",
+                                                "created"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "country": {
+                                                    "type": "string"
+                                                },
+                                                "created": {
+                                                    "type": "integer",
+                                                    "const": 0
+                                                },
+                                                "skipped": {
+                                                    "type": "integer",
+                                                    "const": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "country",
+                                                "created",
+                                                "skipped"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/backups": {
             "get": {
                 "operationId": "backups.index",
@@ -215,9 +1229,6 @@
                                 }
                             }
                         }
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -255,59 +1266,69 @@
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
-                    },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
         },
-        "/backups/{backup}/download": {
+        "/v1/appointments/calendar": {
             "get": {
-                "operationId": "backups.download",
+                "operationId": "v1.appointments.calendar",
                 "tags": [
-                    "BackupDownload"
+                    "Calendar"
                 ],
                 "parameters": [
                     {
-                        "name": "backup",
-                        "in": "path",
-                        "required": true,
+                        "name": "from",
+                        "in": "query",
                         "schema": {
-                            "type": "string"
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "region",
+                        "in": "query",
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/Region"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "`CalendarFeedData`",
                         "content": {
-                            "application/zip": {
+                            "application/json": {
                                 "schema": {
-                                    "type": "string",
-                                    "format": "binary"
-                                }
-                            }
-                        },
-                        "headers": {
-                            "Transfer-Encoding": {
-                                "required": true,
-                                "schema": {
-                                    "type": "string",
-                                    "enum": [
-                                        "chunked"
-                                    ]
+                                    "$ref": "#/components/schemas/CalendarFeedData"
                                 }
                             }
                         }
                     },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -363,11 +1384,11 @@
                             }
                         }
                     },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
@@ -404,6 +1425,604 @@
                     }
                 }
             }
+        },
+        "/v1/leads": {
+            "get": {
+                "operationId": "v1.leads.index",
+                "summary": "One read, two transports: the DataTable kit receives `rows` + `total` as\nInertia props, and /api/v1 receives the same page as JSON",
+                "tags": [
+                    "Lead"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "v1.leads.store",
+                "tags": [
+                    "Lead"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreLeadRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "`LeadData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/bulk-delete": {
+            "post": {
+                "operationId": "v1.leads.bulk-delete",
+                "tags": [
+                    "Lead"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/bulk-restore": {
+            "post": {
+                "operationId": "v1.leads.bulk-restore",
+                "tags": [
+                    "Lead"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/{uuid}": {
+            "get": {
+                "operationId": "v1.leads.show",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "v1.leads.update",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateLeadRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`LeadData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1.leads.destroy",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/{uuid}/restore": {
+            "patch": {
+                "operationId": "v1.leads.restore",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`LeadData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/{uuid}/status": {
+            "post": {
+                "operationId": "v1.leads.status",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateLeadStatusRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "`LeadData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/{uuid}/activities": {
+            "post": {
+                "operationId": "v1.leads.activities.store",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogLeadActivityRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "required": true,
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "`LeadActivityData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadActivityData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/{uuid}/merge": {
+            "post": {
+                "operationId": "v1.leads.merge",
+                "tags": [
+                    "Lead"
+                ],
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MergeLeadRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`LeadData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/v1/leads/export/{format}": {
+            "get": {
+                "operationId": "v1.leads.export",
+                "tags": [
+                    "LeadExport"
+                ],
+                "parameters": [
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "The export is limited to 10000 rows. Narrow the filters."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/leads": {
+            "post": {
+                "operationId": "leads.store",
+                "tags": [
+                    "PublicLead"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePublicLeadRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`LeadReceiptData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadReceiptData"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/leads/honeypot": {
+            "get": {
+                "operationId": "leads.honeypot",
+                "tags": [
+                    "PublicLead"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {}
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/reports/lead-sources": {
+            "get": {
+                "operationId": "v1.reports.lead-sources",
+                "tags": [
+                    "Report"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`LeadSourceReportData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LeadSourceReportData"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/v1/reports/lead-sources/export/{format}": {
+            "get": {
+                "operationId": "v1.reports.lead-sources.export",
+                "tags": [
+                    "Report"
+                ],
+                "parameters": [
+                    {
+                        "name": "format",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -414,92 +2033,6 @@
             }
         },
         "schemas": {
-            "ActivityDetailData": {
-                "type": "object",
-                "properties": {
-                    "activity": {
-                        "$ref": "#/components/schemas/ActivityEntryData"
-                    }
-                },
-                "required": [
-                    "activity"
-                ],
-                "title": "ActivityDetailData"
-            },
-            "ActivityEntryData": {
-                "type": "object",
-                "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "log_name": {
-                        "type": "string"
-                    },
-                    "event": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "causer_name": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "subject_type": {
-                        "type": [
-                            "string",
-                            "null"
-                        ]
-                    },
-                    "properties": {
-                        "type": "array",
-                        "items": {
-                            "type": "integer"
-                        }
-                    },
-                    "created_at": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "uuid",
-                    "log_name",
-                    "event",
-                    "description",
-                    "properties",
-                    "created_at"
-                ],
-                "title": "ActivityEntryData"
-            },
-            "ActivityListData": {
-                "type": "object",
-                "properties": {
-                    "rows": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/ActivityEntryData"
-                        }
-                    },
-                    "total": {
-                        "type": "integer"
-                    },
-                    "page": {
-                        "type": "integer"
-                    },
-                    "per_page": {
-                        "type": "integer"
-                    }
-                },
-                "required": [
-                    "rows",
-                    "total",
-                    "page",
-                    "per_page"
-                ],
-                "title": "ActivityListData"
-            },
             "App.Data.Auth.UserData": {
                 "type": "object",
                 "properties": {
@@ -633,6 +2166,121 @@
                 ],
                 "title": "App.Data.Auth.UserData"
             },
+            "AppointmentData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "lead_uuid": {
+                        "type": "string"
+                    },
+                    "customer_name": {
+                        "type": "string"
+                    },
+                    "customer_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "customer_phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_line": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "starts_at": {
+                        "type": "string"
+                    },
+                    "ends_at": {
+                        "type": "string"
+                    },
+                    "starts_at_local": {
+                        "type": "string"
+                    },
+                    "ends_at_local": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "previous_starts_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "google_event_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cancel_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "deleted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "lead_uuid",
+                    "customer_name",
+                    "address_line",
+                    "kind",
+                    "status",
+                    "starts_at",
+                    "ends_at",
+                    "starts_at_local",
+                    "ends_at_local",
+                    "timezone",
+                    "region"
+                ],
+                "title": "AppointmentData"
+            },
+            "AppointmentKind": {
+                "type": "string",
+                "enum": [
+                    "inspection",
+                    "estimate",
+                    "adjuster_meeting",
+                    "job_visit",
+                    "follow_up"
+                ],
+                "title": "AppointmentKind"
+            },
             "AuthTokenData": {
                 "type": "object",
                 "properties": {
@@ -656,6 +2304,80 @@
                     "user"
                 ],
                 "title": "AuthTokenData"
+            },
+            "AvailabilityExceptionData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    },
+                    "start_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "end_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "source": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "date",
+                    "is_available",
+                    "source"
+                ],
+                "title": "AvailabilityExceptionData"
+            },
+            "AvailabilityRuleData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "day_of_week": {
+                        "type": "integer"
+                    },
+                    "day_label": {
+                        "type": "string"
+                    },
+                    "start_time": {
+                        "type": "string"
+                    },
+                    "end_time": {
+                        "type": "string"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "day_of_week",
+                    "day_label",
+                    "start_time",
+                    "end_time",
+                    "is_available"
+                ],
+                "title": "AvailabilityRuleData"
             },
             "BackupActivityData": {
                 "type": "object",
@@ -787,6 +2509,126 @@
                     "last_page"
                 ],
                 "title": "BackupListData"
+            },
+            "BulkRangeExceptionRequest": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "to": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    },
+                    "start_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "end_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "from",
+                    "to"
+                ],
+                "title": "BulkRangeExceptionRequest"
+            },
+            "CalendarDayData": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string"
+                    },
+                    "is_open": {
+                        "type": "boolean"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "windows": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "appointments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Modules.LeadAppointment.Application.Dtos.AppointmentData"
+                        }
+                    }
+                },
+                "required": [
+                    "date",
+                    "is_open",
+                    "source",
+                    "windows",
+                    "appointments"
+                ],
+                "title": "CalendarDayData"
+            },
+            "CalendarFeedData": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string"
+                    },
+                    "to": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "days": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CalendarDayData"
+                        }
+                    }
+                },
+                "required": [
+                    "from",
+                    "to",
+                    "timezone",
+                    "days"
+                ],
+                "title": "CalendarFeedData"
+            },
+            "CancelAppointmentRequest": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "reason"
+                ],
+                "title": "CancelAppointmentRequest"
             },
             "CompanyBrandingDto": {
                 "type": "object",
@@ -1116,15 +2958,473 @@
                             "string",
                             "null"
                         ]
+                    }
+                },
+                "title": "CompanySocialsDto"
+            },
+            "InspectionStatus": {
+                "type": "string",
+                "description": "Status of the inspection recorded on the lead itself, matching the legacy `inspection_status` column. The appointment has its own, richer lifecycle; this enum is the operator-facing projection.\n",
+                "enum": [
+                    "pending",
+                    "confirmed",
+                    "completed",
+                    "declined"
+                ],
+                "title": "InspectionStatus"
+            },
+            "LeadActivityData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
                     },
-                    "github": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "outcome": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "occurred_at": {
+                        "type": "string"
+                    },
+                    "actor_name": {
                         "type": [
                             "string",
                             "null"
                         ]
                     }
                 },
-                "title": "CompanySocialsDto"
+                "required": [
+                    "uuid",
+                    "type",
+                    "occurred_at"
+                ],
+                "title": "LeadActivityData"
+            },
+            "LeadActivityType": {
+                "type": "string",
+                "enum": [
+                    "call",
+                    "email",
+                    "sms",
+                    "note",
+                    "meeting"
+                ],
+                "title": "LeadActivityType"
+            },
+            "LeadData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": "string"
+                    },
+                    "full_name": {
+                        "type": "string"
+                    },
+                    "company_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_line": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "source_detail": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "owner_uuid": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "owner_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "duplicate_of_uuid": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
+                    "is_spam": {
+                        "type": "boolean"
+                    },
+                    "spam_score": {
+                        "type": "integer"
+                    },
+                    "spam_reasons": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "preferred_language": {
+                        "type": "string"
+                    },
+                    "damage_description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "insurance_carrier": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "claim_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "sms_consent": {
+                        "type": "boolean"
+                    },
+                    "sms_consent_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "last_contacted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "converted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "attribution": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "updated_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "deleted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "insurance_property": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "intent_to_claim": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "follow_up_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "additional_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ]
+                    },
+                    "registration_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_status": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "first_name",
+                    "last_name",
+                    "full_name",
+                    "address_line",
+                    "source",
+                    "status",
+                    "is_emergency",
+                    "is_spam",
+                    "spam_score",
+                    "spam_reasons",
+                    "preferred_language",
+                    "sms_consent",
+                    "insurance_property"
+                ],
+                "title": "LeadData"
+            },
+            "LeadReceiptData": {
+                "type": "object",
+                "properties": {
+                    "reference": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "reference",
+                    "status"
+                ],
+                "title": "LeadReceiptData"
+            },
+            "LeadSourceReportData": {
+                "type": "object",
+                "properties": {
+                    "from": {
+                        "type": "string"
+                    },
+                    "to": {
+                        "type": "string"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LeadSourceReportRowData"
+                        }
+                    },
+                    "average_first_contact_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "from",
+                    "to",
+                    "rows"
+                ],
+                "title": "LeadSourceReportData"
+            },
+            "LeadSourceReportRowData": {
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "type": "string"
+                    },
+                    "source_label": {
+                        "type": "string"
+                    },
+                    "leads": {
+                        "type": "integer"
+                    },
+                    "appointments": {
+                        "type": "integer"
+                    },
+                    "won": {
+                        "type": "integer"
+                    },
+                    "conversion_rate": {
+                        "type": "number"
+                    },
+                    "average_first_contact_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "source",
+                    "source_label",
+                    "leads",
+                    "appointments",
+                    "won",
+                    "conversion_rate"
+                ],
+                "title": "LeadSourceReportRowData"
+            },
+            "LeadStatus": {
+                "type": "string",
+                "description": "Sales pipeline stage. The transition map is the single source of truth; a controller may not move a lead to a stage the map forbids.\n",
+                "enum": [
+                    "new",
+                    "contacted",
+                    "qualified",
+                    "inspection_scheduled",
+                    "won",
+                    "lost",
+                    "nurture"
+                ],
+                "title": "LeadStatus"
+            },
+            "LogLeadActivityRequest": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/LeadActivityType"
+                    },
+                    "outcome": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 30
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "occurred_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "type"
+                ],
+                "title": "LogLeadActivityRequest"
             },
             "LoginRequest": {
                 "type": "object",
@@ -1164,6 +3464,667 @@
                 ],
                 "title": "LoginRequest"
             },
+            "MergeLeadRequest": {
+                "type": "object",
+                "properties": {
+                    "duplicate_uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "duplicate_uuid"
+                ],
+                "title": "MergeLeadRequest"
+            },
+            "Modules.LeadAppointment.Application.Dtos.AppointmentData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "lead_uuid": {
+                        "type": "string"
+                    },
+                    "customer_name": {
+                        "type": "string"
+                    },
+                    "customer_email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "customer_phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "address_line": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "starts_at": {
+                        "type": "string"
+                    },
+                    "ends_at": {
+                        "type": "string"
+                    },
+                    "starts_at_local": {
+                        "type": "string"
+                    },
+                    "ends_at_local": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "previous_starts_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "google_event_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "cancel_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "deleted_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "lead_uuid",
+                    "customer_name",
+                    "address_line",
+                    "kind",
+                    "status",
+                    "starts_at",
+                    "ends_at",
+                    "starts_at_local",
+                    "ends_at_local",
+                    "timezone",
+                    "region"
+                ],
+                "title": "Modules.LeadAppointment.Application.Dtos.AppointmentData"
+            },
+            "Region": {
+                "type": "string",
+                "description": "The three service metros. A fixed enum, not a table: expanding to a fourth market is a business event that deserves a migration and a review, not a row an operator can create by accident.\n",
+                "enum": [
+                    "houston",
+                    "dallas",
+                    "florida"
+                ],
+                "title": "Region"
+            },
+            "RescheduleAppointmentRequest": {
+                "type": "object",
+                "properties": {
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 15,
+                        "maximum": 480
+                    },
+                    "timezone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "starts_at",
+                    "reason"
+                ],
+                "title": "RescheduleAppointmentRequest"
+            },
+            "SaveAvailabilityExceptionRequest": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    },
+                    "start_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "end_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "date"
+                ],
+                "title": "SaveAvailabilityExceptionRequest"
+            },
+            "SaveAvailabilityRuleRequest": {
+                "type": "object",
+                "properties": {
+                    "day_of_week": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6
+                    },
+                    "start_time": {
+                        "type": "string"
+                    },
+                    "end_time": {
+                        "type": "string"
+                    },
+                    "is_available": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "day_of_week",
+                    "start_time",
+                    "end_time"
+                ],
+                "title": "SaveAvailabilityRuleRequest"
+            },
+            "StoreAppointmentRequest": {
+                "type": "object",
+                "properties": {
+                    "lead_uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/AppointmentKind"
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 15,
+                        "maximum": 480
+                    },
+                    "timezone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "region": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Region"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "lead_uuid",
+                    "kind",
+                    "starts_at"
+                ],
+                "title": "StoreAppointmentRequest"
+            },
+            "StoreLeadRequest": {
+                "type": "object",
+                "properties": {
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": "string"
+                    },
+                    "company_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\+?[0-9\\s().-]{7,32}$",
+                        "maxLength": 32
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "TX",
+                            "FL",
+                            null
+                        ],
+                        "minLength": 2,
+                        "maxLength": 2
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\d{5}(-\\d{4})?$"
+                    },
+                    "region": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Region"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "damage_description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "insurance_property": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "intent_to_claim": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "follow_up_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "inspection_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "inspection_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/InspectionStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "additional_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
+                    "sms_consent": {
+                        "type": "boolean"
+                    },
+                    "consent_text_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "preferred_language": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "en",
+                            "es",
+                            null
+                        ]
+                    },
+                    "owner_uuid": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    }
+                },
+                "required": [
+                    "first_name",
+                    "last_name"
+                ],
+                "title": "StoreLeadRequest"
+            },
+            "StorePublicLeadRequest": {
+                "type": "object",
+                "description": "Public website form. The landing page posts snake_case JSON; the honeypot\nfields are intentionally not listed here (SpamProtection reads the whole\nrequest) and `source` is server-set, never client-provided.",
+                "properties": {
+                    "first_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "company_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\+?[0-9\\s().-]{7,32}$",
+                        "maxLength": 32
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "TX",
+                            "FL",
+                            null
+                        ],
+                        "minLength": 2,
+                        "maxLength": 2
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\d{5}(-\\d{4})?$"
+                    },
+                    "region": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Region"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "damage_description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "insurance_property": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "intent_to_claim": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
+                    "sms_consent": {
+                        "type": "boolean"
+                    },
+                    "consent_text_version": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 20
+                    },
+                    "preferred_language": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "en",
+                            "es",
+                            null
+                        ]
+                    },
+                    "source_page": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 500
+                    },
+                    "utm_source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "utm_medium": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "utm_campaign": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "utm_content": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "utm_term": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "first_name",
+                    "last_name"
+                ],
+                "title": "StorePublicLeadRequest"
+            },
             "UpdateCompanyDataRequest": {
                 "type": "object",
                 "properties": {
@@ -1179,7 +4140,8 @@
                         "type": [
                             "string",
                             "null"
-                        ]
+                        ],
+                        "maxLength": 5000
                     },
                     "email": {
                         "type": "string",
@@ -1239,19 +4201,22 @@
                         "type": [
                             "string",
                             "null"
-                        ]
+                        ],
+                        "maxLength": 5000
                     },
                     "address": {
                         "type": [
                             "string",
                             "null"
-                        ]
+                        ],
+                        "maxLength": 500
                     },
                     "address_2": {
                         "type": [
                             "string",
                             "null"
-                        ]
+                        ],
+                        "maxLength": 500
                     },
                     "zip_code": {
                         "type": [
@@ -1311,6 +4276,7 @@
                             "null"
                         ],
                         "format": "uri",
+                        "description": "These values become public hrefs: restrict the scheme so a\nstored `javascript:` URL can never reach the welcome page.",
                         "maxLength": 255
                     },
                     "facebook_link": {
@@ -1364,6 +4330,256 @@
                     "email"
                 ],
                 "title": "UpdateCompanyDataRequest"
+            },
+            "UpdateLeadRequest": {
+                "type": "object",
+                "properties": {
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": "string"
+                    },
+                    "company_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "email": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\+?[0-9\\s().-]{7,32}$",
+                        "maxLength": 32
+                    },
+                    "address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "address_2": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "city": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 120
+                    },
+                    "state": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "TX",
+                            "FL",
+                            null
+                        ],
+                        "minLength": 2,
+                        "maxLength": 2
+                    },
+                    "zip_code": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "pattern": "^\\d{5}(-\\d{4})?$"
+                    },
+                    "region": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Region"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "damage_description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "insurance_property": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "intent_to_claim": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "follow_up_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "inspection_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "inspection_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/InspectionStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "additional_note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "latitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -90,
+                        "maximum": 90
+                    },
+                    "longitude": {
+                        "type": [
+                            "number",
+                            "null"
+                        ],
+                        "minimum": -180,
+                        "maximum": 180
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
+                    "preferred_language": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "en",
+                            "es",
+                            null
+                        ]
+                    },
+                    "insurance_carrier": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "claim_number": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    },
+                    "notes": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 5000
+                    },
+                    "owner_uuid": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    }
+                },
+                "required": [
+                    "first_name",
+                    "last_name"
+                ],
+                "title": "UpdateLeadRequest"
+            },
+            "UpdateLeadStatusRequest": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/LeadStatus"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 2000
+                    },
+                    "inspection_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date"
+                    },
+                    "inspection_time": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inspection_status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/InspectionStatus"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "status"
+                ],
+                "title": "UpdateLeadStatusRequest"
             },
             "UserData": {
                 "type": "object",
@@ -1500,25 +4716,6 @@
             }
         },
         "responses": {
-            "AuthorizationException": {
-                "description": "Authorization error",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string",
-                                    "description": "Error overview."
-                                }
-                            },
-                            "required": [
-                                "message"
-                            ]
-                        }
-                    }
-                }
-            },
             "AuthenticationException": {
                 "description": "Unauthenticated",
                 "content": {
@@ -1540,6 +4737,25 @@
             },
             "ModelNotFoundException": {
                 "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthorizationException": {
+                "description": "Authorization error",
                 "content": {
                     "application/json": {
                         "schema": {

@@ -21,10 +21,17 @@ All routes are under `web` (session + CSRF) + `auth` + `verified`. Responses are
 JSON; the Inertia screen is a separate `frontend-new` task.
 
 A read-only REST surface also exists under `/api` (Sanctum bearer token,
-Scramble-documented in `api.json`): `GET /api/backups`,
-`GET /api/backups/{uuid}`, `GET /api/backups/{uuid}/download`. Destructive
-verbs stay on the session + CSRF web routes on purpose — a stolen bearer token
-must not be able to quarantine the only recovery point.
+Scramble-documented in `api.json`, same `permission:*` middleware as the web
+routes, `verified` + `account.active` + `throttle:api`):
+
+| Method | Path                  | Permission         | What it does                           |
+| ------ | --------------------- | ------------------ | -------------------------------------- |
+| `GET`  | `/api/backups`        | `VIEW_ANY_BACKUPS` | Same inventory, filters and pagination |
+| `GET`  | `/api/backups/{uuid}` | `VIEW_BACKUPS`     | One archive plus its audit trail       |
+
+Destructive verbs **and the archive download** stay on the session + CSRF web
+routes on purpose: a stolen bearer token must not be able to quarantine the only
+recovery point, nor to walk away with a full copy of the database.
 
 ## Retention (two-stage)
 
@@ -105,9 +112,15 @@ that needs maintenance mode and an operator watching it. Procedure:
   versioning) for the offsite immutable copy, and run restore drills — the
   "0 errors" leg. Until then this is a single-copy backup.
 - Downloads are permission-gated, throttled and audited. The storage path is
-  never exposed; the response carries only the filename.
+  never exposed; the response carries only the filename. There is no signed
+  URL: the archive is streamed through the app, because a link that survives
+  the request is a link that outlives the permission check.
 - The audit endpoint is read-only and applies a property allowlist. An audit
   trail the panel can rewrite is not an audit trail (OWASP A09).
+- A failed dump is audited with the exception **class** only. `backup:run` still
+  writes its own stderr to `storage/logs/laravel.log`, and a `mysqldump` error
+  can echo connection arguments there — that log is the residual exposure, not
+  the panel's audit trail. Rotate it and keep it out of any shipped log bundle.
 - `SUPER_ADMIN` receives the full family. `ADMIN` receives `VIEW_ANY`, `VIEW`
   and `EXPORT` on backups and the activity log — enough to inspect and export,
   not enough to download a full database copy, quarantine/restore an archive or

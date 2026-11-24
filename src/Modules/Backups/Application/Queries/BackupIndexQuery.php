@@ -7,10 +7,11 @@ namespace Modules\Backups\Application\Queries;
 use DateTimeImmutable;
 use DateTimeZone;
 use Modules\Backups\Application\Dtos\BackupPage;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Data\BackupArchiveData;
 use Modules\Backups\Data\BackupFilterData;
 use Modules\Backups\Domain\Models\BackupArchive;
+use Modules\Backups\Domain\Models\BackupInventory;
 
 /**
  * Reads the archive inventory, filters and sorts it in memory, then paginates.
@@ -63,10 +64,11 @@ final readonly class BackupIndexQuery
      */
     public function find(string $uuid): ?BackupArchiveData
     {
-        $newest = $this->newestUuid($this->archives->active());
+        $active = $this->archives->active();
+        $newest = BackupInventory::fromList($active)->newest()?->uuid;
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
-        foreach ([...$this->archives->active(), ...$this->archives->trashed()] as $archive) {
+        foreach ([...$active, ...$this->archives->trashed()] as $archive) {
             if ($archive->uuid === $uuid) {
                 return BackupArchiveData::fromArchive($archive, $newest === $archive->uuid, $now);
             }
@@ -139,7 +141,7 @@ final readonly class BackupIndexQuery
     private function map(array $rows): array
     {
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        $newest = $this->newestUuid($this->archives->active());
+        $newest = BackupInventory::fromList($this->archives->active())->newest()?->uuid;
 
         return array_map(
             static fn (BackupArchive $archive): BackupArchiveData => BackupArchiveData::fromArchive(
@@ -149,21 +151,5 @@ final readonly class BackupIndexQuery
             ),
             $rows,
         );
-    }
-
-    /**
-     * @param list<BackupArchive> $active
-     */
-    private function newestUuid(array $active): ?string
-    {
-        $newest = null;
-
-        foreach ($active as $archive) {
-            if ($newest === null || $archive->takenAt > $newest->takenAt) {
-                $newest = $archive;
-            }
-        }
-
-        return $newest?->uuid;
     }
 }

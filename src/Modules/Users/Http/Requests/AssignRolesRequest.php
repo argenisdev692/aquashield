@@ -23,7 +23,9 @@ final class AssignRolesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'roles' => ['present', 'array'],
+            // Bounded: each item runs an `exists` query (OWASP API4). The
+            // 26 seeded roles fit inside this cap.
+            'roles' => ['present', 'array', 'max:50'],
             'roles.*' => ['string', 'distinct', 'exists:roles,name'],
         ];
     }

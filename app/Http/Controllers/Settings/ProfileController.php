@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Data\Auth\PasskeyData;
 use App\Data\Auth\UserData;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -33,6 +34,8 @@ final class ProfileController extends Controller
 
         $status = $request->session()->get('status');
 
+        $passkeys = $user->passkeys()->latest()->get();
+
         return inertia('Settings/Profile', [
             'user' => UserData::fromModel($user, $this->storage)->toArray(),
             // Browser key, restricted by HTTP referrer in Google Cloud. It is
@@ -40,6 +43,10 @@ final class ProfileController extends Controller
             'googleMapsApiKey' => (string) config('services.google.maps_key', ''),
             'twoFactorEnabled' => $user->two_factor_secret !== null,
             'twoFactorConfirmed' => $user->two_factor_confirmed_at !== null,
+            // The list is the page's server state: add/delete reload these two
+            // props instead of keeping a second copy in a client cache.
+            'passkeys' => PasskeyData::collect($passkeys)->toArray(),
+            'passkeysCount' => $passkeys->count(),
             'status' => is_string($status) ? $status : null,
         ]);
     }

@@ -6,7 +6,7 @@ namespace Modules\Backups\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Modules\Backups\Application\Repositories\BackupActivityLog;
+use Modules\Backups\Application\Ports\BackupActivityLog;
 
 final readonly class BackupActivityController
 {
@@ -16,8 +16,11 @@ final readonly class BackupActivityController
 
     public function __invoke(Request $request): JsonResponse
     {
-        $limit = $request->query('limit', 50);
-        $limit = is_numeric($limit) ? (int) $limit : 50;
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.BackupActivityLog::MAX_LIMIT],
+        ]);
+
+        $limit = (int) ($validated['limit'] ?? 50);
 
         return response()->json(['rows' => $this->activity->recent($limit)]);
     }

@@ -7,10 +7,11 @@ namespace Modules\Backups\Infrastructure\Persistence;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
-use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Cache;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use League\Flysystem\FileAttributes;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Models\BackupArchive;
+use Modules\Backups\Domain\Models\BackupInventory;
 use Ramsey\Uuid\Uuid;
 use RuntimeException;
 use Spatie\Backup\BackupDestination\BackupDestination;
@@ -67,12 +68,12 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 
     public function findActive(string $uuid): ?BackupArchive
     {
-        return $this->find($this->active(), $uuid);
+        return BackupInventory::fromList($this->active())->find($uuid);
     }
 
     public function findTrashed(string $uuid): ?BackupArchive
     {
-        return $this->find($this->trashed(), $uuid);
+        return BackupInventory::fromList($this->trashed())->find($uuid);
     }
 
     public function disks(): array
@@ -143,11 +144,7 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 
         foreach ($this->configuredDisks() as $diskName) {
             if ($trashed) {
-                foreach ($this->filesystems->disk($diskName)->allFiles($this->quarantinePrefix()) as $path) {
-                    if (str_ends_with(strtolower($path), '.zip')) {
-                        $rows[] = $this->make($diskName, $path, trashed: true);
-                    }
-                }
+                array_push($rows, ...$this->quarantined($diskName));
 
                 continue;
             }
@@ -175,22 +172,49 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
         return $rows;
     }
 
-    private function make(string $diskName, string $path, bool $trashed): BackupArchive
+    /**
+     * One recursive listing call, not one metadata call per file: on S3 the
+     * size and the last-modified timestamp arrive with the listing, so a
+     * quarantine holding fifty archives costs one round trip instead of fifty.
+     *
+     * @return list<BackupArchive>
+     */
+    private function quarantined(string $diskName): array
     {
-        $disk = $this->filesystems->disk($diskName);
+        $rows = [];
 
-        return new BackupArchive(
-            uuid: $this->uuid($trashed ? 'quarantine' : 'active', $diskName, $path),
-            disk: $diskName,
-            path: $path,
-            filename: basename($path),
-            sizeBytes: (int) $disk->size($path),
-            takenAt: $this->takenAt($disk, $path),
-            trashed: $trashed,
-        );
+        foreach ($this->filesystems->disk($diskName)->listContents($this->quarantinePrefix(), true) as $item) {
+            if (! $item instanceof FileAttributes) {
+                continue;
+            }
+
+            $path = $item->path();
+
+            if (! str_ends_with(strtolower($path), '.zip')) {
+                continue;
+            }
+
+            $rows[] = new BackupArchive(
+                uuid: $this->uuid('quarantine', $diskName, $path),
+                disk: $diskName,
+                path: $path,
+                filename: basename($path),
+                sizeBytes: (int) ($item->fileSize() ?? 0),
+                takenAt: $this->takenAt($path, $item->lastModified()),
+                trashed: true,
+            );
+        }
+
+        return $rows;
     }
 
-    private function takenAt(Filesystem $disk, string $path): DateTimeImmutable
+    /**
+     * The dump filename is the authoritative date. When it does not parse, the
+     * listing timestamp is the fallback — and when that is missing too the
+     * archive is dated "now", never 1970: an unreadable timestamp must not make
+     * a file look old enough for `backups:purge-quarantine` to destroy it.
+     */
+    private function takenAt(string $path, ?int $lastModified): DateTimeImmutable
     {
         $date = DateTimeImmutable::createFromFormat(
             BackupJob::FILENAME_FORMAT,
@@ -202,26 +226,32 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
             return $date;
         }
 
-        return new DateTimeImmutable('@'.$disk->lastModified($path));
-    }
-
-    private function uuid(string $state, string $disk, string $path): string
-    {
-        return Uuid::uuid5(Uuid::NAMESPACE_URL, $state.'|'.$disk.'|'.$path)->toString();
+        return $lastModified === null
+            ? new DateTimeImmutable('now', new DateTimeZone('UTC'))
+            : new DateTimeImmutable('@'.$lastModified);
     }
 
     /**
-     * @param list<BackupArchive> $rows
+     * The public archive id.
+     *
+     * It has to be stable: the inventory is a filesystem, so there is no row to
+     * store a random UUIDv7 in, and a v7 regenerated per request would make
+     * every `GET /backups/{uuid}` link expire on the next page load. It also has
+     * to be unguessable: the dump filename is a predictable timestamp, so a
+     * plain `uuid5(state|disk|path)` would let an actor holding only
+     * `VIEW_BACKUPS` (no list permission) enumerate the inventory by computing
+     * ids. Keying the name with the application key keeps both properties —
+     * stable across requests, not derivable without the secret.
+     *
+     * Consequence: rotating `APP_KEY` rotates every archive id. That is the
+     * same operation that already invalidates sessions and encrypted payloads,
+     * and no id is stored anywhere, so nothing needs migrating.
      */
-    private function find(array $rows, string $uuid): ?BackupArchive
+    private function uuid(string $state, string $disk, string $path): string
     {
-        foreach ($rows as $row) {
-            if ($row->uuid === $uuid) {
-                return $row;
-            }
-        }
+        $name = hash_hmac('sha256', $state.'|'.$disk.'|'.$path, (string) config('app.key'));
 
-        return null;
+        return Uuid::uuid5(Uuid::NAMESPACE_URL, $name)->toString();
     }
 
     private function backupName(): string

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -86,7 +87,7 @@ class CreateNewUser implements CreatesNewUsers
             return null;
         }
 
-        if (! $creator->can('CREATE_USER')) {
+        if (! $creator->can(PermissionName::CreateUser->value)) {
             throw new AuthorizationException(__('You do not have permission to create users.'));
         }
 

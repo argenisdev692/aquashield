@@ -20,6 +20,8 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
 use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
 use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
+use Laravel\Passkeys\Events\PasskeyDeleted;
+use Laravel\Passkeys\Events\PasskeyRegistered;
 use Shared\Domain\Ports\AuditPort;
 use Throwable;
 
@@ -50,6 +52,8 @@ final readonly class AuthEventSubscriber
         $events->listen(RecoveryCodeReplaced::class, [self::class, 'handleRecoveryCodeReplaced']);
         $events->listen(TwoFactorAuthenticationFailed::class, [self::class, 'handleTwoFactorFailed']);
         $events->listen(ValidTwoFactorAuthenticationCodeProvided::class, [self::class, 'handleValidTwoFactorCode']);
+        $events->listen(PasskeyRegistered::class, [self::class, 'handlePasskeyRegistered']);
+        $events->listen(PasskeyDeleted::class, [self::class, 'handlePasskeyDeleted']);
     }
 
     public function handleLogin(Login $event): void
@@ -125,6 +129,26 @@ final readonly class AuthEventSubscriber
     public function handleValidTwoFactorCode(ValidTwoFactorAuthenticationCodeProvided $event): void
     {
         $this->log('auth.2fa.passed', $event->user);
+    }
+
+    public function handlePasskeyRegistered(PasskeyRegistered $event): void
+    {
+        if (! $event->user instanceof User) {
+            return;
+        }
+
+        $this->log('auth.passkey.registered', $event->user, ['passkey' => $event->passkey->name]);
+        $this->alert($event->user, SecurityEvent::PasskeyRegistered);
+    }
+
+    public function handlePasskeyDeleted(PasskeyDeleted $event): void
+    {
+        if (! $event->user instanceof User) {
+            return;
+        }
+
+        $this->log('auth.passkey.deleted', $event->user, ['passkey' => $event->passkey->name]);
+        $this->alert($event->user, SecurityEvent::PasskeyDeleted);
     }
 
     /**

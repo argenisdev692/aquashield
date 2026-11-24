@@ -4,23 +4,28 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Backups\Http\Controllers\Api\BackupController;
-use Modules\Backups\Http\Controllers\BackupDownloadController;
 
-Route::middleware('api')->prefix('api')->group(function (): void {
-    Route::middleware(['auth:sanctum', 'can:view-any-backups'])->group(function (): void {
+/*
+ * Read-only REST surface. Stateless (`api` middleware), Sanctum token,
+ * documented by Scramble under /api, and guarded by the SAME Spatie
+ * permissions as the web routes — never a second, Gate-shaped definition of a
+ * permission name.
+ *
+ * Two endpoints on purpose. The archive download is deliberately absent: it is
+ * a full copy of the database, and a stolen bearer token must not be able to
+ * exfiltrate it. That one stays on `GET /backups/{uuid}/download`, behind the
+ * session, CSRF and `DOWNLOAD_BACKUPS`.
+ */
+Route::middleware(['api', 'auth:sanctum', 'verified', 'account.active', 'throttle:api'])
+    ->prefix('api')
+    ->name('api.')
+    ->group(function (): void {
         Route::get('/backups', [BackupController::class, 'index'])
-            ->name('api.backups.index');
+            ->middleware('permission:VIEW_ANY_BACKUPS')
+            ->name('backups.index');
 
         Route::get('/backups/{backup}', [BackupController::class, 'show'])
             ->whereUuid('backup')
-            ->middleware('can:view-backup')
-            ->name('api.backups.show');
-
-        // Reuses the web streamer so the audit entry, permission check and
-        // content type cannot drift between the two transports.
-        Route::get('/backups/{backup}/download', BackupDownloadController::class)
-            ->whereUuid('backup')
-            ->middleware(['can:download-backup', 'throttle:10,1'])
-            ->name('api.backups.download');
+            ->middleware('permission:VIEW_BACKUPS')
+            ->name('backups.show');
     });
-});

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\Users\Support;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use Modules\Users\Enums\UserStatus;
+use Shared\Domain\Enums\Role as RoleName;
 
 /**
  * The Users module's one load-bearing invariant.
@@ -23,23 +25,18 @@ use Spatie\Permission\Models\Role;
  *                        of the actor's, so a MANAGER cannot edit an ADMIN.
  *  - assertCanGrant*():  every requested role/permission must be inside the
  *                        actor's own effective permissions.
- *  - isLastSuperAdmin(): deleting or demoting the last SUPER_ADMIN is refused,
- *                        so the installation cannot lock itself out.
+ *  - isLastActiveSuperAdmin(): deleting, suspending or demoting the last
+ *                        ACTIVE super administrator is refused, so the
+ *                        installation cannot lock itself out. A suspended or
+ *                        invited SUPER_ADMIN does not count as a usable
+ *                        administrator.
  *
  * SUPER_ADMIN bypasses the subset checks but not the last-admin guard. The
- * literal is the second occurrence of the role name (the seeder is the first);
- * per the Rule of Three it moves to a Shared enum when a third consumer needs
- * it, not before.
+ * role name is the Shared Role enum, so no authorization check carries a
+ * second literal.
  */
 final class AccessCeiling
 {
-    /**
-     * The role that bypasses the subset checks. The seeder is the other
-     * occurrence of this name; see the class docblock for the Rule of Three
-     * decision.
-     */
-    public const string SUPER_ADMIN = 'SUPER_ADMIN';
-
     public function canManage(User $actor, User $target): bool
     {
         if ($this->isSuperAdmin($actor)) {
@@ -51,16 +48,29 @@ final class AccessCeiling
             ->isEmpty();
     }
 
-    public function isLastSuperAdmin(User $target): bool
+    public function isLastActiveSuperAdmin(User $target): bool
     {
-        if (! $this->isSuperAdmin($target)) {
+        if (! $this->isSuperAdmin($target) || ! $target->isActive()) {
             return false;
         }
 
         return ! User::query()
-            ->role(self::SUPER_ADMIN)
+            ->role(RoleName::SuperAdmin->value)
+            ->where('status', UserStatus::Active->value)
             ->whereKeyNot($target->getKey())
             ->exists();
+    }
+
+    /**
+     * The count the admin UI uses to disable the last-admin control without
+     * running one `exists()` query per row.
+     */
+    public function activeSuperAdminCount(): int
+    {
+        return User::query()
+            ->role(RoleName::SuperAdmin->value)
+            ->where('status', UserStatus::Active->value)
+            ->count();
     }
 
     /**
@@ -162,6 +172,6 @@ final class AccessCeiling
     {
         $user->loadMissing('roles:id,name');
 
-        return $user->hasRole(self::SUPER_ADMIN);
+        return $user->hasRole(RoleName::SuperAdmin->value);
     }
 }

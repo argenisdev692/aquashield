@@ -36,12 +36,17 @@ the honest minimum. If either stop being true, demote.
 
 - Web routes: `GET /backups`, `GET /backups/{uuid}` (Inertia + JSON).
 - REST routes (Sanctum, read-only, Scramble-documented): `GET /api/backups`,
-  `GET /api/backups/{uuid}`, `GET /api/backups/{uuid}/download`.
+  `GET /api/backups/{uuid}`. They reuse the web query and the same
+  `BackupArchiveData`, and are guarded by the same `permission:*` middleware —
+  never a Gate-shaped second definition of a permission name. The archive
+  **download is deliberately web-only**: it is a full copy of the database, and
+  a stolen bearer token must not be able to exfiltrate it.
 - Permissions: `VIEW_ANY_BACKUPS`, `VIEW_BACKUPS`, `DOWNLOAD_BACKUPS`,
   `CREATE_BACKUPS`, `DELETE_BACKUPS`, `RESTORE_BACKUPS`,
   `BULK_DELETE_BACKUPS`, `BULK_RESTORE_BACKUPS`, `EXPORT_BACKUPS`.
-- Response shapes: `Data\BackupArchiveData`, `Data\BackupListData`,
-  `Data\BackupDetailData`, `Data\BackupActivityData`, `Data\BackupFilterData`.
+- Response shapes: `Data\BackupArchiveData` (one row), `Data\BackupListData`
+  (REST envelope), `Data\BackupDetailData` (REST detail), `Data\BackupActivityData`,
+  `Data\BackupFilterData`, and `Application\Dtos\BackupPage` for the read model.
 - What is NEVER exposed: the storage path, the encryption password, the raw
   activity payload, Eloquent models.
 
@@ -99,20 +104,27 @@ is an operator runbook, not HTTP. This is accepted debt, listed below.
    restore runbook with maintenance mode and archive verification.
 2. **Inventory is cached for 30 seconds** in the adapter. A dump created by the
    cron in another process can take up to 30s to appear. Accepted: the
-   alternative is an S3 `allFiles` on every poll. Invalidation is immediate for
-   mutations made through the panel.
-3. **`uuid5` is deterministic** from `state|disk|path`, so it is guessable to
-   someone who knows the filename format. It is an identifier, not an
-   authorization boundary: every route requires a permission, and every archive
-   is global (no owner to leak). `whereUuid` + re-resolution against the
-   inventory is the control.
+   alternative is a listing call on every poll. Invalidation is immediate for
+   mutations made through the panel. The quarantine listing reads size and
+   mtime from a single recursive `listContents()` call, not one metadata call
+   per file.
+3. **The archive id is a keyed `uuid5`** — `uuid5(NAMESPACE_URL,
+HMAC-SHA256(state|disk|path, APP_KEY))`. Not a UUIDv7: there is no row to
+   persist a random id in (see the trigger above), and a v7 generated per
+   request would break every `GET /backups/{uuid}` link. Keying the name keeps
+   the id stable across requests while making it non-derivable from the
+   predictable dump filename, so `VIEW_BACKUPS` without `VIEW_ANY_BACKUPS`
+   cannot enumerate the inventory. Rotating `APP_KEY` rotates every id — the
+   same operation already invalidates sessions, and no id is stored, so nothing
+   needs migrating. `whereUuid` + re-resolution against the inventory remain the
+   route-level control.
 4. **In-memory filtering/pagination** instead of SQL. Retention keeps tens of
    archives, so this is cheaper than a ledger; if the inventory ever exceeds
    ~1,000 files, that is the trigger for a real table.
-5. **JSON-only HTTP surface.** The routes answer the admin client; the Inertia
-   screen is a separate `frontend-new` task. The `Data/` classes are already in
-   `resources/js/generated/generated.d.ts`, so the screen consumes generated
-   types rather than hand-written ones.
+5. **One HTTP surface per verb, two consumers.** The Inertia screens read the
+   generated types from `resources/js/generated/generated.d.ts`; the read-only
+   REST API serves mobile and external clients through the same `Data/` shapes.
+   No endpoint answers two serialization contracts.
 6. **Single destination.** The package supports several disks; this config has
    one. 3-2-1-1-0 (three copies, two media, one offsite, one immutable, zero
    unverified restores) needs a second destination with Object Lock/versioning
@@ -126,11 +138,14 @@ not deleting logic.
 
 - `Tests/Unit/BackupLifecycleGuardTest.php` — pure domain: newest refused,
   older allowed, restore conflict refused.
+- `Tests/Unit/BackupInventoryTest.php` — pure domain: newest by taken-at,
+  UUID lookup, the whole batch refused when one UUID is gone.
 - `Tests/Unit/DeleteBackupsActionTest.php` — DB-free handler with a mocked
   `BackupArchiveStore` + `AuditPort`.
 - `Tests/Unit/RunDatabaseBackupJobTest.php` — job with a mocked runner.
 - `Tests/Feature/BackupEndpointTest.php` — 401/403/422 + index, search,
-  pagination, delete/restore/bulk pair, download, export, run, activity.
+  pagination, delete/restore/bulk pair, download, export, run, activity, and
+  the read-only REST API (401/403/happy path, download absent).
 - `Tests/Feature/BackupQuarantineCommandTest.php` — expiry window, dry run.
 - `Tests/Feature/SpatieBackupArchiveStoreTest.php` — real adapter on a fake
   disk: list, quarantine, restore, purge.

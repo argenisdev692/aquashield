@@ -1,0 +1,114 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\AccessControl\Data;
+
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Shared\Application\DTOs\Concerns\DateRangeFilterRules;
+use Spatie\LaravelData\Attributes\MapName;
+use Spatie\LaravelData\Data;
+use Spatie\LaravelData\Mappers\SnakeCaseMapper;
+
+/**
+ * The role list/export query contract: `search`, `filter[key]`, `sort`,
+ * `page`, `per_page`. The export consumes the same object, so a filter cannot
+ * exist on screen but be missing from a file.
+ */
+#[MapName(SnakeCaseMapper::class)]
+final class RoleFilterData extends Data
+{
+    use DateRangeFilterRules;
+
+    /** @var list<string> */
+    private const array ALLOWED_FILTERS = ['type', 'permission', 'date_from', 'date_to'];
+
+    /** @var list<string> */
+    private const array SORTABLE = [
+        'name',
+        'created_at',
+        'updated_at',
+        'permissions_count',
+        'users_count',
+    ];
+
+    public function __construct(
+        public readonly ?string $search = null,
+        public readonly ?string $type = null,
+        public readonly ?string $permission = null,
+        public readonly ?string $dateFrom = null,
+        public readonly ?string $dateTo = null,
+        public readonly string $sortField = 'name',
+        public readonly int $sortOrder = 1,
+        public readonly int $page = 1,
+        public readonly int $perPage = 15,
+    ) {}
+
+    public static function fromRequest(Request $request): self
+    {
+        $filter = $request->input('filter');
+        $filter = is_array($filter) ? $filter : [];
+
+        $unknown = array_diff(array_map('strval', array_keys($filter)), self::ALLOWED_FILTERS);
+
+        if ($unknown !== []) {
+            throw ValidationException::withMessages([
+                'filter' => 'Unknown filter(s): '.implode(', ', $unknown).'.',
+            ]);
+        }
+
+        $search = $request->query('search');
+
+        if (is_array($search)) {
+            throw ValidationException::withMessages(['search' => 'The search must be a string.']);
+        }
+
+        $sort = $request->query('sort', 'name');
+
+        if (! is_string($sort)) {
+            throw ValidationException::withMessages(['sort' => 'The sort must be a string.']);
+        }
+
+        $sort = $sort === '' ? 'name' : $sort;
+
+        return self::validateAndCreate([
+            'search' => $search,
+            'type' => $filter['type'] ?? null,
+            'permission' => $filter['permission'] ?? null,
+            'date_from' => $filter['date_from'] ?? null,
+            'date_to' => $filter['date_to'] ?? null,
+            'sort_field' => ltrim($sort, '-'),
+            'sort_order' => str_starts_with($sort, '-') ? -1 : 1,
+            'page' => self::integerQuery($request, 'page', 1),
+            'per_page' => self::integerQuery($request, 'per_page', 15),
+        ]);
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    public static function rules(): array
+    {
+        return [
+            ...self::dateRangeRules(),
+            'type' => ['nullable', 'string', 'in:system,custom'],
+            'permission' => ['nullable', 'string', 'max:255', 'exists:permissions,name'],
+            'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
+            'sort_order' => ['required', 'integer', 'in:-1,1'],
+            'page' => ['required', 'integer', 'min:1'],
+            'per_page' => ['required', 'integer', 'min:1', 'max:100'],
+        ];
+    }
+
+    private static function integerQuery(Request $request, string $key, int $default): int
+    {
+        $value = $request->query($key, $default);
+
+        if (! is_numeric($value)) {
+            throw ValidationException::withMessages([$key => "The {$key} must be an integer."]);
+        }
+
+        return (int) $value;
+    }
+}

@@ -6,12 +6,13 @@ namespace Modules\Users\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Shared\Application\DTOs\BulkUuidsData;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 final class BulkDeleteUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('BULK_DELETE_USER') ?? false;
+        return $this->user()?->can(PermissionName::BulkDeleteUser->value) ?? false;
     }
 
     /**

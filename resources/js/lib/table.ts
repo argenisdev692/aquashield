@@ -1,5 +1,3 @@
-import { computed, reactive, ref } from 'vue';
-
 /**
  * Server-side table state — one representation for the query and the export.
  *
@@ -49,13 +47,19 @@ export interface BuildTableParamsOptions {
 const isFilterList = (value: TableFilterValue): value is readonly (string | number)[] =>
     Array.isArray(value);
 
-const isBlank = (value: TableFilterValue): boolean => {
+/** The server default. Kept explicit so the client never guesses silently. */
+const DEFAULT_PER_PAGE = 15;
+
+/** A filter is inactive when it is empty, null, `false` or an empty list. */
+export const isBlankFilter = (value: TableFilterValue): boolean => {
     if (value === null || value === undefined || value === '' || value === false) {
         return true;
     }
 
     return isFilterList(value) && value.length === 0;
 };
+
+const isBlank = isBlankFilter;
 
 /** Serialise the state into the single query-string shape the server reads. */
 export function buildTableParams(
@@ -69,9 +73,11 @@ export function buildTableParams(
             params.set('page', String(state.page));
         }
 
-        if (state.perPage !== 15) {
-            params.set('per_page', String(state.perPage));
-        }
+        // Always explicit. The server owns the value it actually paginated by,
+        // and a client that omits this key silently drifts from it whenever the
+        // two defaults differ (the Users page used to render 15 rows while its
+        // footer, page count and selector all said 10).
+        params.set('per_page', String(state.perPage));
     }
 
     const search = state.search.trim();
@@ -121,72 +127,81 @@ export function buildTableUrl(
     return `${endpoint}${separator}${params}`;
 }
 
-export function hasActiveFilters(filters: TableFilters): boolean {
-    return Object.values(filters).some((value) => !isBlank(value));
+const parsePositiveInt = (value: string | null, fallback: number): number => {
+    if (value === null) {
+        return fallback;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseSort = (value: string | null): TableSort | null => {
+    if (value === null || value.trim() === '') {
+        return null;
+    }
+
+    const descending = value.startsWith('-');
+    const field = descending ? value.slice(1) : value;
+
+    if (field === '' || !/^[a-zA-Z0-9_.]+$/.test(field)) {
+        return null;
+    }
+
+    return { field, order: descending ? -1 : 1 };
+};
+
+/**
+ * The inverse of `buildTableParams`: read the table state back from the URL.
+ *
+ * The URL is the single source of truth. Parsing it (instead of copying the
+ * server's echoed filters into state) makes reload, browser back/forward and a
+ * pasted link all resolve to the same table, with no state echo to reconcile.
+ * Unknown keys are ignored so a stale bookmark cannot inject a filter the page
+ * never asked for.
+ */
+export function parseTableParams(
+    url: string,
+    defaults: Partial<Pick<TableState, 'perPage' | 'sort'>> = {},
+): TableState {
+    const queryStart = url.indexOf('?');
+    const params = new URLSearchParams(queryStart === -1 ? '' : url.slice(queryStart + 1));
+    const filters: TableFilters = {};
+
+    for (const [key, value] of params.entries()) {
+        const match = /^filter\[([^\]]{1,64})\](?:\[\])?$/.exec(key);
+
+        if (match === null) {
+            continue;
+        }
+
+        const name = match[1];
+
+        if (key.endsWith('[]')) {
+            const current = filters[name];
+            const list = Array.isArray(current) ? [...current] : [];
+            list.push(value);
+            filters[name] = list;
+
+            continue;
+        }
+
+        filters[name] = value;
+    }
+
+    return {
+        page: parsePositiveInt(params.get('page'), 1),
+        perPage: Math.min(
+            100,
+            parsePositiveInt(params.get('per_page'), defaults.perPage ?? DEFAULT_PER_PAGE),
+        ),
+        search: params.get('search') ?? '',
+        sort: parseSort(params.get('sort')) ?? defaults.sort ?? null,
+        filters,
+    };
 }
 
 export function countActiveFilters(filters: TableFilters): number {
     return Object.values(filters).filter((value) => !isBlank(value)).length;
-}
-
-/** Delete in place so the reactive object survives every caller's reference. */
-export function clearTableFilters(filters: TableFilters): void {
-    for (const key of Object.keys(filters)) {
-        delete filters[key];
-    }
-}
-
-export function useTableState<F extends TableFilters = TableFilters>(
-    initial: Partial<Omit<TableState, 'filters'>> & { filters?: F } = {},
-) {
-    const page = ref<number>(initial.page ?? 1);
-    const perPage = ref<number>(initial.perPage ?? 15);
-    const search = ref<string>(initial.search ?? '');
-    const sort = ref<TableSort | null>(initial.sort ?? null);
-    /**
-     * Keep the caller's object identity so a page can declare a typed filter
-     * record once and bind `v-model` to its own fields. `reactive` does not add
-     * refs to plain string/number/array values, so the cast is structural.
-     */
-    const filters = reactive((initial.filters ?? {}) as F) as F;
-
-    const snapshot = (): TableState => ({
-        page: page.value,
-        perPage: perPage.value,
-        search: search.value,
-        sort: sort.value,
-        filters,
-    });
-
-    const params = computed(() => buildTableParams(snapshot()));
-    const activeFilterCount = computed(() => countActiveFilters(filters));
-
-    const resetFilters = (): void => clearTableFilters(filters);
-
-    const reset = (): void => {
-        page.value = 1;
-        search.value = '';
-        sort.value = null;
-        resetFilters();
-    };
-
-    /**
-     * The button in the toolbar and the query share this helper. `paginate:
-     * false` is the export contract: all filtered rows, never just this page.
-     */
-    const exportUrl = (endpoint: string): string =>
-        buildTableUrl(endpoint, snapshot(), { paginate: false });
-
-    return {
-        page,
-        perPage,
-        search,
-        sort,
-        filters,
-        params,
-        activeFilterCount,
-        resetFilters,
-        reset,
-        exportUrl,
-    };
 }

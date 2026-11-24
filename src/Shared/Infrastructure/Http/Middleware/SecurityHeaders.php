@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
 use Laravel\Horizon\Horizon;
 use Laravel\Telescope\Telescope;
-use Shared\Providers\SharedServiceProvider;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -17,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  * nonce-based Content-Security-Policy.
  *
  * The nonce is resolved from the request-scoped `csp-nonce` container binding
- * (see {@see SharedServiceProvider}) and handed to Vite
+ * (owned by spatie/laravel-csp, NOT re-bound here) and handed to Vite
  * BEFORE the view renders, so every `@vite` / `@viteReactRefresh` tag produced
  * by the Blade root view carries a matching `nonce` attribute. This keeps
  * `script-src` free of `'unsafe-inline'`.
@@ -182,12 +181,11 @@ final class SecurityHeaders
     }
 
     /**
-     * Build the nonce-based CSP. Production stays strict on scripts; styles use
-     * the CSP3 split (`style-src-elem` / `style-src-attr`) because Vue 3 +
-     * PrimeVue Volt inject runtime `<style>` tags and `style=""` attributes
-     * that cannot carry the per-request nonce. Putting a nonce on `style-src`
-     * makes browsers ignore `'unsafe-inline'` (see the console error the SPA
-     * hits otherwise). Local development also allows the Vite dev-server
+     * Build the nonce-based CSP. Production stays strict on scripts and style
+     * elements; only style ATTRIBUTES are relaxed (`style-src-attr`) because
+     * Base UI portals position themselves with `style=""`. No first-party view
+     * emits an inline `<style>` element, so `style-src-elem` needs no
+     * `'unsafe-inline'`. Local development also allows the Vite dev-server
      * origin for scripts, styles, fonts and HMR; HTTPS responses add
      * `upgrade-insecure-requests` as a mixed-content safety net.
      */
@@ -200,10 +198,12 @@ final class SecurityHeaders
         $imgSrc = ["'self'", ...(array) config('security.headers.csp.img_src', [])];
         $fontSrc = ["'self'", ...(array) config('security.headers.csp.font_src', [])];
 
-        // External stylesheets (`@vite` → /build/assets/*.css) + runtime <style>
-        // injection from Volt overlays. No nonce here — nonce would nullify
-        // 'unsafe-inline' and break Dialog/Drawer/Toast positioning.
-        $styleSrcElem = ["'self'", "'unsafe-inline'"];
+        // External stylesheets (`@vite` → /build/assets/*.css) only. Base UI
+        // portals position themselves with `style=""` ATTRIBUTES, which the
+        // `style-src-attr` directive covers — no inline `<style>` ELEMENT is
+        // emitted by any first-party view (the PDF/email templates are rendered
+        // server-side by DomPDF/mail and never travel under this policy).
+        $styleSrcElem = ["'self'"];
         $styleSrcAttr = ["'unsafe-inline'"];
 
         if ($isLocal) {

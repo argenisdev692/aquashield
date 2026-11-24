@@ -8,13 +8,12 @@ use Illuminate\Contracts\Mail\Factory as MailFactory;
 use Illuminate\Contracts\Mail\Mailable;
 
 /**
- * MailInterface over the dedicated `resend` mailer — the Resend HTTPS API
- * (resend/resend-laravel), not an SMTP relay.
+ * MailInterface over the `resend` mailer — the Resend HTTPS API.
  *
- * Selected by `MAIL_ADAPTER=resend`; SharedServiceProvider resolves the binding,
- * so callers keep depending on {@see MailInterface} and never name a provider.
- * The API key lives in `services.resend.key` and the sender in
- * `mail.mailers.resend.from`.
+ * This is the only outbound adapter. The provider is selected by the Laravel
+ * mailer (`MAIL_MAILER=resend` in production), and the shared mail transport
+ * adds the HTTP timeout and circuit breaker. Callers keep depending on
+ * {@see MailInterface} and never name a provider.
  *
  * In PHPUnit (`MAIL_MAILER=array`) and local log mode the default mailer is
  * honored so tests never reach the Resend API.
@@ -38,8 +37,14 @@ final readonly class ResendMailAdapter implements MailInterface
         $pending->send($mailable);
     }
 
-    public function queue(string|array $to, Mailable $mailable): void
+    public function queue(string|array $to, Mailable $mailable, string|array|null $cc = null): void
     {
-        $this->mail->mailer($this->resolveOutboundMailer(self::MAILER))->to($to)->queue($mailable);
+        $pending = $this->mail->mailer($this->resolveOutboundMailer(self::MAILER))->to($to);
+
+        if ($cc !== null && $cc !== [] && $cc !== '') {
+            $pending->cc($cc);
+        }
+
+        $pending->queue($mailable);
     }
 }

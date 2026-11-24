@@ -1,606 +1,206 @@
 # DataTable kit
 
-A small, server-first table kit for AquaShield list screens. It composes a
-debounced search, advanced filters in a popover, a contextual bulk bar, typed
-row actions, server-side pagination and CSV/XLSX/PDF export over one query
-contract.
+A server-first table kit for AquaShield list screens, written in **React 19.3** on
+shadcn/ui + Base UI. It is deliberately **not** a data source: it never calls an
+endpoint and never sorts, filters or paginates rows in memory.
 
-The kit is deliberately **not** a data source. It never calls an endpoint, never
-sorts or filters in memory, and never assumes a module, model or route. A page
-owns the query (through its data composable) and passes `rows`, `total` and
-`loading` down.
-
-- Vue 3.5, TypeScript strict, no `any`
-- PrimeVue 5 unstyled through `@/volt/*`; `Column` is the one direct import
-  (`primevue/column`), because it is a child primitive rather than a component
-  with its own chrome
-- Tailwind v4 utilities and the AquaShield tokens only — no raw palette colours
-- WCAG 2.2 AA: real labels, visible focus, `aria-live` result counts, no
-  colour-only meaning, ConfirmDialog for every destructive action and for
-  restore
+The kit is built on **TanStack Table v9** (`@tanstack/react-table`). The table instance lives in
+`resources/js/lib/data-table.ts`, so pages and components never import the table framework directly
+(architecture invariant 2). Features are registered explicitly: pagination, sorting, row selection
+and column visibility. No client row models are registered — the server already processed the page.
 
 ## Import
 
 ```ts
 import {
   CrudDialog,
+  CrudFilters,
   DataTableKit,
-  DataTableFilters,
-  DataTableFilterField,
-  DataTableDateRange,
-  DataTableBulkActions,
-  DataTableRowActions,
-  DataTablePagination,
-  DataTableExport,
-  DataTableEmpty,
   TableButton,
-  type CrudDialogSize,
+  type CrudFilterDef,
   type ExportFormat,
-  type RowAction,
-} from '@/Components/DataTable';
+  type SimpleColumn,
+} from '@/components/DataTable';
 ```
 
-`DataTableKit` is the composed screen. The parts are exported for the one page
-that needs a different layout; they share the same props and events.
+## A page is columns + filter definitions
 
-## Full example
+`useCrudTable` (in `lib/crud-table.ts`) owns the URL. Spread `kitProps`; pass the rows the server
+returned and the filter definitions. There is no URL wiring per page.
 
-```vue
-<script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
-import Column from 'primevue/column';
-import {
-  DataTableDateRange,
-  DataTableFilterField,
-  DataTableKit,
-  DataTableRowActions,
-  type ExportFormat,
-  type RowAction,
-} from '@/Components/DataTable';
-import Select from '@/volt/Select.vue';
-import { useTableState } from '@/lib/table';
-
-interface Member {
-  id: number;
-  name: string;
-  email: string;
-  status: 'active' | 'invited';
-  deleted_at: string | null;
-}
-
-type MemberFilters = {
-  status?: string;
-  from?: string;
-  to?: string;
-};
-
-defineProps<{
-  rows: Member[];
-  total: number;
-  loading: boolean;
-  showDeleted?: boolean;
-}>();
-
-/**
- * Destructure: these are refs, and template ref unwrapping only applies to
- * top-level bindings. `params` is the exact query string the page's data
- * composable should send.
- */
-const { page, perPage, search, sort, filters, params, activeFilterCount, resetFilters, exportUrl } =
-  useTableState<MemberFilters>({
-    filters: { status: '', from: '', to: '' },
-  });
-
-const selection = ref<Member[]>([]);
-
-/**
- * Filters are slot state, so the kit cannot watch them. Changing one starts a
- * new result set: go back to page 1 and drop page-scoped selection.
- */
-watch(filters, () => {
-  page.value = 1;
-  selection.value = [];
+```tsx
+const table = useCrudTable({ endpoint: '/users' });
+const bulk = useBulkActions({
+  deleteUrl: canBulkDelete ? '/users/bulk-delete' : undefined,
+  restoreUrl: canBulkRestore ? '/users/bulk-restore' : undefined,
 });
 
-const statuses = [
-  { label: 'Active', value: 'active' },
-  { label: 'Invited', value: 'invited' },
+const filters: CrudFilterDef[] = [
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'select',
+    placeholder: 'Active',
+    options: [{ value: 'trashed', label: 'Trashed' }],
+  },
+  { key: 'created', label: 'Created', type: 'date-range' },
 ];
 
-const rowActions = computed<RowAction<Member>[]>(() => [
-  {
-    key: 'edit',
-    label: 'Edit member',
-    icon: 'pi pi-pencil',
-    hidden: (row) => row.deleted_at !== null,
-    action: (row) => router.visit(`/members/${row.id}/edit`),
-  },
-  {
-    key: 'restore',
-    label: 'Restore member',
-    icon: 'pi pi-replay',
-    tone: 'accent',
-    hidden: (row) => row.deleted_at === null,
-    confirm: {
-      header: 'Restore member',
-      message: (row) => `Restore ${row.name}? They will become active again.`,
-      acceptLabel: 'Restore',
-    },
-    action: (row) => router.post(`/members/${row.id}/restore`),
-  },
-  {
-    key: 'delete',
-    label: 'Delete member',
-    icon: 'pi pi-trash',
-    tone: 'danger',
-    hidden: (row) => row.deleted_at !== null,
-    confirm: {
-      header: 'Delete member',
-      message: (row) => `Delete ${row.name}? You can restore them from the deleted view.`,
-      acceptLabel: 'Delete',
-    },
-    action: (row) => router.delete(`/members/${row.id}`),
-  },
-]);
-
-const exportHref = (format: ExportFormat): string => exportUrl(`/members/export/${format}`);
-
-const bulkDelete = (): void => {
-  router.delete('/members', {
-    data: { ids: selection.value.map((row) => row.id) },
-    preserveScroll: true,
-    onSuccess: () => {
-      selection.value = [];
-    },
-  });
-};
-
-const bulkRestore = (): void => {
-  router.post('/members/restore', {
-    data: { ids: selection.value.map((row) => row.id) },
-    preserveScroll: true,
-    onSuccess: () => {
-      selection.value = [];
-    },
-  });
-};
-</script>
-
-<template>
-  <DataTableKit
-    v-model:page="page"
-    v-model:per-page="perPage"
-    v-model:search="search"
-    v-model:sort="sort"
-    v-model:selection="selection"
-    :rows="rows"
-    :total="total"
-    :loading="loading"
-    :filter-count="activeFilterCount"
-    :export-href="exportHref"
-    :can-restore="showDeleted"
-    title="Members"
-    description="People with access to this workspace."
-    @bulk-delete="bulkDelete"
-    @bulk-restore="bulkRestore"
-    @reset-filters="resetFilters"
-  >
-    <template #filters>
-      <DataTableFilterField v-slot="{ id }" label="Status">
-        <Select
-          :input-id="id"
-          v-model="filters.status"
-          :options="statuses"
-          option-label="label"
-          option-value="value"
-          placeholder="Any status"
-          show-clear
-        />
-      </DataTableFilterField>
-
-      <DataTableDateRange v-model:from="filters.from" v-model:to="filters.to" label="Created" />
-    </template>
-
-    <template #actions>
-      <Link
-        href="/members/create"
-        class="inline-flex h-9 items-center rounded-md border border-primary bg-primary px-3 text-sm font-medium text-primary-contrast transition-colors duration-150 hover:border-primary-emphasis hover:bg-primary-emphasis focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none"
-      >
-        New member
-      </Link>
-    </template>
-
-    <Column selection-mode="multiple" header-style="width: 3rem" />
-    <Column field="name" header="Name" sortable />
-    <Column field="email" header="Email" sortable />
-    <Column field="status" header="Status" sortable />
-    <Column field="created_at" header="Created" sortable />
-
-    <Column header="" style="width: 1%">
-      <template #body="{ data }">
-        <DataTableRowActions :row="data" :row-label="data.name" :actions="rowActions" :disabled="loading" />
-      </template>
-    </Column>
-  </DataTableKit>
-</template>
+<DataTableKit
+  {...table.kitProps}
+  columns={userColumns}
+  data={rows}
+  total={total}
+  filters={<CrudFilters defs={filters} state={table.state} onChange={table.setFilters} />}
+  views={<SavedViewsMenu resource="users" state={table.state} onApply={table.apply} />}
+  filterCount={table.activeFilterCount}
+  hasActiveFilters={table.hasActiveFilters}
+  onResetFilters={table.reset}
+  exportFormats={canExport ? ['csv', 'xlsx', 'pdf'] : []}
+  exportHref={canExport ? table.exportUrl : undefined}
+  onBulkDelete={canBulkDelete ? bulk.deleteRows : undefined}
+  onBulkRestore={canBulkRestore ? bulk.restoreRows : undefined}
+  actionError={bulk.error}
+/>;
 ```
-
-`params` is a `ComputedRef<URLSearchParams>`; a data composable should use it
-verbatim rather than rebuilding the query. `scroll`/partial-reload behaviour is
-the page composable's decision, not the kit's.
-
-## Server contract
-
-The kit serialises one shape, in `resources/js/lib/table.ts`:
-
-| Query key       | Example                             | Notes                                           |
-| --------------- | ----------------------------------- | ----------------------------------------------- |
-| `page`          | `2`                                 | Omitted on page 1.                              |
-| `per_page`      | `25`                                | Omitted at the default 15.                      |
-| `search`        | `ada`                               | Trimmed; blank is omitted.                      |
-| `sort`          | `-created_at`                       | `-` prefix = descending; no prefix = ascending. |
-| `filter[key]`   | `filter[status]=active`             | Scalar filter.                                  |
-| `filter[key][]` | `filter[team][]=1&filter[team][]=2` | Multi-value filter.                             |
-
-`false`, `null`, `undefined`, `''` and empty arrays are treated as inactive, so
-a cleared control disappears from the query. When the domain genuinely needs a
-`false` filter value, send `'0'` (a string) instead.
-
-Recommended server behaviour:
-
-- Validate `page`, `per_page`, `sort` and every `filter.*` key against an
-  allow-list. Never pass a client `sort` field straight to `orderBy`.
-- Return `rows` (the current page) and `total` (the count after filters).
-  `total` drives the footer, so it must be a real count, not the page length.
-- Clamp `per_page` (for example 10–100) even though the UI only offers four
-  values.
-
-## Export
-
-`DataTableExport` and `DataTableKit` use the same state as the table, minus
-pagination: an export covers **every matching row**, not the current page.
-
-```ts
-const exportHref = (format: ExportFormat): string => exportUrl(`/members/export/${format}`);
-// -> /members/export/csv?search=ada&sort=-created_at&filter[status]=active
-```
-
-The URL can carry the format as a path segment or as `?format=csv`. The server
-should:
-
-1. Re-authorise the request and re-apply the same filters.
-2. Stream the response with `Content-Disposition: attachment`.
-3. Cap the export (row count or time) and report the cap, rather than letting a
-   filtered export exhaust memory.
-4. Neutralise spreadsheet formulas: a cell whose value starts with `=`, `+`,
-   `-` or `@` is executable in Excel/Sheets, and names and notes are user
-   input. Prefix those cells (a leading apostrophe is the usual convention).
-
-`href` is optional. Omit it to own the transport yourself:
-
-```vue
-<DataTableKit ... @export="onExport" />
-```
-
-`onExport` can request a signed URL or POST a job. `export-formats` restricts
-the menu (`['csv', 'xlsx']`); an empty list disables the standalone button (the
-kit hides it).
-
-## Soft delete and restore
-
-The kit has no notion of a model, so both states are page decisions:
-
-- Pass `can-restore` when the current view contains deleted rows. The bulk bar
-  then offers **Restore** next to **Delete**.
-- Compute `RowAction<T>[]` from `row.deleted_at` (or your state enum).
-  `hidden` and `disabled` are functions, so one array can cover active and
-  deleted rows.
-- A deleted row is a first-class state: keep it visible and marked (a status
-  column or `rowClass`) rather than hiding it, so restore stays reachable.
-
-### Delete and restore confirmation
-
-Every delete and every restore — single row and bulk — goes through PrimeVue
-`ConfirmDialog` (`useConfirm`). There is no `window.confirm()` anywhere in the
-kit, and no silent mutation: both operations change server state, and a misclick
-in a dense action column or a selection bar should be recoverable.
-
-The contract is **one** `<ConfirmDialog />` per layout, mounted once in
-`AppLayout`. The kit only calls `confirm.require(...)`; it never owns a dialog.
-
-| Surface | Trigger                          | Message                                                                            |
-| ------- | -------------------------------- | ---------------------------------------------------------------------------------- |
-| Row     | `RowAction.confirm` block        | `header`, `message` (string or `(row) => string`), `acceptLabel`, `rejectLabel`    |
-| Bulk    | `@bulk-delete` / `@bulk-restore` | count-aware copy; delete says “you can restore them” only when `can-restore` is on |
 
 Rules:
 
-- The modal fires **before** the action. Accepting runs the page-supplied
-  handler (`router.delete` / `router.post`); cancelling changes nothing.
-- Pass `selection-label` to `DataTableKit` and the bulk modal names up to three
-  selected rows; without it, the copy falls back to a count.
-- A row action without a `confirm` block runs immediately. Reserve that for
-  reversible, non-destructive navigation such as an edit link.
-- `tone: 'danger'` is the visual half; the modal is the interactive half. Both
-  are required for a destructive row action.
-- The bulk bar lists **Restore** before **Delete**, so the safer action sits
-  where a misclick lands first.
-- Restore is reversible, but it is still a state change — confirm it like delete
-  rather than firing it straight through.
+- **The URL is the state.** `useCrudTable` parses `usePage().url` on every render, so reload,
+  back/forward and a saved view resolve to the same table. No effect copies server props into
+  local state.
+- **Every setter preserves the rest of the state.** Page, search, sort, filters and page size are
+  one object written through `buildTableUrl`; changing one can never erase another.
+- **Columns are module-level.** TanStack Table v9 treats them as a model input; a fresh array on
+  every render rebuilds the column model. Use `sortKey` when the accessor is not a DB column
+  (`name` → `first_name`), `sortable: false` for computed cells, `align: 'right'` for numbers,
+  `width` for compact columns and `className` for truncation/`tabular-nums`.
+- **Selection is page-scoped.** Bulk handlers receive the selected loaded rows. Omit a handler and
+  its control (and, when no handler at all exists, the whole checkbox column) disappears.
 
-## Parts and props
+## Visual system
 
-### `DataTableKit`
+- **48px header, 48px rows at comfortable density** (compact trims the row padding), 16px gutters
+  (32px between columns). Header labels are 12px
+  semibold in sentence case with a subtle sort hint (`ChevronsUpDown` at 30% opacity); the sorted
+  column brightens its label and accents the icon.
+- **One header contract.** The type lives on the `<th>`; the sort control is a full-width flex row
+  because Chrome's UA stylesheet resets `text-transform` and `text-align` on `<button>` — relying on
+  inheritance makes sortable headers disagree with static ones. Never split header typography
+  between the cell and the button.
+- **Alignment follows the data:** text left, numbers and dates right (`align: 'right'` +
+  `tabular-nums`), timestamps `whitespace-nowrap`. Headers share the column alignment through
+  `justify-*`, not just `text-align`.
+- **Dates arrive as ISO strings and are formatted at the edge** (`formatDateTime` from
+  `@/lib/date`) — a raw `2026-10-28T15:29:48+00:00` eats a column and is unreadable.
+- **Soft-deleted rows** pass `rowState={() => 'deleted'}`: a red tint, a left accent and a muted
+  hover. The page must also render a status tag (`Deleted` / `Quarantined`) — colour is never the
+  only signal (WCAG 1.4.1).
+- **Selection** uses a 20px checkbox in a 48px leading column, centred; the header is select-all
+  for the current page. The bulk bar states how many rows are selected.
+- **Toolbar controls are 36px** (`h-9`): search, filters, export, page actions. Mixing 28/32/38px
+  controls in one row is what makes a table toolbar read as unpolished.
 
-Required models: `v-model:page` and `v-model:per-page`. Optional models:
-`v-model:search`, `v-model:sort`, `v-model:selection`.
+## URL contract
 
-| Prop                 | Default                | Purpose                                                            |
-| -------------------- | ---------------------- | ------------------------------------------------------------------ |
-| `rows`               | —                      | Current page only.                                                 |
-| `total`              | —                      | Filtered total, not page length.                                   |
-| `loading`            | `false`                | Disables controls and shows the table mask.                        |
-| `data-key`           | `'id'`                 | Stable row identity for selection.                                 |
-| `title`              | —                      | Rendered as the section heading.                                   |
-| `description`        | —                      | Supporting line under the title.                                   |
-| `label`              | `'Data table'`         | Accessible name when no title is given.                            |
-| `search-min-length`  | `2`                    | Below this, the search clears.                                     |
-| `filter-count`       | `0`                    | Active count shown on the filter trigger.                          |
-| `has-active-filters` | `false`                | Truth for the empty-state copy when the page cannot count filters. |
-| `per-page-options`   | `[10, 15, 25, 50]`     | Current value is always included.                                  |
-| `export-formats`     | `['csv','xlsx','pdf']` | Menu entries.                                                      |
-| `export-href`        | —                      | `(format) => string \| undefined`.                                 |
-| `can-restore`        | `false`                | Shows Restore in the bulk bar.                                     |
-| `selection-label`    | —                      | `(row) => string` used to name selected rows in the bulk confirm.  |
-| `empty-*`            | auto copy              | Title, description and icon for the empty state.                   |
+| Key             | Example                             |
+| --------------- | ----------------------------------- |
+| `page`          | `2`                                 |
+| `per_page`      | `25`                                |
+| `search`        | `ada`                               |
+| `sort`          | `-created_at` (`-` = descending)    |
+| `filter[key]`   | `filter[status]=active`             |
+| `filter[key][]` | `filter[team][]=1&filter[team][]=2` |
 
-Events: `export(format)`, `bulk-delete`, `bulk-restore`, `reset-filters`.
+`buildTableParams` / `buildTableUrl` serialise it, `parseTableParams` reads it back, and
+`exportUrl(format)` reuses the same state with `paginate: false`. `per_page` is clamped to 100,
+matching every filter DTO's `max:100`.
 
-Slots: `default` (columns), `toolbar`, `filters`, `actions`, `empty`,
-`empty-action`, `bulk-actions`. `toolbar` replaces the whole default toolbar;
-`actions` is the additive slot for a page-level button.
+Column visibility and density are **not** URL state: they are presentation preferences and live in
+`localStorage` (see “Columns and density”). A pasted link reproduces the filtered rows, not the
+recipient's column layout.
 
-The kit resets to page 1 and clears selection when the search, page size or sort
-changes — selection is page-scoped on purpose. Carrying row references across a
-server page is how bulk actions delete the wrong records.
+## Filters
 
-### Filters
+`CrudFilters` renders a panel from a `CrudFilterDef[]`:
 
-`DataTableFilters` is a popover with an active-count badge and a Reset action.
-Filters apply live; **Done** only closes the panel, so there is no second
-apply/commit model. The count is a count of non-empty filter values, so a date
-range with both ends set reports `2`; override `filter-count` on the kit if a
-screen wants to count groups instead. Pass the count (the example uses
-`activeFilterCount`) or the badge stays at zero and Reset stays disabled. If a
-page cannot produce a count, pass `has-active-filters` so the empty state still
-distinguishes “no records yet” from “nothing matched”.
+| Type         | Behaviour                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `text`       | Ignored below 2 characters, blank removes the key.                                                                                       |
+| `select`     | Single value from a bounded list; "All" clears the key. Above 40 options (or `searchable: true`) it becomes a searchable inline list.    |
+| `date-range` | Two ISO inputs plus presets (7/30 days, month, year, all time). An inverted range clears the opposite bound instead of submitting a 422. |
 
-`DataTableFilterField` supplies the label, hint and id wiring:
+The panel is a **draft**: opening seeds it from the URL, fields edit locally, and `Apply` commits one
+`setFilters` call. This avoids two bugs of binding selects straight to `state.filters`: the control
+would snap back for the whole Inertia round-trip, and three changed fields would fire three visits.
+`Reset` clears the committed filters immediately; `Cancel` discards the draft.
 
-```vue
-<DataTableFilterField v-slot="{ id, describedBy }" label="Status" hint="Only active members can sign in.">
-    <Select :input-id="id" :aria-describedby="describedBy" ... />
-</DataTableFilterField>
-```
+Applied state never hides behind the panel: the trigger carries a count badge and every active filter
+renders as a removable chip with a `Clear all` control. `Apply` is disabled when the draft equals the
+committed state.
 
-`DataTableDateRange` emits ISO `YYYY-MM-DD` strings through `v-model:from` and
-`v-model:to`. It never puts a `Date` on the wire, and it shows an inline error
-when `from > to`. The models are only written while the pair is valid: an
-inverted range stays a local draft, so it cannot empty the table and make the
-error look like “no results”. The server still validates the range.
+Unknown keys never reach the URL: the page declares the definitions and the server's filter DTO
+rejects anything outside its allowlist.
 
-### Search
+## Columns and density
 
-`DataTableSearch` owns a local draft and commits only after the debounce window,
-so a query key never changes on every keystroke. `onWatcherCleanup` cancels the
-pending timer on the next keystroke or on unmount. It is composed by the kit but
-is exported for a custom toolbar. Below `minLength` the helper line becomes
-visible, so a sighted user sees why one character is not filtering.
+The `Columns` popover is presentation only — it never changes the request or the export. It lists
+every leaf column, locks `hidable: false` columns (the identity column) and refuses to hide the last
+visible column. `Compact rows` switches the cell padding; `Reset to defaults` shows every column and
+restores comfortable density.
 
-| Prop          | Default     | Purpose                                        |
-| ------------- | ----------- | ---------------------------------------------- |
-| `placeholder` | `'Search…'` | Input placeholder.                             |
-| `label`       | `'Search'`  | Screen-reader label (visually hidden).         |
-| `minLength`   | `2`         | Below this the search clears.                  |
-| `debounce`    | `300`       | Milliseconds before the draft commits.         |
-| `loading`     | `false`     | Shows the spinner instead of the clear button. |
+Both preferences persist per resource in `localStorage` (`aq:table:<resource>`), keyed by
+`kitProps.preferencesKey` (the endpoint, supplied by `useCrudTable`). They are not saved views:
+filters and search stay in the URL because they define _which_ records are on screen; visibility and
+density define _how_ the same records are displayed. `lib/table-preferences.ts` validates the stored
+blob, drops unknown/locked ids and never restores a state with every column hidden.
 
-The min-length rule is announced through `aria-describedby`. Enter commits
-immediately; the clear button never waits for the debounce.
+## Export
 
-### Row actions
+`exportHref` receives a format and returns the download URL. Without it (and without `onExport`) the
+menu is hidden — there is no inert control. The endpoint must re-apply the same filters, omit
+pagination, stream the response with `Content-Disposition: attachment`, cap the row count, and
+neutralise spreadsheet formulas (`=`, `+`, `-`, `@`) in user-controlled cells. The kit downloads
+through a real anchor so the SPA stays mounted.
 
-```ts
-interface RowAction<T> {
-  key: string;
-  label: string;
-  icon: string;
-  tone?: 'default' | 'accent' | 'danger';
-  hidden?: (row: T) => boolean;
-  disabled?: (row: T) => boolean;
-  confirm?: {
-    header: string;
-    message: string | ((row: T) => string);
-    acceptLabel?: string;
-    rejectLabel?: string;
-  };
-  action: (row: T) => void | Promise<void>;
-}
-```
+## Destructive actions
 
-Every icon button gets `aria-label` and a tooltip, so the icon is never the only
-label. Destructive actions should use `tone: 'danger'` and a `confirm` block;
-the component routes a confirmed action through ConfirmDialog.
+Bulk delete opens a Base UI `Dialog` inside the kit before calling `onBulkDelete`; restore is not
+destructive and runs directly. `window.confirm()` and `window.alert()` are forbidden. A failed bulk
+action is surfaced through `actionError` above the table, never as a replaced table body.
 
-`DataTableRowActions` props:
+## Saved views
 
-| Prop       | Default | Purpose                                                   |
-| ---------- | ------- | --------------------------------------------------------- |
-| `row`      | —       | The current row; passed to `hidden`/`disabled`.           |
-| `actions`  | —       | `RowAction<T>[]`, computed by the page.                   |
-| `rowLabel` | —       | Names the group (`aria-label="Actions for X"`).           |
-| `disabled` | `false` | Disables every action, e.g. while a request is in flight. |
-
-The group renders `null` when every action is hidden, so a row with no
-available actions leaves the column empty instead of a stray group wrapper.
-
-### Bulk actions
-
-`DataTableBulkActions` is the contextual selection bar. It renders only while
-rows are selected and sits above the table rather than floating over the last
-row. Delete and restore both confirm through `ConfirmDialog` before emitting.
-
-| Prop         | Default | Purpose                                                  |
-| ------------ | ------- | -------------------------------------------------------- |
-| `count`      | —       | Selected rows; drives the copy and the count.            |
-| `canRestore` | `false` | Shows the Restore button.                                |
-| `busy`       | `false` | Disables every control.                                  |
-| `labels`     | —       | `string[]` naming the selected rows in the confirm copy. |
-
-Events: `delete`, `restore`, `clear`. Slot: `default` (extra controls, placed
-between the actions and the clear button).
-
-### Pagination and empty state
-
-`DataTablePagination` is a custom server-side footer (first, current ±1, last)
-with a page-size select. `DataTableEmpty` distinguishes “nothing yet” from
-“nothing matched”; `DataTableKit` switches the copy automatically when a search
-or filter is active.
-
-| `DataTablePagination` | Default         | Purpose                               |
-| --------------------- | --------------- | ------------------------------------- |
-| `page`                | —               | Current page (1-based).               |
-| `perPage`             | —               | Rows per page.                        |
-| `total`               | —               | Filtered total, not page length.      |
-| `perPageOptions`      | `[10,15,25,50]` | The current value is always included. |
-| `disabled`            | `false`         | Disables the whole footer.            |
-
-Events: `update:page`, `update:perPage`. The window is intentionally short
-(first, current ±1, last); below seven pages every page is shown. On narrow
-screens the numbered window collapses to “Page N of M”.
-
-| `DataTableEmpty` | Default            | Purpose          |
-| ---------------- | ------------------ | ---------------- |
-| `title`          | `'No records yet'` | Heading.         |
-| `description`    | auto copy          | Supporting line. |
-| `icon`           | `'pi pi-inbox'`    | Leading glyph.   |
-
-Slot: `default` (the recovery action, e.g. a “Clear filters” button).
-
-### Export control
-
-`DataTableExport` is the standalone dropdown. The kit renders it only when
-`export-formats` is non-empty; `href` is optional so a page can own a signed URL
-or a POST flow.
-
-| Prop       | Default                | Purpose                                               |
-| ---------- | ---------------------- | ----------------------------------------------------- |
-| `formats`  | `['csv','xlsx','pdf']` | Menu entries; empty disables the button.              |
-| `label`    | `'Export'`             | Trigger text.                                         |
-| `disabled` | `false`                | Disables the trigger.                                 |
-| `href`     | —                      | `(format) => string \| undefined`; omit to emit only. |
-
-Event: `export(format)`. With `href` the component also triggers a download;
-without it, the page handles transport itself.
-
-### Buttons
-
-`TableButton` is the kit's one neutral control — a 36px button with a 3:1
-border used by the search, filters, export, bulk bar and pagination. It is not a
-general-purpose button: branded calls to action should use Volt's `Button`.
-
-| Prop       | Default     | Purpose                                               |
-| ---------- | ----------- | ----------------------------------------------------- |
-| `variant`  | `'neutral'` | `neutral`, `primary`, `danger`, `ghost`.              |
-| `size`     | `'md'`      | `sm` (32px) or `md` (36px).                           |
-| `iconOnly` | `false`     | Square hit area; the caller must supply `aria-label`. |
-| `type`     | `'button'`  | `button`, `submit` or `reset`.                        |
-| `disabled` | `false`     | Standard disabled state.                              |
-
-## Create and edit dialog
-
-`CrudDialog` is the create/edit shell for a list screen. It owns the dialog
-chrome, the form element and the submit/cancel wiring; the page owns the fields,
-the schema and the endpoint. Delete and restore are **not** form operations —
-use the row-action `confirm` block (see “Soft delete and restore”) instead.
-
-The form itself comes from the form kit (`useZodForm` + the field components), so
-there is one validation path for pages and dialogs. The native `<form>` exists
-for Enter-to-submit and the footer button's `form` attribute; it is
-`novalidate`, because browser bubbles are not the error contract.
-
-```vue
-<CrudDialog
-  v-model="open"
-  title="New member"
-  description="People with access to this workspace."
-  submit-label="Create member"
-  :busy="form.processing"
-  :dirty="form.isDirty"
-  :errors="errors"
-  size="md"
-  @submit="submit(() => form.post('/members'))"
-  @cancel="resetForm"
->
-  <TextField v-model="form.name" name="name" label="Name" required :error="errors.name" />
-  <PhoneField v-model="form.phone" name="phone" label="Phone" :error="errors.phone" />
-</CrudDialog>
-```
-
-| Prop          | Default    | Purpose                                             |
-| ------------- | ---------- | --------------------------------------------------- |
-| `title`       | —          | Dialog header.                                      |
-| `description` | —          | Supporting line, wired with `aria-describedby`.     |
-| `submitLabel` | `'Save'`   | Footer submit button.                               |
-| `cancelLabel` | `'Cancel'` | Footer cancel button.                               |
-| `busy`        | `false`    | Disables every control and blocks dismissal.        |
-| `size`        | `'md'`     | `sm` 24rem · `md` 32rem · `lg` 42rem.               |
-| `dismissible` | `true`     | Close icon, Escape and mask. `busy` forces `false`. |
-| `dirty`       | `false`    | Confirms before discarding unsaved edits.           |
-| `errors`      | `{}`       | Error map rendered in `FormErrorSummary`.           |
-
-Events: `submit`, `cancel`.
-
-Slots: `default({ formId, busy })`, `form({ formId, busy })`,
-`footer({ formId, busy, cancel })`.
-
-The default slot is wrapped in a native `<form>` (`novalidate`). A page that
-needs to own the form element overrides the `form` slot and keeps the same
-`formId`, so the footer submit button still targets it. The footer slot is the
-escape hatch for a fully custom action row.
+`SavedViewsMenu` stores named views **on the server**, per user (`saved_views` table), never in
+`localStorage`: a view can contain a search term (often a name or email), must follow the account
+across devices, and must not be readable by any script on the origin. Ownership is enforced by
+scoping every query to `auth()->id()`; a forged UUID is a 404. The server validates the resource and
+every filter key against `App\Support\SavedViewCatalog`, caps 20 views per screen and bounds the name
+to 60 characters. The collection is a client-owned panel, so it is read with TanStack Query
+(`Modules/SavedViews/hooks/useSavedViews.ts`); the list itself still comes from Inertia.
 
 ## Accessibility notes
 
-- Search, filters and pagination all have real labels; the search hint and date
-  errors are wired with `aria-describedby`. The min-length hint is visible while
-  it applies, not screen-reader-only.
-- The selected-row count is a polite live region; the bulk bar is a
-  `role="toolbar"` named “Bulk actions”; the pagination summary is
-  `aria-live="polite"`; the empty state is `role="status"`.
-- The filter panel is a non-modal `role="dialog"` labelled by its heading, and
-  the trigger points at it with `aria-controls`.
-- Icon-only controls carry `aria-label`; tooltips are supplementary, never the
-  only name.
-- Pagination marks the current page with `aria-current="page"`.
-- `ConfirmDialog` traps focus and returns it to the triggering control, so the
-  delete/restore modals are keyboard-operable; `CrudDialog` is modal, blocks
-  scroll while open, and confirms a dirty close before discarding edits.
-- Form errors render inline and in `FormErrorSummary`; a failed submit focuses
-  the first `[aria-invalid="true"]` control.
-- Targets are at least 24×24 CSS px (WCAG 2.2 SC 2.5.8); the default controls
-  are 32–36 px.
-- Every hover/focus state includes a transition and respects
-  `prefers-reduced-motion`.
+- Sortable headers use a real `<button>` and expose `aria-sort`.
+- Search and filter controls have labels; errors use `aria-invalid` and `role="alert"`.
+- The filter panel is a Base UI popover with a title; Escape closes it and focus returns to the
+  trigger. The count badge reads as “N active filters”, not just a number.
+- Active filter chips have a labelled remove button; `Clear all` is a real button.
+- Column checkboxes are labelled, locked columns say why, and the last visible column cannot be
+  hidden.
+- Selection uses a real checkbox column (header select-all plus one per row), each with an
+  `aria-label`; it is absent when the screen has no bulk capability.
+- The pagination summary is `aria-live="polite"` and reads `first–last of total · page N of M`.
+- Every icon-only control has an `aria-label`; decorative icons are hidden.
 
-## Palette and boundaries
+## Known gaps
 
-- Destructive **text** uses `text-aq-danger-strong`; the icon colour
-  `text-aq-danger` is fine for glyphs but fails AA as button text. Both flip in
-  dark mode through `globals.css`.
-- Borders use `border-content-border` (3:1) and `border-aq-shell-line`, never a
-  raw Tailwind palette class.
-- No `:pt` at call sites. If a Volt primitive needs a different treatment, edit
-  its own pass-through config in `src/volt/`.
-- `Column` is imported from `primevue/column`; every other component comes
-  through `@/volt/*`.
+- Column pinning, grouping, ordering and resizing are not registered. Add the matching feature and
+  row-model slot only when a screen needs it.
+- Selection is page-scoped. Cross-page “select all filtered” needs a controlled `selectedIds`
+  contract and a server endpoint; do not fake it with loaded rows.
+- Saved views are private. Sharing needs an explicit read policy and a visibility column — do not
+  add it until a product decision exists.
+- No component test runner covers sorting, pagination, selection or keyboard flows yet. The
+  architecture suite checks structure, not behaviour; the saved-view API has feature coverage.
+- Server rows must use the stable `uuid`/`id` field. Pass `getRowId` when a row uses another key.

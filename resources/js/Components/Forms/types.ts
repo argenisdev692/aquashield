@@ -9,14 +9,8 @@ export interface SelectOption {
  *
  * `address` is only the street line; `address_2` is deliberately absent so the
  * component can never overwrite the apartment/suite the user typed by hand.
+ *
+ * The canonical declaration lives in `lib/google-maps.ts` because the mapping
+ * code owns it. This re-export keeps the form-kit public surface stable.
  */
-export interface AddressSelection {
-    address: string;
-    formatted_address: string;
-    zip_code: string;
-    city: string;
-    state: string;
-    country: string;
-    latitude: number | null;
-    longitude: number | null;
-}
+export type { AddressSelection } from '@/lib/google-maps';

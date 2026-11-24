@@ -3,9 +3,15 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Modules\Users\Actions\CreateUserAction;
+use Modules\Users\Actions\DeleteUsersAction;
+use Modules\Users\Data\CreateUserData;
 use Modules\Users\Jobs\SendUserInvitationJob;
 use Modules\Users\Tests\Support\UserTestFixtures;
 use Tests\TestCase;
@@ -73,6 +79,55 @@ it('rejects an unknown filter with 422', function (): void {
     $this->actingAs($this->admin)
         ->getJson('/users?'.http_build_query(['filter' => ['unknown' => 'x']]))
         ->assertUnprocessable();
+});
+
+it('rejects uncapped role and permission arrays with 422', function (): void {
+    // Both arrays run one `exists` query per item; the max rule is what stops
+    // an oversized payload before it becomes an N-query request (OWASP API4).
+    $roles = array_map(static fn (int $i): string => 'ROLE_'.$i, range(1, 51));
+    $permissions = array_map(static fn (int $i): string => 'PERM_'.$i, range(1, 601));
+
+    $this->actingAs($this->admin)
+        ->postJson('/users', [
+            'first_name' => 'Over',
+            'email' => 'over@gmail.com',
+            'roles' => $roles,
+            'permissions' => $permissions,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['roles', 'permissions']);
+});
+
+it('maps a concurrent unique-constraint race to a validation error', function (): void {
+    User::factory()->create(['email' => 'race@gmail.com']);
+
+    $data = CreateUserData::from([
+        'first_name' => 'Race',
+        'email' => 'race@gmail.com',
+    ]);
+
+    expect(fn () => app(CreateUserAction::class)->execute($data, $this->admin))
+        ->toThrow(ValidationException::class);
+});
+
+it('filters the list by the created_at window', function (): void {
+    $january = User::factory()->create();
+    $january->forceFill(['created_at' => '2026-01-15 12:00:00'])->saveQuietly();
+
+    $february = User::factory()->create();
+    $february->forceFill(['created_at' => '2026-02-15 12:00:00'])->saveQuietly();
+
+    $this->actingAs($this->admin)
+        ->getJson('/users?'.http_build_query([
+            'filter' => [
+                'date_from' => '2026-01-01',
+                'date_to' => '2026-01-31',
+            ],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('rows.0.uuid', $january->uuid)
+        ->assertJsonMissingPath('rows.1');
 });
 
 /* ------------------------------------------------------------- read side */
@@ -144,7 +199,7 @@ it('creates a user with a role and a direct permission and queues the invitation
         'first_name' => 'Juan',
         'last_name' => 'Perez',
         'username' => 'juan.perez',
-        'email' => 'juan@example.com',
+        'email' => 'juan@gmail.com',
         'phone' => '+1 555 0100',
         'date_of_birth' => '1990-01-01',
         'city' => 'Houston',
@@ -157,18 +212,21 @@ it('creates a user with a role and a direct permission and queues the invitation
     $this->actingAs($this->admin)
         ->postJson('/users', $payload)
         ->assertCreated()
-        ->assertJsonPath('email', 'juan@example.com')
+        ->assertJsonPath('email', 'juan@gmail.com')
         ->assertJsonPath('roles.0', 'MANAGER')
         ->assertJsonPath('direct_permissions.0', 'VIEW_USER');
 
     Queue::assertPushed(SendUserInvitationJob::class);
 
-    $user = User::query()->where('email', 'juan@example.com')->firstOrFail();
+    $user = User::query()->where('email', 'juan@gmail.com')->firstOrFail();
 
     expect($user->registered_by_id)->toBe($this->admin->id)
         ->and($user->hasRole('MANAGER'))->toBeTrue()
         ->and($user->hasDirectPermission('VIEW_USER'))->toBeTrue()
-        ->and($user->hasVerifiedEmail())->toBeTrue();
+        ->and($user->status->value)->toBe('invited')
+        ->and($user->hasVerifiedEmail())->toBeFalse()
+        ->and($user->invitation_sent_at)->not->toBeNull()
+        ->and($user->must_change_password)->toBeFalse();
 
     $this->assertDatabaseHas('activity_log', [
         'description' => 'user.created',
@@ -176,38 +234,29 @@ it('creates a user with a role and a direct permission and queues the invitation
     ]);
 });
 
-it('refuses to create a user with a role above the actor ceiling', function (): void {
-    UserTestFixtures::role('MANAGER', ['VIEW_ANY_USER', 'VIEW_USER', 'CREATE_USER']);
-    $manager = UserTestFixtures::userWithRole('MANAGER');
-
-    UserTestFixtures::role('ADMIN', ['DELETE_USER']);
+it('forbids a delegated manager from creating users even with every Users permission', function (): void {
+    $manager = UserTestFixtures::delegatedAdmin();
 
     $this->actingAs($manager)
         ->postJson('/users', [
             'first_name' => 'Nope',
-            'email' => 'nope@example.com',
-            'roles' => ['ADMIN'],
+            'email' => 'nope@gmail.com',
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['roles']);
+        ->assertForbidden();
 
-    $this->assertDatabaseMissing('users', ['email' => 'nope@example.com']);
+    $this->assertDatabaseMissing('users', ['email' => 'nope@gmail.com']);
 });
 
-it('refuses to create a user with a direct permission above the actor ceiling', function (): void {
-    UserTestFixtures::role('MANAGER', ['VIEW_ANY_USER', 'VIEW_USER', 'CREATE_USER']);
-    $manager = UserTestFixtures::userWithRole('MANAGER');
+it('forbids a delegated manager from updating any user', function (): void {
+    $manager = UserTestFixtures::delegatedAdmin();
+    $target = User::factory()->create();
 
     $this->actingAs($manager)
-        ->postJson('/users', [
+        ->putJson('/users/'.$target->uuid, [
             'first_name' => 'Nope',
-            'email' => 'nope@example.com',
-            'permissions' => ['DELETE_USER'],
+            'email' => $target->email,
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['permissions']);
-
-    $this->assertDatabaseMissing('users', ['email' => 'nope@example.com']);
+        ->assertForbidden();
 });
 
 it('updates a user profile', function (): void {
@@ -229,19 +278,41 @@ it('updates a user profile', function (): void {
     ]);
 });
 
-it('forbids updating a user above the actor ceiling', function (): void {
-    UserTestFixtures::role('MANAGER', ['VIEW_ANY_USER', 'VIEW_USER', 'UPDATE_USER']);
-    $manager = UserTestFixtures::userWithRole('MANAGER');
+it('creates an active account with a temporary password that must be changed', function (): void {
+    Queue::fake();
 
-    UserTestFixtures::role('ADMIN', ['EXPORT_USER']);
-    $target = UserTestFixtures::userWithRole('ADMIN');
-
-    $this->actingAs($manager)
-        ->putJson('/users/'.$target->uuid, [
-            'first_name' => 'Nope',
-            'email' => $target->email,
+    $this->actingAs($this->admin)
+        ->postJson('/users', [
+            'first_name' => 'Manual',
+            'email' => 'manual@gmail.com',
+            'send_invitation' => false,
+            'temporary_password' => 'temppass1',
+            'temporary_password_confirmation' => 'temppass1',
         ])
-        ->assertForbidden();
+        ->assertCreated()
+        ->assertJsonPath('status', 'active')
+        ->assertJsonPath('must_change_password', true)
+        ->assertJsonPath('email_verified', true);
+
+    Queue::assertNotPushed(SendUserInvitationJob::class);
+
+    $user = User::query()->where('email', 'manual@gmail.com')->firstOrFail();
+
+    expect($user->status->value)->toBe('active')
+        ->and($user->must_change_password)->toBeTrue()
+        ->and($user->hasVerifiedEmail())->toBeTrue()
+        ->and(Hash::check('temppass1', (string) $user->password))->toBeTrue();
+});
+
+it('requires a temporary password when the invitation path is disabled', function (): void {
+    $this->actingAs($this->admin)
+        ->postJson('/users', [
+            'first_name' => 'Manual',
+            'email' => 'manual@gmail.com',
+            'send_invitation' => false,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['temporary_password']);
 });
 
 it('soft deletes a user', function (): void {
@@ -299,6 +370,39 @@ it('bulk deletes and bulk restores the same rows', function (): void {
     $this->assertNotSoftDeleted('users', ['uuid' => $second->uuid]);
 });
 
+it('filters by account status and sorts by name', function (): void {
+    UserTestFixtures::role('SORTABLE', []);
+
+    $charlie = UserTestFixtures::userWithRole('SORTABLE');
+    $charlie->forceFill(['first_name' => 'Charlie', 'status' => 'active'])->save();
+
+    $alpha = UserTestFixtures::userWithRole('SORTABLE');
+    $alpha->forceFill(['first_name' => 'Alpha', 'status' => 'active'])->save();
+
+    $invited = User::factory()->invited()->create(['first_name' => 'Invitee']);
+    $invited->assignRole('SORTABLE');
+
+    $this->actingAs($this->admin)
+        ->getJson('/users?'.http_build_query([
+            'filter' => ['account_status' => 'invited'],
+            'search' => 'Invitee',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('rows.0.uuid', $invited->uuid);
+
+    $response = $this->actingAs($this->admin)
+        ->getJson('/users?'.http_build_query([
+            'filter' => ['role' => ['SORTABLE'], 'account_status' => 'active'],
+            'sort' => 'name',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 2);
+
+    expect($response->json('rows.0.first_name'))->toBe('Alpha')
+        ->and($response->json('rows.1.first_name'))->toBe('Charlie');
+});
+
 it('rejects an empty bulk payload with 422', function (): void {
     $this->actingAs($this->admin)
         ->postJson('/users/bulk-delete', ['uuids' => []])
@@ -306,7 +410,7 @@ it('rejects an empty bulk payload with 422', function (): void {
         ->assertJsonValidationErrors(['uuids']);
 });
 
-it('refuses a bulk delete when one row is above the ceiling and deletes nothing', function (): void {
+it('refuses an action-level bulk delete when one row is above the ceiling and deletes nothing', function (): void {
     UserTestFixtures::role('MANAGER', [
         'VIEW_ANY_USER',
         'VIEW_USER',
@@ -320,9 +424,14 @@ it('refuses a bulk delete when one row is above the ceiling and deletes nothing'
     $manageable = User::factory()->create();
     $aboveCeiling = UserTestFixtures::userWithRole('ADMIN');
 
-    $this->actingAs($manager)
-        ->postJson('/users/bulk-delete', ['uuids' => [$manageable->uuid, $aboveCeiling->uuid]])
-        ->assertForbidden();
+    // The HTTP surface is super-admin-only (`can:manage-staff`), so a 403 from
+    // the route would prove the gate, not the ceiling. The action is called
+    // directly: the manageable row and the above-ceiling row share one
+    // transaction, and the denied row must roll the first one back.
+    expect(fn () => app(DeleteUsersAction::class)->execute(
+        $manager,
+        [$manageable->uuid, $aboveCeiling->uuid],
+    ))->toThrow(AuthorizationException::class);
 
     $this->assertNotSoftDeleted('users', ['uuid' => $manageable->uuid]);
     $this->assertNotSoftDeleted('users', ['uuid' => $aboveCeiling->uuid]);

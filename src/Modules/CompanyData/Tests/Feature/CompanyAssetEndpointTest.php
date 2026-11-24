@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
 use Modules\CompanyData\Tests\Support\FakeStoragePort;
 use Shared\Domain\Ports\StoragePort;
-use Spatie\Permission\Models\Permission;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -88,6 +89,24 @@ it('re-encodes a logo to webp, stores it public and returns its url', function (
     expect(substr($this->storage->objects[$key]['contents'], 8, 4))->toBe('WEBP');
 
     $response->assertJsonPath('logo_url', 'https://cdn.aquashield.test/'.$key);
+});
+
+it('records the brand-asset change in the activity log', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+    $company = assetCompanyRecord($this->user);
+
+    $this->actingAs($this->user)
+        ->post('/company-data/assets/logo', ['file' => UploadedFile::fake()->image('logo.png', 400, 200)], jsonHeaders())
+        ->assertOk();
+
+    $activity = Activity::query()
+        ->where('subject_type', CompanyData::class)
+        ->where('subject_id', $company->getKey())
+        ->latest('id')
+        ->first();
+
+    expect($activity)->not->toBeNull()
+        ->and($activity->attribute_changes->get('attributes'))->toHaveKey('logo_path');
 });
 
 it('keeps the signature private, as png, behind a signed url', function (): void {

@@ -20,8 +20,8 @@ function usernamePayload(string $username, string $email = 'username@example.com
         'last_name' => 'User',
         'username' => $username,
         'email' => $email,
-        'password' => '123456',
-        'password_confirmation' => '123456',
+        'password' => '12345678',
+        'password_confirmation' => '12345678',
     ];
 }
 

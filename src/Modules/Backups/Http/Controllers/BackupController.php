@@ -13,9 +13,9 @@ use Inertia\Response as InertiaResponse;
 use Modules\Backups\Application\Actions\DeleteBackupsAction;
 use Modules\Backups\Application\Actions\RestoreBackupsAction;
 use Modules\Backups\Application\Actions\RunDatabaseBackupAction;
+use Modules\Backups\Application\Ports\BackupActivityLog;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Application\Queries\BackupIndexQuery;
-use Modules\Backups\Application\Repositories\BackupActivityLog;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
 use Modules\Backups\Data\BackupFilterData;
 use Modules\Backups\Domain\Exceptions\BackupDeletionRefused;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
@@ -59,6 +59,7 @@ final readonly class BackupController
             'total' => $page->total,
             'currentPage' => $page->page,
             'perPage' => $page->perPage,
+            'lastPage' => $page->lastPage,
             'filters' => $filters,
             'disks' => $this->archives->disks(),
             'can' => $can,
@@ -86,6 +87,7 @@ final readonly class BackupController
         return inertia('Backups/Show', [
             'backup' => $archive,
             'activities' => $activities,
+            'quarantineDays' => $this->quarantineRetentionDays(),
             'can' => [
                 'download' => $actor instanceof User && $actor->can('DOWNLOAD_BACKUPS'),
                 'delete' => $actor instanceof User
@@ -164,6 +166,16 @@ final readonly class BackupController
             'export' => $actor instanceof User && $actor->can('EXPORT_BACKUPS'),
             'view' => $actor instanceof User && $actor->can('VIEW_BACKUPS'),
         ];
+    }
+
+    /**
+     * The same window `backups:purge-quarantine` enforces. The page renders it
+     * instead of hardcoding a number, so the copy cannot drift from the policy
+     * it describes.
+     */
+    private function quarantineRetentionDays(): int
+    {
+        return max(0, (int) config('backup.quarantine.retain_days', 30));
     }
 
     /**

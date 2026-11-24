@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Backups\Infrastructure\Services;
 
 use Illuminate\Support\Facades\Artisan;
-use Modules\Backups\Application\Repositories\DatabaseBackupRunner;
+use Modules\Backups\Application\Ports\DatabaseBackupRunner;
 use Modules\Backups\Domain\Exceptions\BackupRunFailed;
 
 /**

@@ -10,6 +10,7 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Models\User;
+use App\Support\AccountAccess;
 use App\Support\AccountLockout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\Passkeys;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -82,6 +85,8 @@ class FortifyServiceProvider extends ServiceProvider
                 ]);
             }
 
+            AccountAccess::assertCanSignIn($user);
+
             return $user;
         });
 
@@ -94,7 +99,6 @@ class FortifyServiceProvider extends ServiceProvider
                 'name' => 'AquaShield Demo',
             ] : null,
         ]));
-        Fortify::registerView(fn () => inertia('Auth/Register'));
         Fortify::requestPasswordResetLinkView(fn () => inertia('Auth/ForgotPassword', [
             'status' => session('status'),
         ]));
@@ -102,9 +106,14 @@ class FortifyServiceProvider extends ServiceProvider
             'email' => $request->input('email'),
             'token' => $request->route('token'),
         ]));
-        Fortify::verifyEmailView(fn () => inertia('Auth/VerifyEmail', [
-            'status' => session('status'),
-        ]));
+        Fortify::verifyEmailView(function (Request $request) {
+            $user = $request->user();
+
+            return inertia('Auth/VerifyEmail', [
+                'status' => session('status'),
+                'email' => $user instanceof User ? $user->email : null,
+            ]);
+        });
         Fortify::confirmPasswordView(fn () => inertia('Auth/ConfirmPassword'));
         Fortify::twoFactorChallengeView(fn () => inertia('Auth/TwoFactorChallenge'));
 
@@ -124,6 +133,42 @@ class FortifyServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by(
                 ($credentialId ?: $request->session()->getId()).'|'.$request->ip()
             );
+        });
+
+        /*
+         * `laravel/passkeys` defaults the post-ceremony redirect to "/", which
+         * is the marketing entry, not the workspace. The rest of the package
+         * config is left at its defaults: relying party and allowed origin are
+         * derived from APP_URL, which is the value that has to be right anyway.
+         */
+        config(['passkeys.redirect' => '/dashboard']);
+
+        /*
+         * Passkey sign-in never reaches `authenticateUsing`, so the two gates
+         * that protect the password transport are repeated here. Without this,
+         * a passkey would be a way around the durable lockout — and around the
+         * verified-email gate, since an unverified account can still enrol one.
+         */
+        Passkeys::authorizeLoginUsing(function (Request $request, PasskeyUser $user): bool {
+            if (! $user instanceof User) {
+                return false;
+            }
+
+            if (AccountLockout::active($user)) {
+                throw ValidationException::withMessages([
+                    'credential' => AccountLockout::message($user),
+                ]);
+            }
+
+            if (! $user->hasVerifiedEmail()) {
+                throw ValidationException::withMessages([
+                    'credential' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
+                ]);
+            }
+
+            AccountAccess::assertCanSignIn($user);
+
+            return true;
         });
 
         /*

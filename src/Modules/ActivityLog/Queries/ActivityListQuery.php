@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\ActivityLog\Queries;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Modules\ActivityLog\Data\ActivityFilterData;
@@ -38,12 +39,30 @@ final class ActivityListQuery
                 static fn (Builder $query): Builder => $query->where('event', 'like', '%'.$filters->event.'%'),
             )
             ->when(
+                $filters->subjectType !== null,
+                static fn (Builder $query): Builder => $query->where('subject_type', $filters->subjectType),
+            )
+            ->when(
+                $filters->subjectId !== null,
+                static fn (Builder $query): Builder => $query->where('subject_id', $filters->subjectId),
+            )
+            ->when(
                 $filters->dateFrom !== null,
-                static fn (Builder $query): Builder => $query->whereDate('created_at', '>=', $filters->dateFrom),
+                // Range predicate, not whereDate(): the column stays bare so the
+                // planner can use the created_at index (see the users migration).
+                static fn (Builder $query): Builder => $query->where(
+                    'created_at',
+                    '>=',
+                    $filters->dateFrom.' 00:00:00',
+                ),
             )
             ->when(
                 $filters->dateTo !== null,
-                static fn (Builder $query): Builder => $query->whereDate('created_at', '<=', $filters->dateTo),
+                static function (Builder $query) use ($filters): Builder {
+                    $nextDay = CarbonImmutable::parse($filters->dateTo)->addDay()->toDateString();
+
+                    return $query->where('created_at', '<', $nextDay.' 00:00:00');
+                },
             )
             ->orderBy($filters->sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
             ->orderByDesc('id');

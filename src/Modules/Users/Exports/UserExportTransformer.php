@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\Users\Exports;
 
-use DateTimeInterface;
 use Modules\Users\Data\UserFilterData;
 use Modules\Users\Queries\UserListQuery;
 use Shared\Domain\Ports\ExportPort;
+use Shared\Support\SpreadsheetCell;
 
 /**
  * Row -> column transformation for the Users export.
@@ -48,7 +48,8 @@ final readonly class UserExportTransformer
             'state' => 'State',
             'country' => 'Country',
             'roles' => 'Roles',
-            'status' => 'Status',
+            'status' => 'Account status',
+            'record_state' => 'Record state',
             'created_at' => 'Created at',
         ];
     }
@@ -75,37 +76,21 @@ final readonly class UserExportTransformer
 
         foreach ($query->lazy(500) as $user) {
             yield [
-                'first_name' => $this->cell($user->first_name),
-                'last_name' => $this->cell($user->last_name),
-                'username' => $this->cell($user->username),
-                'email' => $this->cell($user->email),
-                'phone' => $this->cell($user->phone),
-                'city' => $this->cell($user->city),
-                'state' => $this->cell($user->state),
-                'country' => $this->cell($user->country),
-                'roles' => $this->cell(
+                'first_name' => SpreadsheetCell::sanitise($user->first_name),
+                'last_name' => SpreadsheetCell::sanitise($user->last_name),
+                'username' => SpreadsheetCell::sanitise($user->username),
+                'email' => SpreadsheetCell::sanitise($user->email),
+                'phone' => SpreadsheetCell::sanitise($user->phone),
+                'city' => SpreadsheetCell::sanitise($user->city),
+                'state' => SpreadsheetCell::sanitise($user->state),
+                'country' => SpreadsheetCell::sanitise($user->country),
+                'roles' => SpreadsheetCell::sanitise(
                     $user->roles->pluck('name')->implode(', '),
                 ),
-                'status' => $this->cell($user->deleted_at === null ? 'Active' : 'Trashed'),
-                'created_at' => $this->cell($user->created_at),
+                'status' => SpreadsheetCell::sanitise($user->status->label()),
+                'record_state' => SpreadsheetCell::sanitise($user->deleted_at === null ? 'Active' : 'Deleted'),
+                'created_at' => SpreadsheetCell::sanitise($user->created_at),
             ];
         }
-    }
-
-    /**
-     * One export-safe cell.
-     *
-     * The pipe normalises a Carbon to a string, a bool to 0/1 and null to an
-     * empty cell, then neutralises spreadsheet formula prefixes. Names and
-     * notes are user input; a cell beginning with `=`, `+`, `-` or `@` is
-     * executable in Excel and Sheets.
-     */
-    private function cell(mixed $value): string|int|float
-    {
-        return $value
-            |> (fn (mixed $v): mixed => $v instanceof DateTimeInterface ? $v->format('Y-m-d H:i') : $v)
-            |> (fn (mixed $v): mixed => is_bool($v) ? (int) $v : $v)
-            |> (fn (mixed $v): int|float|string => $v ?? '')
-            |> (fn (int|float|string $v): int|float|string => is_string($v) && preg_match('/^[=+\-@]/', $v) === 1 ? "'".$v : $v);
     }
 }

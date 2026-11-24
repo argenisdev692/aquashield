@@ -9,8 +9,10 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * REST list contract. The API returns a Data object so Scramble documents the
- * schema instead of guessing at an array shape.
+ * Paginated inventory envelope for the read-only REST API.
+ *
+ * The rows are the same `BackupArchiveData` the web index returns, so the two
+ * transports cannot drift into different field sets.
  */
 #[MapOutputName(SnakeCaseMapper::class)]
 final class BackupListData extends Data

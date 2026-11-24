@@ -69,7 +69,9 @@ final class ActivityEntryData extends Data
     {
         $safe = [];
 
-        foreach (['disk', 'filename', 'size_bytes', 'reason', 'requested_by'] as $key) {
+        // `requested_by` is an internal numeric user id; only UUIDs cross HTTP.
+        // The causer is already represented by `causerName`.
+        foreach (['disk', 'filename', 'size_bytes', 'reason', 'changed'] as $key) {
             $value = $properties[$key] ?? null;
 
             if (is_string($value) || is_int($value)) {

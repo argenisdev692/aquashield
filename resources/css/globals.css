@@ -85,6 +85,7 @@
     /* See the light-mode declaration. Utilities read the variable, so the
        same `text-aq-danger-strong` clears 5.7:1 on the navy card. */
     --color-aq-danger-strong: #fb7185;
+    --color-aq-success-strong: #34d399;
 
     --p-content-border-color: var(--p-surface-400);
     --p-content-hover-background: var(--p-surface-800);
@@ -132,6 +133,15 @@
     --color-aq-accent-soft: #33c4e8;
     --color-aq-accent-deep: #0090b8;
 
+    /* Theme-adaptive primary action. Light mode fills with the brand navy and
+       white text (15.8:1); dark mode fills with aqua and the void navy label
+       (7.4:1). A single aqua fill in both themes is why the primary button
+       looked frozen when the shell switched to light — the surface moved and
+       the action did not. The bridge mirrors --color-aq-shell-line. */
+    --color-aq-action: var(--aq-action);
+    --color-aq-action-hover: var(--aq-action-hover);
+    --color-aq-action-ink: var(--aq-action-ink);
+
     --color-aq-ink: #f0eeff;
     --color-aq-ink-soft: #b8c5d6;
     --color-aq-ink-muted: #7a8fa8;
@@ -140,6 +150,11 @@
     --color-aq-success: #10d988;
     --color-aq-warning: #f59e0b;
     --color-aq-danger: #f43f5e;
+
+    /* Success text needs a rung the icon colour cannot provide: #10d988
+       measures ~1.5:1 on a light chip — fine for a large graphic, a fail for
+       12px text. The dark theme flips it to emerald-400. */
+    --color-aq-success-strong: #065f46;
 
     /* Destructive text needs a rung the icon colour cannot provide: #f43f5e
        measures 3.7:1 on a light card — fine for a 16px glyph (3:1), a fail for
@@ -161,14 +176,38 @@
     --color-aq-line: var(--aq-line);
     --color-aq-line-strong: var(--aq-line-strong);
 
-    /* The neutral shell hairline (header bottom, rail edge, footer top). It is
-       the one line that flips with the theme, so it stays a separate token
-       from the aqua marketing hairlines above. */
+    /* The neutral hairline for content surfaces (table rows, card edges,
+       dividers inside the workspace). The app shell itself is borderless —
+       header, rail and footer are separated by surface lightness — so this
+       token is for content, not for framing the screen. */
     --color-aq-shell-line: var(--aq-shell-line);
 
     /* PrimeUI's control-border semantic, bridged for the same reason: chrome
        controls need a 3:1 border and had no utility to reach for. */
     --color-content-border: var(--p-content-border-color);
+
+    /* PrimeUI surface scale → Tailwind colour utilities (`bg-surface-*`,
+       `text-surface-*`, `border-surface-*`). The React port kept the Vue-era
+       PrimeUI utility vocabulary; Tailwind v4 only emits those utilities when
+       the semantic `--color-surface-*` theme keys exist. Without this bridge the
+       classes are silently dropped from the build and surfaces fall back to the
+       unstyled default — the washed-out, too-white look. */
+    --color-surface-0: var(--p-surface-0);
+    --color-surface-50: var(--p-surface-50);
+    --color-surface-100: var(--p-surface-100);
+    --color-surface-200: var(--p-surface-200);
+    --color-surface-300: var(--p-surface-300);
+    --color-surface-400: var(--p-surface-400);
+    --color-surface-500: var(--p-surface-500);
+    --color-surface-600: var(--p-surface-600);
+    --color-surface-700: var(--p-surface-700);
+    --color-surface-800: var(--p-surface-800);
+    --color-surface-900: var(--p-surface-900);
+    --color-surface-950: var(--p-surface-950);
+
+    /* Hover rung of the primary scale, named for the semantic a hover state
+       needs: `hover:bg-primary-emphasis` / `hover:border-primary-emphasis`. */
+    --color-primary-emphasis: var(--p-primary-hover-color);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -192,11 +231,17 @@
     --aq-line: rgb(0 181 226 / 0.22);
     --aq-line-strong: rgb(0 181 226 / 0.4);
 
-    /* The one neutral hairline: header bottom, rail edge, footer top. The
-       shell frame is structure, not brand decoration — aqua is the state
-       signal (active row, focus ring), and spending it here would make the
-       frame compete with the selected row. Marketing surfaces keep --aq-line
-       above. Same computed colour the shell shipped before the token existed. */
+    /* Primary action on a light ground: brand navy, white label. The hover rung
+       moves up the same navy scale so the label stays legible while pressed. */
+    --aq-action: #0c2340;
+    --aq-action-hover: #1a3a5c;
+    --aq-action-ink: #ffffff;
+
+    /* The one neutral hairline: table rows, card edges and the few dividers
+       that earn their keep inside dense content. The shell does not use it —
+       header, rail and footer separate themselves by surface lightness — so
+       the frame stays quiet while data-dense surfaces keep a crisp line.
+       Same computed colour the shell shipped before the token existed. */
     --aq-shell-line: color-mix(in oklab, var(--p-surface-200) 80%, transparent);
 
     --aq-grad-primary: linear-gradient(135deg, #0c2340 0%, #00b5e2 100%);
@@ -219,6 +264,10 @@
        the duplication this token removes. */
     --aq-shadow-lift: 0 20px 25px -5px rgb(4 12 24 / 0.1), 0 8px 10px -6px rgb(4 12 24 / 0.1);
 
+    /* Input elevation. The sign-in field sits one hairline above the surface;
+       the value is a token so the primitive never ships a literal shadow. */
+    --aq-input-shadow: 0 1px 2px 0 rgb(18 18 23 / 0.05);
+
     /* Accent glow for the outlined primary CTA on the marketing footer. Same
        reasoning as the CTA fill in `.aq-btn-shine`: the strength is a brand
        decision, so it lives here and not in a bracket at one call site. */
@@ -236,10 +285,18 @@
        a palette change needs no second edit. Light mode runs them weaker for
        the same reason the marketing glow is damped on light grounds: the
        glow that reads as depth on the night navy eats contrast on a light
-       ground. */
+       ground.
+
+       The scrollbar is the exception: a saturated aqua thumb on a light
+       surface reads as "the scrollbar did not change theme", and it spends
+       the one accent the app reserves for state (active rows, focus rings,
+       links). Light mode therefore uses the neutral navy ramp — a muted
+       blue-grey that still belongs to the palette — and dark mode keeps the
+       aqua tint, where it reads as a soft glow on the night navy and
+       competes with nothing. */
     --scrollbar-size: 10px;
-    --scrollbar-thumb: color-mix(in oklab, var(--p-primary-500) 40%, transparent);
-    --scrollbar-thumb-hover: color-mix(in oklab, var(--p-primary-400) 70%, var(--p-primary-500));
+    --scrollbar-thumb: color-mix(in oklab, var(--p-surface-400) 70%, transparent);
+    --scrollbar-thumb-hover: color-mix(in oklab, var(--p-surface-500) 80%, transparent);
 
     --cursor-orb-size: 340px;
     --cursor-orb-tint: color-mix(in oklab, var(--p-primary-500) 20%, transparent);
@@ -249,7 +306,15 @@
     --scrollbar-thumb: color-mix(in oklab, var(--p-primary-400) 55%, transparent);
     --cursor-orb-tint: color-mix(in oklab, var(--p-primary-400) 32%, transparent);
 
-    /* One rung up the navy ramp, matching the previous surface-800 edge. */
+    /* Primary action on the night navy: aqua fill, void navy label. This is the
+       pair the app already measured at 6.5:1; the light-mode navy is its
+       counterpart, not a second brand colour. */
+    --aq-action: #00b5e2;
+    --aq-action-hover: #33c4e8;
+    --aq-action-ink: #081829;
+
+    /* One rung up the navy ramp for content hairlines; the shell frame now
+       relies on the rail's surface step instead of a line. */
     --aq-shell-line: var(--p-surface-800);
 
     /* Light halo on the dark ground — see the light-mode value for why this
@@ -422,6 +487,16 @@
        `prefers-reduced-motion`, and the lift is limited to 1px so a dense
        action row cannot jitter. */
     .aq-btn-hover {
+        /* The sheen is an absolutely positioned pseudo-element, so the button
+           has to be its containing block and has to clip it. Neither was
+           declared here: `inset: 0` resolved against the nearest positioned
+           ancestor — on a plain form, the viewport — and the 260% travel
+           painted a full-page diagonal silhouette on hover instead of a pass
+           across the button. `.aq-btn-shine` always had this pair; only the
+           restrained sibling was missing it. */
+        position: relative;
+        overflow: hidden;
+
         /* Same reason as the CTA above: the primitive's `transition-colors`
            utility outranks a components-layer shorthand, so the 1px lift and
            the sheen timing need the important flag to run at all. */
@@ -549,8 +624,9 @@
        like water finding its level. The mask lives on the PARENT so the
        moving sheet is clipped to the mark's own alpha — put the mask on
        the sheet and the shape would travel with it.
-       Size is set at the call site; the artwork is 102x146, so an
-       `aspect-[102/146]` wrapper keeps the shield from stretching. */
+       Size is set at the call site; the artwork is 358x402, so an
+       `aspect-[358/402]` wrapper with `contain` keeps the shield from
+       stretching vertically. */
     .aq-mark {
         --aq-logo-art: url('/img/logo-mark.webp');
         position: relative;
@@ -560,8 +636,8 @@
            tide. 26% vanished against the void; 42% keeps the silhouette
            legible without pretending the water is always full. */
         background: color-mix(in oklab, var(--color-aq-ink) 42%, transparent);
-        mask: var(--aq-logo-art) center / 100% 100% no-repeat;
-        -webkit-mask: var(--aq-logo-art) center / 100% 100% no-repeat;
+        mask: var(--aq-logo-art) center / contain no-repeat;
+        -webkit-mask: var(--aq-logo-art) center / contain no-repeat;
     }
 
     .aq-mark__water {
@@ -866,5 +942,21 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+/* ── Cookie-consent clearance ────────────────────────────────────────
+   The banner is `position: fixed` on the viewport bottom, so without a
+   reserved strip it paints over whatever ends the page — on the sign-in
+   screen that was the submit button at 390px wide. `:has()` keeps the
+   reservation tied to the banner actually being in the DOM (the server
+   decides that), and the document grows instead of the CTA hiding. */
+body:has([data-cookie-consent]) {
+    padding-bottom: 10rem;
+}
+
+@media (min-width: 640px) {
+    body:has([data-cookie-consent]) {
+        padding-bottom: 7rem;
     }
 }

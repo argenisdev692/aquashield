@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Modules\Backups\Application\Actions\DeleteBackupsAction;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Exceptions\BackupDeletionRefused;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
 use Modules\Backups\Tests\Support\FakeBackupArchiveStore;

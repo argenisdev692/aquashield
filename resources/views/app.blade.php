@@ -37,8 +37,9 @@
     @fonts
 
     {{-- Theme FOUC-killer: `.dark` on <html> BEFORE first paint. The key
-        `app:theme` is owned by the VueUse `useColorMode` store (single source
-        of persistence). Dark-first project policy: no stored preference = dark. --}}
+        `app:theme` is owned by `resources/js/lib/theme.ts` (`useTheme`), the
+        single source of persistence. Dark-first project policy: no stored
+        preference = dark. --}}
     <script @cspNonce>
         (function () {
             try {
@@ -53,15 +54,36 @@
                     meta.setAttribute('content', theme === 'dark' ? '#081829' : '#f1f6fa');
                 }
             } catch (e) {
-                /* localStorage blocked, fall through to default light */
+                /* localStorage blocked: leave the document as-is */
             }
         })();
     </script>
 
-    @vite(['resources/css/app.css', 'resources/js/app.ts'])
+    {{-- The React Refresh preamble MUST precede the entry: without it the dev
+        bundle dies with "@vitejs/plugin-react can't detect preamble" and the
+        Inertia root renders empty. It is a no-op on a production build. --}}
+    @viteReactRefresh
+    @vite(['resources/css/app.css', 'resources/js/app.tsx'])
     @inertiaHead
 </head>
-<body class="bg-surface-50 text-surface-700 dark:bg-surface-950 dark:text-surface-100 h-full font-sans antialiased">
+{{--
+    The body is the page canvas behind every surface, so it has to follow the
+    theme. It used to be `bg-aq-void` unconditionally: the transparent
+    scrollbar track then showed that navy through the gutter in light mode,
+    and on any viewport wider than the shell's `max-w-384` the navy showed as
+    a band on both sides of the centred app.
+
+    The text colour stays `text-aq-ink` in both modes on purpose. The three
+    surfaces are: the app shell (paints `bg-surface-50` / `dark:bg-surface-950`
+    and its own text colour), the marketing welcome page (`bg-aq-void`) and the
+    auth shell (`bg-aq-void`, always dark). Only the last one shows body text,
+    and it needs the light ink on navy.
+
+    First paint is unchanged: the script above adds `.dark` before this
+    stylesheet resolves, and dark-first means an unvisited browser still gets
+    the navy canvas.
+--}}
+<body class="bg-surface-50 text-aq-ink dark:bg-aq-void h-full font-sans antialiased">
     @inertia
 </body>
 </html>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Backups\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Shared\Domain\Ports\AuditPort;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 

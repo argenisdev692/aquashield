@@ -3,11 +3,19 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\EnforceIdleSession;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
+use Modules\LeadAppointment\Domain\Exceptions\AvailabilityConflictException;
+use Modules\LeadAppointment\Domain\Exceptions\CapacityExceededException;
+use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
+use Modules\LeadAppointment\Domain\Exceptions\PastDateSchedulingException;
+use Modules\LeadAppointment\Domain\Exceptions\SlotUnavailableException;
 use Shared\Infrastructure\Http\Middleware\SecurityHeaders;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -39,16 +47,36 @@ return Application::configure(basePath: dirname(__DIR__))
             // Runs before Inertia renders: an expired session must never
             // produce a page payload for a user who is already signed out.
             EnforceIdleSession::class,
+            // Account suspension is immediate: an existing session is
+            // terminated before the page is built, not on the next login.
+            EnsureAccountIsActive::class,
             HandleInertiaRequests::class,
         ]);
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'account.active' => EnsureAccountIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(function (LeadNotFoundException|AppointmentNotFoundException $exception, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json(['message' => $exception->getMessage()], 404);
+        });
+
+        $exceptions->render(function (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException|InvalidStatusTransitionException|AvailabilityConflictException $exception, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json(['message' => $exception->getMessage()], 422);
+        });
     })->create();

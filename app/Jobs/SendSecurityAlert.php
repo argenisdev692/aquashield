@@ -31,6 +31,8 @@ final class SendSecurityAlert implements ShouldQueue
 
     public int $backoff = 30;
 
+    public int $timeout = 30;
+
     /**
      * @param array<string, string|null> $context
      */
@@ -46,7 +48,7 @@ final class SendSecurityAlert implements ShouldQueue
      */
     public static function forUser(User $user, SecurityEvent $event, array $context = []): void
     {
-        self::dispatch($user->email, $user->name, $event, $context);
+        self::dispatch($user->email, $user->name, $event, $context)->onQueue('emails');
     }
 
     public function handle(MailInterface $mail, ?ClientLocation $location = null): void

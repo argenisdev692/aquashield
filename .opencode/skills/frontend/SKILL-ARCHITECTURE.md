@@ -1,6 +1,6 @@
 ---
 name: frontend-architecture
-description: Directory tree, layer boundaries and file placement for the Vue 3 + Inertia frontend. Covers the @ alias resolution, the Volt primitives location in src/volt, the layer import matrix with its verifiable invariants, Pinia store placement, and where server state lives.
+description: Directory tree, layer boundaries and file placement for the React 19 + Inertia v3 frontend. Covers the @ alias resolution, shadcn/ui primitives in Components/ui, the layer import matrix with its verifiable invariants, module hook placement, and where server and client state live.
 ---
 
 # FRONTEND ARCHITECTURE — directory tree and layers
@@ -12,175 +12,208 @@ description: Directory tree, layer boundaries and file placement for the Vue 3 +
 
 ```
 src/
-├── volt/                    51 Volt primitives + utils.ts   ← CODE-OWNERSHIP, committed
-├── Modules/                 empty — one folder per domain when the backend module lands
-└── Shared/                  PHP only: ports, adapters, DTOs (see backend-php/SKILL-ARCHITECTURE.md §5)
+├── Modules/                 backend modules (empty today)
+└── Shared/                  PHP only: ports, adapters, DTOs
+                             (see backend-php/SKILL-ARCHITECTURE.md §5)
 
 resources/
 ├── css/
 │   ├── app.css              Tailwind v4 entry — import order and @source are load-bearing
-│   └── globals.css          ALL design tokens + the PrimeUI variable bridge
+│   └── globals.css          ALL design tokens: --color-aq-*, --color-surface-*, dark overrides
 ├── js/
-│   ├── app.ts               createInertiaApp — Pinia, Colada, PrimeVue, services
+│   ├── app.tsx              createInertiaApp + QueryClientProvider
 │   ├── Components/
-│   │   ├── DataTable/       server-first table kit + CrudDialog
-│   │   └── Forms/           useZodForm field kit, buttons, dropzones (README.md)
-│   ├── Layouts/             AppLayout + AuthLayout (present)
+│   │   ├── ui/              shadcn/ui source on Base UI — CODE-OWNERSHIP, committed
+│   │   │                    (button, dialog, table, skeleton, …)
+│   │   ├── DataTable/       server-first table kit + CrudDialog + export/filters
+│   │   └── Forms/           useZodForm field kit, buttons, dropzones
+│   ├── Layouts/             AppLayout + AuthLayout
 │   ├── lib/
-│   │   ├── utils.ts         cn() — the class-merge helper
+│   │   ├── utils.ts         cn() — clsx + tailwind-merge
 │   │   ├── forms.ts         useZodForm — Inertia + Zod, error merge + focus
+│   │   ├── http.ts          xsrfToken() for plain fetch calls
 │   │   ├── files.ts         file validation and byte formatting
 │   │   ├── phone.ts         libphonenumber-js formatting + phoneSchema
 │   │   ├── table.ts         one query contract for table + export
-│   │   └── theme.ts         the single useColorMode store
-│   ├── Pages/               Inertia pages — the ONLY layer using usePage()/useForm()
+│   │   ├── visits.ts        useVisitPending() — global Inertia visit state
+│   │   └── theme.ts         the single theme/sidebar store
+│   ├── Modules/{Context}/
+│   │   ├── hooks/           THE ONLY network boundary (invariant 1)
+│   │   ├── schemas/         Zod schemas + z.infer<> types
+│   │   └── components/      optional module-private UI
+│   ├── Pages/               Inertia pages — usePage() + useZodForm()
 │   │   ├── Auth/            Login, Register, ForgotPassword, ResetPassword,
 │   │   │                    VerifyEmail, ConfirmPassword, TwoFactorChallenge
 │   │   ├── Dashboard/
 │   │   └── {Context}/       Index, Show, Create, Edit (+ page-private components/)
-│   └── generated/           generated.d.ts + transformer manifest from `typescript:transform`
+│   └── generated/           generated.d.ts from `typescript:transform`
 └── views/
-    ├── app.blade.php        Inertia root — @inertia, @inertiaHead, @vite
+    ├── app.blade.php        Inertia root — @inertia, @inertiaHead, @vite, theme nonce
     └── errors/
 ```
 
-**There is no `resources/js/types/`.** The type surface is `resources/js/generated/generated.d.ts`
-plus ambient `*.d.ts` files placed next to the code that needs them. Do not document or create a
-`types/` folder by reflex — if a shared type appears twice, that is a `Data` class missing from
+**There is no `src/volt/` and no `resources/js/types/`.** The type surface is
+`resources/js/generated/generated.d.ts` plus ambient `*.d.ts` files placed next to the code that
+needs them. If a shared type appears twice, that is a `Data` class missing from
 `typescript:transform`, not a folder to create.
 
 ## 2. The `@` alias — and why it is not one rule
 
 Vite aliases use **first string-prefix match with no filesystem check**, and a `find` ending in `/`
-never matches (the resolver appends the slash itself). So the mapping is split by prefix:
+never matches (the resolver appends the slash itself). The mapping is split by prefix:
 
 ```js
 // vite.config.js
 resolve: {
     alias: [
-        { find: '@/volt',    replacement: resolve('./src/volt/') },
-        { find: '@/pages',   replacement: resolve('./resources/js/Pages/') },
-        { find: '@/layouts', replacement: resolve('./resources/js/Layouts/') },
-        { find: '@',         replacement: resolve('./resources/js/') },
+        { find: '@/pages',   replacement: fileURLToPath(new URL('./resources/js/Pages/', import.meta.url)) },
+        { find: '@/layouts', replacement: fileURLToPath(new URL('./resources/js/Layouts/', import.meta.url)) },
+        { find: '@',         replacement: fileURLToPath(new URL('./resources/js/', import.meta.url)) },
     ],
 },
 ```
 
-Order matters and there is no fallthrough. `tsconfig.json` must mirror it exactly, otherwise
-`vue-tsc` and Vite disagree about where a file lives.
+Order matters and there is no fallthrough. `tsconfig.json` mirrors it exactly, otherwise `tsc` and
+Vite disagree about where a file lives.
 
-| Import                     | Resolves to                           |
-| -------------------------- | ------------------------------------- |
-| `@/volt/Button.vue`        | `src/volt/Button.vue`                 |
-| `@/layouts/AuthLayout.vue` | `resources/js/Layouts/AuthLayout.vue` |
-| `@/Components/Foo.vue`     | `resources/js/Components/Foo.vue`     |
+| Import                   | Resolves to                         |
+| ------------------------ | ----------------------------------- |
+| `@/components/ui/button` | `resources/js/Components/ui/button` |
+| `@/layouts/AppLayout`    | `resources/js/Layouts/AppLayout`    |
+| `@/pages/Users/Index`    | `resources/js/Pages/Users/Index`    |
+| `@/lib/table`            | `resources/js/lib/table`            |
+
+The shadcn `components.json` alias is `@/components`; on Windows that resolves to the
+capitalised `Components/` directory because `forceConsistentCasingInFileNames` is `false`. Write the
+path as it exists on disk when you touch a file, and do not introduce a second `components/`
+directory.
 
 ## 3. Layer import matrix
 
-| Layer                    | May import                                           | Must not import    |
-| ------------------------ | ---------------------------------------------------- | ------------------ |
-| `src/volt/`              | `primevue/*`, `@primevue/*`, `primeicons`, `./utils` | anything app-level |
-| `Components/`            | `Layouts/`, `Components/`, `@/volt/*`, `@/lib`       | `Pages/`           |
-| `Layouts/`               | `Components/`, `@/volt/*`, `@/lib`                   | `Pages/`           |
-| `Pages/`                 | everything                                           | —                  |
-| `src/Modules/` (per ctx) | `@/volt/*`, `@/lib`, its own `stores                 | composables        | schemas` | `Pages/` |
+| Layer                       | May import                                                      | Must not import        |
+| --------------------------- | --------------------------------------------------------------- | ---------------------- |
+| `Components/ui/`            | `@base-ui/react/*`, `cn`, `@/lib/utils`, other `ui/` primitives | `Pages/`, `Modules/`   |
+| `Components/` (app)         | `ui/`, other `Components/`, `@/lib`, `@/layouts`                | `Pages/`               |
+| `Layouts/`                  | `Components/`, `ui/`, `@/lib`                                   | `Pages/`               |
+| `Pages/`                    | everything                                                      | —                      |
+| `Modules/{ctx}/hooks/`      | `@/lib`, its own `schemas`, `@/generated`                       | `Pages/`, Components   |
+| `Modules/{ctx}/schemas/`    | Zod, generated types                                            | React, network, UI     |
+| `Modules/{ctx}/components/` | `ui/`, `@/lib`, its own hooks/schemas                           | `Pages/`               |
+| `lib/`                      | framework-agnostic helpers, generated types                     | `Pages/`, `Components` |
 
 Pages are the top of the stack. Nothing imports them.
 
 **Locality of behavior, and when it wins.** This matrix separates by _layer_, but separation has a
-failure mode: Michael Feathers' counter-argument is that what changes together should live together,
-and every row above is a decision that splits something that was readable in one place.
+failure mode: what changes together should live together, and every row above is a decision that
+splits something readable in one place.
 
 > **Separate only along a boundary you can name. If you cannot name it, leave it local.**
 
-Nameable here: a module's public surface, a transport (Inertia page vs Colada query), a UI primitive
-(`src/volt`), a network boundary (composables). Unnameable: "it's a component", "that's a store
-concern", "it could change independently". Concrete consequence: a page that renders one thing and
-fetches it inline stays one file until a _second_ consumer appears — then it becomes a composable
-(invariant 1), not before. And the Rule of Three applies to Vue just as it does to PHP: two Colada
-composables with the same shape and different endpoints are a coincidence, not an abstraction.
+Nameable here: a module's public surface, a transport (Inertia page vs TanStack Query hook), a UI
+primitive (`Components/ui`), a network boundary (`Modules/{ctx}/hooks`). Unnameable: "it's a
+component", "that's a store concern", "it could change independently". Concrete consequence: a page
+that renders one thing and fetches it inline stays one file until a _second_ consumer appears — then
+it becomes a hook (invariant 1), not before. The Rule of Three applies to React as it does to PHP:
+two query hooks with the same shape and different endpoints are a coincidence, not an abstraction.
 
 `PRINCIPLES/SKILL.md` §1 and §7.
 
 ## 4. ARCHITECTURAL INVARIANTS (verifiable)
 
-The matrix above is prose until something fails. These four are enforceable today, and
-`tests/Architecture/FrontendBoundariesTest.php` enforces them.
+The matrix above is prose until something fails. `tests/Architecture/FrontendBoundariesTest.php`
+enforces invariants 1–4 and the table-kit clause of invariant 5 by grepping `.tsx` sources. The rest
+of invariant 5 (a `.filter()` hidden in a page) is review-only. Every test skips when its tree is
+empty, and the guard-rail test fails if the globs break — so a skipped suite never reads as green.
 
 1. **Pages and Components MUST NOT call the network directly.** No `fetch(`, no `XMLHttpRequest`, no
-   axios import. The only place network I/O lives is `src/Modules/{ctx}/composables/`. A page declares
-   _what_ it shows; a composable knows _how_ to get it.
-2. **`.vue` files outside `src/volt/` MUST NOT import `primevue/*` or `@primevue/*` directly.** Every UI
-   primitive is reached through `@/volt/*`. (`resources/js/app.ts` is the single exception — it
-   registers `PrimeVue`, `ToastService`, `ConfirmationService` and the `Tooltip` directive.)
-3. **`src/volt/**` MUST NOT import from `resources/js`** in any form. The primitives are owned by this
-   repo but they belong to the layer _below_ the app; an import of `@/…` there is a captured
-   dependency that the next `volt-vue add` will not reproduce.
-4. **No call-site `pt` override outside `src/volt/`.** Customise a Volt primitive by editing its own
-   `pt` pass-through config, not by passing `:pt="{…}"` at the usage site. Inline `pt` is invisible to
-   a Volt upgrade and silently defeats the token layer.
+   `WebSocket`, no Axios. The only place network I/O lives is `Modules/{ctx}/hooks/`. A page
+   declares _what_ it shows; a hook knows _how_ to get it. Plain `fetch` in a hook MUST send the
+   `X-XSRF-TOKEN` header from `lib/http.ts` for non-GET requests.
+2. **Server state has one owner per screen.** Inertia page props own a page visit; TanStack Query
+   owns a client-side panel that outlives the visit. Pages and components never import
+   `@tanstack/react-query` or `@tanstack/react-table` directly — the hook owns the `queryOptions`
+   factory, the key, the fetcher, the cache policy and the table instance. `app.tsx` is the single
+   exception: it owns the `QueryClientProvider`. A screen must not fetch the same endpoint through
+   both Inertia props and a query.
+3. **Token discipline.** No hex, no `bg-[#…]`, no colour function inside an arbitrary value, and no
+   raw Tailwind palette class (`text-red-600`, `bg-slate-900`, `border-white`). Use the `aq-*`
+   scale, `surface-*` or `var(--token)`. The palette check exists because a literal palette class
+   bypasses `globals.css` exactly like a hex literal does.
+4. **Zero `any`.** No `any`, no `as any`, no `<any>`, no `@ts-ignore`, no `@ts-expect-error`. Use
+   `unknown` plus a narrowing guard.
+5. **Server data is rendered as received.** A component never calls `.sort()`, `.slice()`,
+   `.filter()` or `.reverse()` on rows that came from a paginated server response. Pagination,
+   sorting and filtering are URL/query-key state; the server is the only place they happen. A
+   client-side re-sort breaks page 2 and makes the export disagree with the screen.
 
-Invariants 1-4 are enforced by `tests/Architecture/FrontendBoundariesTest.php`, which greps the
-`.vue` sources and skips itself when a tree is empty. The same file also greps the two rules that are
-otherwise only aspirational: no hardcoded colour, and no `any` / `as any` / `@ts-ignore`.
+The same file also enforces three rules that are otherwise only aspirational: every `hover:` /
+`focus-visible:` class list carries a `transition-*` (or `motion-reduce:`), every internal
+`href="#anchor"` resolves to an `id` in the same tree, and no generated declaration file contains
+`any` (the `.ts` scan skips `.d.ts`, so a backend `mixed` would otherwise ship an `any` with every
+gate green). `tests/Architecture/FrontendRouteLinksTest.php` additionally resolves every literal
+`href="/…"` in the React tree against the registered GET routes — a dead link is the one defect no
+other check can see.
 
-Invariant 2 has a declared carve-out: PrimeVue **services, composables, the config object, the
-Tooltip directive, `Column` and the icons subpath** have no Volt wrapper and stay importable directly.
-A PrimeVue _component_ always goes through `@/volt/*`. Anything not in that list is a component.
+Two further rules are **review-only, and this file says so** rather than implying a machine checks
+them: keyboard reachability and focus-ring visibility, and the `.dark`-class-only theming contract.
+Neither is decidable from source.
 
-Two further frontend rules are **review-only, and this file says so** rather than implying a machine
-is checking them: keyboard reachability and focus-ring visibility, and the `.dark`-class-only theming
-contract. Neither is decidable from source.
+## 5. `Components/ui/` — shadcn code ownership
 
-## 5. `src/volt/` — code ownership
+Primitives are **copies in your repo**, not an npm component library. `npx shadcn@latest add
+<name>` writes them and they are committed.
 
-Volt components are **copies in your repo**, not an npm library. `npx volt-vue add <Name>` downloads
-them and they are committed. The CLI is an alpha; expect drift.
-
-- **The CLI is PascalCase; the file it writes is not always.** `npx volt-vue add DataTable` produces
-  `Datatable.vue`, `InputText` → `Inputtext.vue`, `DatePicker` → `Datepicker.vue`. On Linux the import
-  must match the file on disk exactly. Check `ls src/volt` before writing an import.
-- **`Column` is not a Volt component.** It comes straight from PrimeVue: `import Column from 'primevue/column'`.
-  Also not in the CLI: `AutoComplete`, `Tooltip`, `ScrollPanel`, `InputGroup`, `IconField`.
-- **`Tooltip` is a directive**, registered in `app.ts`, not a component.
-- **Customise through the component's own `pt` pass-through config**, never at the call site
-  (invariant 4).
-- A local edit to a generated file gets a JSDoc comment at the top saying why upstream could not be used.
-- No other UI library. If a primitive is missing, compose existing Volt components.
-- `src/volt/` contains a few components PrimeVue 5 has already deprecated (`InputMask`, `Password`,
-  `MultiSelect`). Do not build new screens on them — see `frontend/SKILL.md` §6.
+- **Base UI is the default (since July 2026).** Primitives import from `@base-ui/react/*`. Radix is
+  not installed; do not add it.
+- The generated file is the place to customise. A call-site `className` that fights the primitive's
+  own variants is the React equivalent of the old inline `pt` override — invisible to the next
+  registry update and silently defeats the token layer.
+- A local edit to a primitive gets a JSDoc comment at the top saying why upstream could not be used.
+- No other UI library. If a primitive is missing, compose the existing ones or add it with the CLI.
+- `components.json` style is `base-nova`; if the CLI asks, keep Base UI and keep the alias paths.
+- Keep `lucide-react` as the only icon source.
 
 ## 6. Where state lives
 
-| State             | Home                                               | Never                                            |
-| ----------------- | -------------------------------------------------- | ------------------------------------------------ |
-| Server state      | Pinia Colada `useQuery` / `useMutation`            | mirrored into a Pinia store                      |
-| Client state (UI) | Pinia setup store in `Modules/{ctx}/stores/`       | inside `Pages/`, `common/`, or an inline factory |
-| Form draft        | `lib/forms.ts` (`useZodForm`) + `Components/Forms` | a Pinia store, a second form state owner         |
-| Theme / sidebar   | `lib/theme.ts` (`useColorMode`)                    | anywhere else                                    |
+| State                     | Home                                                                         | Never                                          |
+| ------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------- |
+| Server state (page visit) | Inertia props + `router.visit` / partial reloads                             | a query for the same endpoint                  |
+| Server state (panel)      | TanStack Query `queryOptions` + `useQuery` / `useSuspenseQuery` in hooks     | mirrored into `useState`, context or a store   |
+| Loading UI                | `useVisitPending()` for a visit; `<Suspense>` + `Skeleton` for a query panel | spinner-only full page, ad-hoc `animate-pulse` |
+| Client state (UI)         | local `useState` / `useReducer` in the owning page                           | a global store added by reflex                 |
+| Shared UI state           | a context in `Modules/{ctx}/` with a named boundary                          | context in `lib/` or inside `Pages/`           |
+| Form draft                | `lib/forms.ts` (`useZodForm`) + `Components/Forms`                           | a second form state owner                      |
+| Theme / sidebar           | `lib/theme.ts` (`useTheme`, `useSidebar`)                                    | anywhere else                                  |
 
-Network composables live in `Modules/{ctx}/composables/`: one file per concern
-(`useEntities.ts` list, `useEntity.ts` single, `useEntityMutations.ts` write). **Pages never call
-`fetch` and never import an HTTP client** (invariant 1).
+No Redux, Zustand, Jotai or Pinia is installed. Adding one is an architecture change, not a
+convenience: name the state, name the consumers, and document it here first.
 
-Cache keys are functions and follow `[entity, ...filters]`. Mutations invalidate the matching list and
-detail keys. The DataTable runs server-side `:lazy` — its events update the reactive filters object the
-query key depends on; the browser never sorts or paginates.
+Network hooks live in `Modules/{ctx}/hooks/`: one file per concern (`useEntities.ts` list,
+`useEntity.ts` single, `useEntityMutations.ts` write). **Pages never call `fetch` and never import an
+HTTP client** (invariant 1).
+
+Cache keys follow `[entity, ...filters]` and the list key includes the serialised
+`URLSearchParams`. Mutations invalidate the matching list and detail prefixes. The DataTable is
+server-side (`manualPagination` / `manualSorting` / `manualFiltering`) — its events update the state
+that produces the params, and the browser never sorts or paginates.
 
 ## 7. Inertia conventions
 
-- Page folders `PascalCase`; page files `Index|Show|Create|Edit.vue`.
-- Layout via `defineOptions({ layout })` per page — never wrap each page by hand.
-- `<Head>` for the title on every page.
-- Optimistic updates: `router.optimistic(...)` then the post.
+- Page folders `PascalCase`; page files `Index|Show|Create|Edit.tsx`.
+- Every page renders `<AppLayout>` explicitly (the current repo convention) and a `<Head title>`.
+  Inertia v3's `Page.layout` API exists but is not used here; switching is a repo-wide migration.
+- Optimistic updates: `router.optimistic(...)` or `form.optimistic(...)` before the visit.
 - The root blade is `resources/views/app.blade.php`. Fortify views point at Inertia pages via
   `Fortify::loginView(fn () => inertia('Auth/Login', [...]))` — there are no `auth/*.blade.php` files.
+- Deferred props: `Inertia::defer(fn () => ...)` server-side, `<Deferred data="…">` client-side.
+- SSR is disabled. Do not add a `bootstrap/ssr/` bundle.
 
 ## 8. Add a folder only with a reason
 
 `Modules/{ctx}/schemas/` — required the moment the module has a mutating form.
-`Modules/{ctx}/stores/` — only when client state is genuinely shared.
-`Modules/{ctx}/composables/` — the only place network I/O is allowed (invariant 1).
+`Modules/{ctx}/hooks/` — the only place network I/O is allowed (invariant 1).
+`Modules/{ctx}/components/` — only when a component is shared by two or more pages of that module.
 `Pages/{Ctx}/components/` — only for page-private components.
+`lib/` — only for code with no React page or module ownership.
 
 Document any new top-level folder in this file before merging it.

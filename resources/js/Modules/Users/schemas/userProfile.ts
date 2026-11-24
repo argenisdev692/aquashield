@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { emailSchema } from '@/lib/email';
-import { isValidPhone } from '@/lib/phone';
+import { phoneField } from '@/lib/phone';
 import { usernameSchema } from '@/lib/username';
+import { passwordSchema, PASSWORD_HINT } from '@/lib/auth';
 
 /**
  * Client mirror of StoreUserRequest / UpdateUserRequest.
@@ -12,6 +13,10 @@ import { usernameSchema } from '@/lib/username';
  */
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Narrow the generated `string | null` onto the form's gender enum. */
+const isGender = (value: string | null): value is 'male' | 'female' | 'other' =>
+    value === 'male' || value === 'female' || value === 'other';
 
 const today = (): string => {
     const now = new Date();
@@ -36,14 +41,9 @@ const profileShape = {
     email: emailSchema,
     // The server accepts any string up to 32 chars; the client uses the same
     // libphonenumber-js rule as PhoneField, so an incomplete draft cannot be
-    // saved as a "phone number".
-    phone: z
-        .string()
-        .max(32)
-        .refine(
-            (value) => value === '' || isValidPhone(value),
-            'Enter a valid phone number with its country code',
-        ),
+    // saved as a "phone number". Any country is accepted: the value carries
+    // its own calling code.
+    phone: phoneField({ max: 32 }),
     date_of_birth: dateOfBirthSchema,
     address: z.string().max(255),
     address_2: z.string().max(255),
@@ -70,10 +70,43 @@ const profileShape = {
 
 export const updateUserSchema = z.object(profileShape);
 
-export const createUserSchema = updateUserSchema.extend({
-    roles: z.array(z.string()),
-    permissions: z.array(z.string()),
-});
+/**
+ * The create form adds two independent decisions:
+ *  - who may act (roles + direct permission overrides);
+ *  - how the account is handed over (signed invitation vs temporary password).
+ *
+ * The temporary password is validated only on the manual path, mirroring
+ * StoreUserRequest's `required_if`.
+ */
+export const createUserSchema = updateUserSchema
+    .extend({
+        roles: z.array(z.string()),
+        permissions: z.array(z.string()),
+        send_invitation: z.boolean(),
+        temporary_password: z.string(),
+        temporary_password_confirmation: z.string(),
+    })
+    .superRefine((values, ctx) => {
+        if (values.send_invitation) {
+            return;
+        }
+
+        if (!passwordSchema.safeParse(values.temporary_password).success) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['temporary_password'],
+                message: PASSWORD_HINT,
+            });
+        }
+
+        if (values.temporary_password !== values.temporary_password_confirmation) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['temporary_password_confirmation'],
+                message: 'Passwords do not match.',
+            });
+        }
+    });
 
 export type UpdateUserForm = z.infer<typeof updateUserSchema>;
 export type CreateUserForm = z.infer<typeof createUserSchema>;
@@ -99,6 +132,13 @@ export type UserProfileField =
 export function toUserProfileForm(
     user: Modules.Users.Data.ManagedUserData | null = null,
 ): UpdateUserForm {
+    /*
+     * New accounts start on a valid default; an out-of-contract value already
+     * in the database becomes "Not specified" instead of being asserted onto
+     * the enum and submitted back to the server.
+     */
+    const gender = user === null ? 'male' : isGender(user.gender) ? user.gender : null;
+
     return {
         first_name: user?.first_name ?? '',
         last_name: user?.last_name ?? '',
@@ -112,7 +152,7 @@ export function toUserProfileForm(
         city: user?.city ?? '',
         state: user?.state ?? '',
         country: user?.country ?? '',
-        gender: (user?.gender ?? 'male') as 'male' | 'female' | 'other' | null,
+        gender,
         latitude: user?.latitude ?? null,
         longitude: user?.longitude ?? null,
     };

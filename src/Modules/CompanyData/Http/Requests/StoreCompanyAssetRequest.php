@@ -13,8 +13,7 @@ final class StoreCompanyAssetRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user instanceof User
-            && $user->getAllPermissions()->contains('name', 'UPDATE_COMPANY_DATA');
+        return $user instanceof User && $user->can('UPDATE_COMPANY_DATA');
     }
 
     /**

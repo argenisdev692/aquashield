@@ -1,4 +1,23 @@
+import { router } from '@inertiajs/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+
+/**
+ * Sign out through one path.
+ *
+ * `queryClient.clear()` runs before the visit: Inertia keeps the SPA mounted
+ * during `/logout`, so an unmount-only cleanup would never run and the next
+ * actor on a shared browser could read the previous actor's cached rows
+ * (OWASP A07 — session teardown).
+ */
+export function useLogout(endpoint = '/logout'): () => void {
+    const queryClient = useQueryClient();
+
+    return (): void => {
+        queryClient.clear();
+        router.post(endpoint);
+    };
+}
 
 /**
  * Client mirror of the server password rule in
@@ -8,8 +27,8 @@ import { z } from 'zod';
  * fast and show the same hint. Keep the two numbers in lockstep — a mismatch
  * is a UX bug, not a security hole, because Fortify validates every write.
  */
-export const PASSWORD_MIN_LENGTH = 6;
-export const PASSWORD_MAX_LENGTH = 10;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 15;
 
 export const PASSWORD_HINT = `Use ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters.`;
 

@@ -3,7 +3,7 @@
 # get_code_snippet, so only GENERATED output or SUPERSEDED documents belong here.
 # Anything an agent might need to answer a question stays INDEXED.
 #
-# After editing: index_repository(repo_path: "C:/Users/Lenovo/Herd/aquashield", mode: "full")
+# After editing: index_repository(repo_path: "C:/Users/Lenovo/Herd/aquashield-react", mode: "full")
 # and confirm the new entries appear under `not_indexed` in index_status.
 
 # --- Generated / runtime state ------------------------------------------------
@@ -18,7 +18,25 @@ storage/logs/
 # Vite production output.
 public/build/
 
+# --- Superseded frontend -------------------------------------------------------
+# The Vue 3.5 / Pinia Colada / PrimeVue app and its React-migration backups. They
+# are kept on disk for reference, but indexing them duplicates every module hook
+# and lets an agent quote the old composables. React 19.3 in resources/js/ is the
+# only live frontend. `js-argenis-hub/` is the Vue reference app used for form/table
+# ideas; it is not imported by the React build.
+VUE/
+resources/js.bak/
+resources/js-argenis-hub/
+package.json.bak
+
 # --- Superseded documentation -------------------------------------------------
 # Deprecated 2026-08 snapshot of GUIDE/ (~350 kB). The live rules and skills in
 # .opencode/ supersede it; leaving it indexed lets an agent quote stale rules.
 docs/archive/GUIDE-2026-08/
+
+# --- Foreign trees at the repo root -------------------------------------------
+# An imported module reference (Appointment/Meeting/Availability) that is not
+# part of this app: not in the composer autoload, not referenced by a route or
+# a module. Indexing it would publish parallel "Modules" that do not exist here,
+# so an agent could answer a question about a module this repo never had.
+MODULO-LEAD-APPOINMENT/

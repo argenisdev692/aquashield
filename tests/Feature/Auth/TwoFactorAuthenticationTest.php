@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Actions\EnableTwoFactorAuthentication;
 use Laravel\Fortify\Fortify;
 use PragmaRX\Google2FA\Google2FA;
@@ -33,6 +34,15 @@ function currentTotpCode(User $user): string
 
 it('refuses a JSON two-factor enable from a guest with 401', function (): void {
     $this->postJson('/user/two-factor-authentication')->assertUnauthorized();
+});
+
+it('asks for a fresh password confirmation over JSON with 423', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/user/two-factor-authentication')
+        ->assertStatus(423)
+        ->assertJson(['message' => 'Password confirmation required.']);
 });
 
 it('enables two-factor, serves the QR and confirms a valid TOTP', function (): void {
@@ -82,6 +92,19 @@ it('rejects an invalid confirmation code with 422', function (): void {
         ->assertSessionHasErrorsIn('confirmTwoFactorAuthentication', 'code');
 
     expect($user->refresh()->two_factor_confirmed_at)->toBeNull();
+});
+
+it('renders the two-factor challenge screen after a challenged login', function (): void {
+    $user = confirmedTwoFactorUser();
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect('/two-factor-challenge');
+
+    $this->get('/two-factor-challenge')->assertInertia(
+        fn (Assert $page) => $page->component('Auth/TwoFactorChallenge'),
+    );
 });
 
 it('challenges a password login when two-factor is confirmed', function (): void {

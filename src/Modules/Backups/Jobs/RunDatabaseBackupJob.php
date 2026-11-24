@@ -12,7 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Modules\Backups\Application\Repositories\DatabaseBackupRunner;
+use Modules\Backups\Application\Ports\DatabaseBackupRunner;
 use Shared\Domain\Ports\AuditPort;
 use Throwable;
 

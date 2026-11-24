@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\AuthenticatorLoginRequest;
 use App\Models\User;
+use App\Support\AccountAccess;
+use App\Support\AccountLockout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -34,6 +36,17 @@ final class AuthenticatorLoginController extends Controller
         $email = Str::lower($request->string('email')->toString());
         $user = User::query()->where('email', $email)->first();
 
+        /*
+         * Parity with the password and passkey transports: a durable lockout
+         * must survive every way in. Without this, email + TOTP was a way
+         * around the lock that repeated failed passwords had just applied.
+         */
+        if ($user instanceof User && AccountLockout::active($user)) {
+            throw ValidationException::withMessages([
+                'email' => AccountLockout::message($user),
+            ]);
+        }
+
         $valid = $user instanceof User
             && $user->hasEnabledTwoFactorAuthentication()
             && $this->twoFactor->verify(
@@ -54,6 +67,8 @@ final class AuthenticatorLoginController extends Controller
                 'email' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
             ]);
         }
+
+        AccountAccess::assertCanSignIn($user);
 
         Auth::login($user);
         $request->session()->regenerate();

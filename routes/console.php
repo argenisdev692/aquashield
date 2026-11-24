@@ -55,3 +55,16 @@ Schedule::command('activitylog:clean --force')
     ->monthlyOn(1, '04:30')
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+| LeadAppointment — US federal holidays are materialised as company availability
+| exceptions. Run just after midnight on Jan 1 so New Year's Day is included;
+| manual overrides are never purged.
+*/
+Schedule::command('lead-appointment:sync-holidays')
+    ->name('lead-appointment-holidays')
+    ->yearlyOn(1, 1, '00:10')
+    ->timezone('America/Chicago')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/lead-appointment-holidays.log'));

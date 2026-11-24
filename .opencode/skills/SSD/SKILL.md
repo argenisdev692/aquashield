@@ -41,9 +41,11 @@ Before writing `plan.md`:
 - **Never** research a package from memory to produce a version string. Check `composer show` or
   `package.json` for what is _installed_; research only for what _changed_.
 
-Watch for the traps this repo already documents: PrimeVue 5 deprecates rather than breaks, and
-context7's PrimeVue docs are v4; Vue 3.6 is still an RC; TypeScript 6.0 is a bridge to the native 7.0;
-`laravel/doctor` and `laravel/vet` are first-party and real.
+Watch for the traps this repo already documents: shadcn/ui defaults to Base UI (Radix is still
+supported but not installed here), TanStack Table v9 makes `features` required and renames
+`useReactTable` → `useTable`, TypeScript 7.0.2 is installed and has no programmatic API (7.1 adds
+it, so compiler-API tooling needs the `typescript6` alias), and `laravel/doctor` / `laravel/vet` are
+first-party and real.
 
 ## Phase 0 — qualify before starting
 

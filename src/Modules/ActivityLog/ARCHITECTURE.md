@@ -19,20 +19,21 @@ says it is never a DDD candidate. The panel is a read-only projection.
 ## Boundaries and public contracts
 
 - Web routes: `GET /activity`, `GET /activity/{uuid}` (Inertia + JSON),
-  `GET /activity/export/{csv,xlsx,pdf}`.
-- REST routes (Sanctum, read-only, Scramble-documented): `GET /api/activity`,
-  `GET /api/activity/{uuid}`.
+  `GET /activity/export/{format}` (`csv`, `xlsx`, `pdf`).
 - Permissions: `VIEW_ANY_ACTIVITY_LOGS`, `VIEW_ACTIVITY_LOGS`,
   `EXPORT_ACTIVITY_LOGS` (seeded in `RolePermissionSeeder::READ_ONLY_MODULES`).
 - Models: `Models\ActivityEntry` extends Spatie's `Activity` and adds the `uuid`
   the panel exposes; the auto-increment id never crosses HTTP.
-- Response shapes: `Data\ActivityEntryData`, `Data\ActivityListData`,
-  `Data\ActivityDetailData`, `Data\ActivityFilterData`.
+- Response shapes: `Data\ActivityEntryData` (one row, list and detail) and
+  `Data\ActivityFilterData` (the list/export query contract).
 - What is NEVER exposed: the auto-increment `id`, `attribute_changes`, raw
   `properties`, causer email, subject id.
 
 ## Deliberate omissions
 
+- **No REST surface in this phase.** The panel is web-only; no `/api/activity`
+  route is registered. Add a Sanctum, read-only API (with Scramble docs) only
+  when a second consumer exists — the same Data classes can serve it.
 - **No delete or restore.** An audit trail a panel can rewrite is not an audit
   trail (OWASP A09). Retention belongs to `activitylog:clean`, run monthly by
   the scheduler with a 7-year default.

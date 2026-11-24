@@ -54,7 +54,7 @@ it('updates the authenticated user profile', function (): void {
         ->from('/settings/profile')
         ->put('/user/profile-information', [
             'name' => 'Ada King',
-            'email' => 'ada.king@example.com',
+            'email' => 'ada.king@gmail.com',
         ])
         ->assertRedirect('/settings/profile')
         ->assertSessionHasNoErrors()
@@ -65,7 +65,7 @@ it('updates the authenticated user profile', function (): void {
     expect($user->name)->toBe('Ada King')
         ->and($user->first_name)->toBe('Ada')
         ->and($user->last_name)->toBe('King')
-        ->and($user->email)->toBe('ada.king@example.com');
+        ->and($user->email)->toBe('ada.king@gmail.com');
 });
 
 it('updates the canonical profile fields', function (): void {
@@ -77,7 +77,7 @@ it('updates the canonical profile fields', function (): void {
             'first_name' => 'Grace',
             'last_name' => 'Hopper',
             'username' => 'ghopper',
-            'email' => 'grace@example.com',
+            'email' => 'grace@gmail.com',
             'phone' => '+15555550100',
             'date_of_birth' => '1906-12-09',
             'address' => '123 Main St',
@@ -100,7 +100,7 @@ it('updates the canonical profile fields', function (): void {
     expect($user->first_name)->toBe('Grace')
         ->and($user->last_name)->toBe('Hopper')
         ->and($user->username)->toBe('ghopper')
-        ->and($user->email)->toBe('grace@example.com')
+        ->and($user->email)->toBe('grace@gmail.com')
         ->and($user->phone)->toBe('+15555550100')
         ->and($user->date_of_birth)->toBe('1906-12-09')
         ->and($user->address)->toBe('123 Main St')

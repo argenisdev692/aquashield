@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Mockery\MockInterface;
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Tests\Support\FakeBackupArchiveStore;
 use Shared\Domain\Ports\AuditPort;
 use Tests\TestCase;

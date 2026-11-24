@@ -23,7 +23,9 @@ final class AssignPermissionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'permissions' => ['present', 'array'],
+            // Bounded: each item runs an `exists` query (OWASP API4). The
+            // permission registry seeds 505 names today; 600 leaves headroom.
+            'permissions' => ['present', 'array', 'max:600'],
             'permissions.*' => ['string', 'distinct', 'exists:permissions,name'],
         ];
     }

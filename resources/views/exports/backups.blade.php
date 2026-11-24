@@ -62,8 +62,8 @@
         <tbody>
             @foreach ($rows as $row)
                 <tr>
-                    @foreach ($row as $cell)
-                        <td>{{ $cell }}</td>
+                    @foreach ($columns as $key => $label)
+                        <td>{{ $row[$key] ?? '' }}</td>
                     @endforeach
                 </tr>
             @endforeach

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Modules\Backups\Infrastructure\Persistence;
 
 use App\Models\User;
-use Modules\Backups\Application\Repositories\BackupActivityLog;
+use Modules\Backups\Application\Ports\BackupActivityLog;
 use Modules\Backups\Data\BackupActivityData;
 use Spatie\Activitylog\Models\Activity;
 
@@ -59,7 +59,7 @@ final readonly class SpatieBackupActivityLog implements BackupActivityLog
 
     private function limit(int $limit): int
     {
-        return max(1, min($limit, 200));
+        return max(1, min($limit, self::MAX_LIMIT));
     }
 
     /**

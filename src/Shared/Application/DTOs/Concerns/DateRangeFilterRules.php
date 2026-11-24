@@ -30,10 +30,10 @@ trait DateRangeFilterRules
             // Free-text match. Which columns it searches is per-module; see the
             // endpoint's own description.
             'search' => ['nullable', 'string', 'max:255'],
-            // Inclusive start of the date window. May not fall after `date_to`.
-            'date_from' => ['nullable', 'date', 'before_or_equal:date_to'],
-            // Inclusive end of the date window. May not fall before `date_from`.
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            // Inclusive start of the date window, `Y-m-d` on the wire.
+            'date_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:date_to'],
+            // Inclusive end of the date window, `Y-m-d` on the wire.
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ];
     }
 }

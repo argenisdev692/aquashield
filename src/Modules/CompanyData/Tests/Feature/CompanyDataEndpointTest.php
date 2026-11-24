@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
 use Shared\Infrastructure\Company\CompanyProfile;
-use Spatie\Permission\Models\Permission;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -67,6 +68,20 @@ it('returns 404 when the singleton has not been provisioned', function (): void 
     $this->actingAs($this->user)->getJson('/company-data')->assertNotFound();
 });
 
+it('answers 404 when an unprovisioned singleton is updated', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+
+    $this->actingAs($this->user)
+        ->putJson('/company-data', [
+            'name' => 'Victor Lara',
+            'company_name' => 'AquaShield Restoration USA',
+            'email' => 'info@aquashieldrestorationusa.com',
+        ])
+        ->assertNotFound();
+
+    $this->assertDatabaseCount('company_data', 0);
+});
+
 it('returns the singleton without an internal id or owner id', function (): void {
     $this->user->givePermissionTo('VIEW_COMPANY_DATA');
 
@@ -104,34 +119,71 @@ it('rejects a client supplied user_id with 422', function (): void {
         ->assertJsonValidationErrors(['user_id']);
 });
 
-it('creates then updates one singleton row and assigns the authenticated owner', function (): void {
+it('rejects a non-http public link with 422', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
-
-    $payload = [
-        'name' => 'Victor Lara',
-        'company_name' => 'AquaShield Restoration USA',
-        'email' => 'info@aquashieldrestorationusa.com',
-        'city' => 'Houston',
-    ];
-
-    $this->actingAs($this->user)
-        ->putJson('/company-data', $payload)
-        ->assertOk()
-        ->assertJsonPath('company_name', 'AquaShield Restoration USA')
-        ->assertJsonPath('city', 'Houston');
-
-    $this->assertDatabaseCount('company_data', 1);
-    $this->assertDatabaseHas('company_data', ['user_id' => $this->user->id]);
 
     $this->actingAs($this->user)
         ->putJson('/company-data', [
-            ...$payload,
+            'name' => 'Victor Lara',
+            'company_name' => 'AquaShield Restoration USA',
+            'email' => 'info@aquashieldrestorationusa.com',
+            'website' => 'javascript:alert(1)',
+            'facebook_link' => 'data:text/html,<script>alert(1)</script>',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['website', 'facebook_link']);
+});
+
+it('updates the provisioned singleton in place and preserves the owner', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+
+    $company = companyDataRecord($this->user, [
+        'company_name' => 'AquaShield Restoration USA',
+        'city' => 'Houston',
+    ]);
+
+    $this->actingAs($this->user)
+        ->putJson('/company-data', [
+            'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration LLC',
+            'email' => 'info@aquashieldrestorationusa.com',
+            'city' => 'Houston',
         ])
         ->assertOk()
-        ->assertJsonPath('company_name', 'AquaShield Restoration LLC');
+        ->assertJsonPath('company_name', 'AquaShield Restoration LLC')
+        ->assertJsonPath('city', 'Houston');
 
     $this->assertDatabaseCount('company_data', 1);
+    $this->assertDatabaseHas('company_data', [
+        'user_id' => $this->user->id,
+        'company_name' => 'AquaShield Restoration LLC',
+    ]);
+
+    expect(CompanyData::current()?->uuid)->toBe($company->uuid);
+});
+
+it('audits financial field names without values', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+
+    companyDataRecord($this->user, ['bank_iban' => 'PT50 OLD']);
+
+    $this->actingAs($this->user)
+        ->putJson('/company-data', [
+            'name' => 'Victor Lara',
+            'company_name' => 'AquaShield Restoration USA',
+            'email' => 'info@aquashieldrestorationusa.com',
+            'bank_iban' => 'PT50 NEW SECRET',
+        ])
+        ->assertOk();
+
+    $activity = Activity::query()
+        ->where('event', 'financial-fields-updated')
+        ->latest('id')
+        ->first();
+
+    expect($activity)->not->toBeNull()
+        ->and($activity->properties->get('changed'))->toContain('bank_iban')
+        ->and(json_encode($activity->properties->toArray()))->not->toContain('PT50 NEW SECRET');
 });
 
 it('flushes the company profile cache when the singleton changes', function (): void {

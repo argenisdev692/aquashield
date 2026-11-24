@@ -10,6 +10,13 @@ composer.lock
 *.min.js
 *.min.css
 
+# Superseded Vue frontends and migration backups — read-only reference, not
+# part of the React app or its build. Never format or lint them as project source.
+VUE/
+resources/js.bak/
+resources/js-argenis-hub/
+js-argenis-hub/
+
 # Reference docs, not project source
 LARAVEL-VUE-INERTIA/
 

@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\LeadAppointment\Infrastructure\Listeners;
+
+use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
+use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeEvent;
+use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeMail;
+use Modules\LeadAppointment\Infrastructure\Mail\OfficeMailRecipients;
+use Shared\Infrastructure\Mail\MailInterface;
+
+final readonly class NotifyOfficeOfScheduledAppointment
+{
+    public function __construct(
+        private AppointmentRepository $appointments,
+        private MailInterface $mail,
+    ) {}
+
+    public function handle(AppointmentScheduled $event): void
+    {
+        $appointment = $this->appointments->find($event->appointmentUuid);
+
+        if ($appointment === null) {
+            return;
+        }
+
+        $recipients = OfficeMailRecipients::resolve();
+
+        if ($recipients === null) {
+            return;
+        }
+
+        $this->mail->queue(
+            $recipients->to,
+            new AppointmentOfficeMail($appointment, AppointmentOfficeEvent::Scheduled),
+            $recipients->cc,
+        );
+    }
+}

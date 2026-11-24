@@ -23,11 +23,11 @@
         @vite('resources/css/app.css')
     @endif
 </head>
-<body class="bg-surface-950 text-surface-100 flex min-h-screen items-center justify-center p-6 font-sans antialiased">
+<body class="bg-aq-void text-aq-ink flex min-h-screen items-center justify-center p-6 font-sans antialiased">
     <main class="w-full max-w-md text-center">
         <p class="text-aq-accent text-7xl font-bold tracking-tight tabular-nums">@yield('code')</p>
 
-        <p class="text-surface-300 mt-4 text-base">@yield('message')</p>
+        <p class="text-aq-ink-soft mt-4 text-base">@yield('message')</p>
 
         <a
             href="{{ url('/') }}"

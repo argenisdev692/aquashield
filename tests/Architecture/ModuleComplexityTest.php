@@ -66,7 +66,7 @@ arch('Shared domain model code is framework-free')
     // The ORM, facades and the framework core stay out of Shared\Domain entirely.
     //
     // DECLARED EXCEPTION — Shared\Domain\Ports names Illuminate\Http\Response and
-    // Symfony\...\StreamedResponse in RETURN POSITIONS (ExportPort, WordExportPort).
+    // Symfony\...\StreamedResponse in RETURN POSITIONS (ExportPort).
     // A port whose job is "stream this download" cannot describe that job without
     // naming the response type, and the alternative — pushing the streaming back
     // into every module's controller — is the exact DRY failure the port removes.
@@ -197,36 +197,61 @@ it('FLAT modules have no layering directories', function () use ($moduleNames, $
 it('no module ships an Http Resources folder', function () use ($moduleNames, $modulesPath) {
     // Invariant 12: response shapes are Spatie Data. A JsonResource subclass
     // next to a Data class is two serialization paths that will drift.
+    $shipped = [];
+
     foreach ($moduleNames as $module) {
         foreach (glob("$modulesPath/$module/{,**/}Resources", GLOB_BRACE) ?: [] as $dir) {
             if (is_dir($dir)) {
-                expect(false)->toBeTrue(
-                    "{$module} has {$dir}. Response shapes are Spatie Data — "
-                    .'delete the Resources folder and move the fields to typed Data properties.'
-                );
+                $shipped[] = "{$module} has {$dir}. Response shapes are Spatie Data — "
+                    .'delete the Resources folder and move the fields to typed Data properties.';
             }
         }
     }
+
+    expect($shipped)->toBe(
+        [],
+        'Modules shipping an Http Resources folder: '.implode(', ', $shipped)
+    );
 })->skip(fn () => $moduleNames->isEmpty());
 
 it('a domain layer is backed by a test that would fail if it moved', function () use ($progressive, $modulesPath) {
     // The no-lock rule: a Domain/ with no enforcing test is a folder, not a layer.
-    // Per module, not "some module somewhere has a test" — that weaker version passed
-    // while a PROGRESSIVE module sat completely untested.
+    // Three things are decidable per module, so all three are asserted:
+    //   1. a Feature HTTP suite exists (invariant 15: 401/403/422 + happy path);
+    //   2. a DB-free unit suite exists (invariant 15's mocked-port test);
+    //   3. at least one of those tests names the module's Domain namespace, so
+    //      deleting or moving the layer breaks a test instead of passing silently.
     foreach ($progressive as $module) {
         $dir = "$modulesPath/$module";
 
-        $tests = collect(
-            array_merge(
-                glob("$dir/{,Tests/**/}*Test.php", GLOB_BRACE) ?: [],
-                glob("$dir/{,tests/**/}*Test.php", GLOB_BRACE) ?: [],
-            ),
-        )->filter(fn ($f) => is_file($f))->unique()->values();
+        $unitTests = collect(glob("$dir/Tests/Unit/*Test.php") ?: [])
+            ->filter(fn (string $file): bool => is_file($file))
+            ->values();
 
-        expect($tests->isNotEmpty())->toBeTrue(
-            "{$module} is declared PROGRESSIVE so it has a Domain/, but it ships no test at all. "
-            .'A layer no test holds in place is a folder. Add a Feature test and at least one '
-            .'DB-free handler test with a mocked port, or demote the module to FLAT.'
+        $featureTests = collect(glob("$dir/Tests/Feature/*Test.php") ?: [])
+            ->filter(fn (string $file): bool => is_file($file))
+            ->values();
+
+        expect($featureTests->isNotEmpty())->toBeTrue(
+            "{$module} is PROGRESSIVE but ships no Feature HTTP test. "
+            .'Invariant 15 requires 401/403/422 plus the happy path.'
+        );
+
+        expect($unitTests->isNotEmpty())->toBeTrue(
+            "{$module} is PROGRESSIVE but ships no DB-free unit test under Tests/Unit. "
+            .'A layer no test holds in place is a folder.'
+        );
+
+        $namesDomain = $unitTests->merge($featureTests)->contains(
+            fn (string $file): bool => str_contains(
+                (string) file_get_contents($file),
+                "Modules\\{$module}\\Domain",
+            ),
+        );
+
+        expect($namesDomain)->toBeTrue(
+            "{$module} tests never reference Modules\\{$module}\\Domain — moving or deleting "
+            .'the layer would not fail a test. Assert on a domain object or its port.'
         );
     }
 })->skip(fn () => $progressive->isEmpty(), 'No PROGRESSIVE modules yet — src/Modules/ is empty.');

@@ -7,9 +7,9 @@ namespace Shared\Infrastructure\Mail;
 /**
  * Single source of truth for "which Laravel mailer does outbound mail leave by".
  *
- * Every provider adapter and notification trait in this namespace routes through
- * here so the test escape hatch is written once: under PHPUnit (`MAIL_MAILER=array`)
- * and local log mode the default mailer wins, so no test ever opens a real SMTP
+ * Every outbound adapter in this namespace routes through here so the test
+ * escape hatch is written once: under PHPUnit (`MAIL_MAILER=array`) and local
+ * log mode the default mailer wins, so no test ever opens a real SMTP
  * connection or spends a provider API call.
  */
 trait ResolvesOutboundMailer

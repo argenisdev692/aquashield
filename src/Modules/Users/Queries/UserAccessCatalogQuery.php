@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Modules\Users\Queries;
 
+use App\Models\Permission;
+use App\Models\Role;
 use Modules\Users\Data\RoleOptionData;
 use Modules\Users\Data\UserAccessCatalogData;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 /**
  * Read side for the assignment screen: roles with their permission names, and

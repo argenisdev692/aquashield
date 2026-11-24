@@ -44,5 +44,7 @@ final class CreateUserData extends Data
         public readonly ?string $gender = null,
         public readonly array $roles = [],
         public readonly array $permissions = [],
+        public readonly bool $sendInvitation = true,
+        public readonly ?string $temporaryPassword = null,
     ) {}
 }

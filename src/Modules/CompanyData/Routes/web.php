@@ -29,7 +29,7 @@ Route::middleware('web')->group(function (): void {
         ->name('company-data.show');
 
     Route::put('/company-data', [CompanyDataController::class, 'update'])
-        ->middleware(['auth', 'permission:UPDATE_COMPANY_DATA'])
+        ->middleware(['auth', 'permission:UPDATE_COMPANY_DATA', 'throttle:30,1'])
         ->name('company-data.update');
 
     /*

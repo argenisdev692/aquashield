@@ -21,8 +21,9 @@ not, it is not — unless you are proposing a new rule, in which case mark it `P
 composer show laravel/framework spatie/laravel-data   # installed, not declared
 ```
 
-`src/Modules/` is empty today, so an audit with no module in scope means the `app/` + `src/Shared/`
-shell only. **Say that in the report** rather than reporting a vacuous pass.
+`src/Modules/` holds `ActivityLog`, `Backups`, `CompanyData`, `Users` and `LeadAppointment` today, so
+name the module in scope. An audit that only covers the `app/` + `src/Shared/` shell must say so
+rather than reporting a vacuous pass.
 
 ## 3. Produce the checklist
 

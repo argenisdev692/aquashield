@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use Modules\CompanyData\Models\CompanyData;
 use Modules\CompanyData\Tests\Support\FakeStoragePort;
 use Shared\Domain\Ports\StoragePort;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -74,6 +74,7 @@ it('renders the profile as read-only for a view-only user', function (): void {
             ->where('assets.logo_url', rtrim((string) config('app.url'), '/').'/img/logo.webp')
             ->where('assets.signature_url', null)
             ->where('canUpdate', false)
+            ->has('googleMapsApiKey')
             ->missing('company.user_id'));
 });
 
@@ -89,6 +90,7 @@ it('flags canUpdate for a user with the update permission', function (): void {
 
 it('redirects the Inertia form back to the edit screen and persists the profile', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+    pageCompanyRecord($this->user);
 
     $this->actingAs($this->user)
         ->put('/company-data', [

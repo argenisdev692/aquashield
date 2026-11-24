@@ -2,44 +2,46 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Str;
-use Mockery\MockInterface;
-use Modules\CompanyData\Application\Actions\SaveCompanyDataAction;
-use Modules\CompanyData\Application\Dtos\SaveCompanyDataData;
-use Modules\CompanyData\Application\Repositories\CompanyRepository;
-use Modules\CompanyData\Infrastructure\Persistence\CompanyData;
+use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\CompanyData\Actions\SaveCompanyDataAction;
+use Modules\CompanyData\Data\SaveCompanyDataData;
+use Modules\CompanyData\Models\CompanyData;
 use Tests\TestCase;
 
-uses(TestCase::class);
+uses(TestCase::class, RefreshDatabase::class);
 
-it('saves the singleton through the repository without the database', function (): void {
-    $saved = new CompanyData;
-    $saved->fill([
+it('updates the provisioned singleton in place', function (): void {
+    $user = User::factory()->create();
+
+    $company = new CompanyData;
+    $company->fill([
+        'name' => 'Victor Lara',
         'company_name' => 'AquaShield Restoration USA',
         'email' => 'info@aquashieldrestorationusa.com',
     ]);
-    $saved->uuid = (string) Str::uuid7();
-    $saved->user_id = 7;
+    $company->user_id = $user->id;
+    $company->save();
 
-    $this->mock(CompanyRepository::class, function (MockInterface $mock) use ($saved): void {
-        $mock->shouldReceive('current')->once()->andReturnNull();
-        $mock->shouldReceive('blank')->once()->andReturn($saved);
-        $mock->shouldReceive('save')
-            ->once()
-            ->with(Mockery::on(
-                fn (CompanyData $company): bool => $company->company_name === 'AquaShield Restoration USA'
-                    && $company->user_id === 7,
-            ))
-            ->andReturn($saved);
-    });
+    $updated = app(SaveCompanyDataAction::class)->execute(new SaveCompanyDataData(
+        name: 'Victor Lara',
+        companyName: 'AquaShield Restoration LLC',
+        email: 'info@aquashieldrestorationusa.com',
+    ));
 
-    $dto = app(SaveCompanyDataAction::class)->execute(new SaveCompanyDataData(
+    expect($updated->uuid)->toBe($company->uuid)
+        ->and($updated->companyName)->toBe('AquaShield Restoration LLC')
+        ->and(CompanyData::query()->count())->toBe(1)
+        ->and(CompanyData::current()?->user_id)->toBe($user->id);
+});
+
+it('throws when the singleton is not provisioned', function (): void {
+    expect(fn () => app(SaveCompanyDataAction::class)->execute(new SaveCompanyDataData(
         name: 'Victor Lara',
         companyName: 'AquaShield Restoration USA',
         email: 'info@aquashieldrestorationusa.com',
-    ), 7);
+    )))->toThrow(ModelNotFoundException::class);
 
-    expect($dto->companyName)->toBe('AquaShield Restoration USA')
-        ->and($dto->uuid)->toBe($saved->uuid)
-        ->and($dto->city)->toBeNull();
+    expect(CompanyData::query()->count())->toBe(0);
 });

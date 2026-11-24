@@ -1,0 +1,81 @@
+/**
+ * Calendar-date helpers.
+ *
+ * Laravel's `date` rule and an Eloquent `date` cast both speak ISO
+ * `YYYY-MM-DD`. A JavaScript `Date` always carries a time and a timezone, so
+ * `new Date('2026-03-01')` parsed as UTC can render as 28 February in a
+ * negative-offset zone. These helpers keep the wire value timezone-free and
+ * only build a local `Date` for a calendar widget that needs one.
+ */
+
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Parse ISO `YYYY-MM-DD` into a local noon `Date`, or `undefined` if invalid. */
+export function parseIsoDate(value: string | null | undefined): Date | undefined {
+    if (!value) {
+        return undefined;
+    }
+
+    const match = ISO_DATE.exec(value);
+
+    if (!match) {
+        return undefined;
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(year, month - 1, day, 12);
+
+    // Reject overflow such as 2026-02-31: constructing a Date rolls it into
+    // March, so comparing the parts back is the only reliable check.
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return undefined;
+    }
+
+    return date;
+}
+
+/** Format a local `Date` as ISO `YYYY-MM-DD` without a UTC conversion. */
+export function toIsoDate(date: Date): string {
+    const year = String(date.getFullYear()).padStart(4, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+/** Format an ISO date for display, or return an empty string when invalid. */
+export function formatIsoDate(
+    value: string | null | undefined,
+    locale = 'en-US',
+    options: Intl.DateTimeFormatOptions = { dateStyle: 'long' },
+): string {
+    const date = parseIsoDate(value);
+
+    return date ? new Intl.DateTimeFormat(locale, options).format(date) : '';
+}
+
+/**
+ * Format an ISO date-time for display in the viewer's locale and timezone.
+ *
+ * A raw `2026-10-28T15:29:48+00:00` costs ~200px of column width, is hard to
+ * scan and hides its own meaning in a timestamp nobody reads. An unparseable
+ * value is passed through unchanged rather than blanked: showing the source
+ * value is a visible data problem, an empty cell is an invisible one.
+ */
+export function formatDateTime(
+    value: string | null | undefined,
+    locale = 'en-US',
+    options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' },
+): string {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+        ? value
+        : new Intl.DateTimeFormat(locale, options).format(date);
+}

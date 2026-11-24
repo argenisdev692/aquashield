@@ -12,6 +12,7 @@ use Modules\ActivityLog\Data\ActivityEntryData;
 use Modules\ActivityLog\Data\ActivityFilterData;
 use Modules\ActivityLog\Models\ActivityEntry;
 use Modules\ActivityLog\Queries\ActivityListQuery;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 final readonly class ActivityLogController
 {
@@ -40,9 +41,8 @@ final readonly class ActivityLogController
             'total' => $page->total(),
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
-            'filters' => $filters,
-            'canView' => $actor instanceof User && $actor->can('VIEW_ACTIVITY_LOGS'),
-            'canExport' => $actor instanceof User && $actor->can('EXPORT_ACTIVITY_LOGS'),
+            'canView' => $actor instanceof User && $actor->can(PermissionName::ViewActivityLog->value),
+            'canExport' => $actor instanceof User && $actor->can(PermissionName::ExportActivityLog->value),
         ]);
     }
 

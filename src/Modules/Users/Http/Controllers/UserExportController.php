@@ -9,6 +9,7 @@ use Illuminate\Http\Response;
 use Modules\Users\Data\UserFilterData;
 use Modules\Users\Exports\UserExportTransformer;
 use Modules\Users\Queries\UserListQuery;
+use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -26,15 +27,33 @@ final readonly class UserExportController
     public function __construct(
         private ExportPort $exporter,
         private UserListQuery $users,
+        private AuditPort $audit,
     ) {}
 
     public function __invoke(Request $request, string $format): StreamedResponse|Response
     {
         $filters = UserFilterData::fromRequest($request);
+        $rowCount = $this->users->count($filters);
 
-        if ($this->users->count($filters) > UserExportTransformer::MAX_ROWS) {
+        if ($rowCount > UserExportTransformer::MAX_ROWS) {
             abort(422, 'The export is limited to '.UserExportTransformer::MAX_ROWS.' rows. Narrow the filters.');
         }
+
+        // Audit-worthy file access (OWASP A09). No search term, no email: the
+        // filter summary is deliberately non-PII.
+        $this->audit->log('user.exported', null, [
+            'format' => $format,
+            'rows' => $rowCount,
+            'filters' => [
+                'status' => $filters->status,
+                'account_status' => $filters->accountStatus,
+                'role' => $filters->role,
+                'permission' => $filters->permission,
+                'date_from' => $filters->dateFrom,
+                'date_to' => $filters->dateTo,
+                'has_search' => $filters->search !== null && $filters->search !== '',
+            ],
+        ], $request->user(), 'users');
 
         $transformer = new UserExportTransformer($filters, $this->users);
         $filename = 'users.'.$format;

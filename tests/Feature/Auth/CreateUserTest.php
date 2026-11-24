@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Actions\Fortify\CreateNewUser;
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -19,8 +19,8 @@ function createUserPayload(string $email = 'new.user@example.com'): array
         'first_name' => 'New',
         'last_name' => 'User',
         'email' => $email,
-        'password' => '123456',
-        'password_confirmation' => '123456',
+        'password' => '12345678',
+        'password_confirmation' => '12345678',
     ];
 }
 

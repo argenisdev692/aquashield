@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Modules\Users\Data;
 
 use App\Models\User;
+use Modules\Users\Enums\UserStatus;
+use Shared\Domain\Enums\Role as RoleName;
 use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
@@ -33,6 +35,12 @@ final class ManagedUserData extends Data
         public readonly ?string $username,
         public readonly string $email,
         public readonly bool $emailVerified,
+        public readonly UserStatus $status,
+        public readonly string $statusLabel,
+        public readonly ?string $invitationSentAt,
+        public readonly ?string $activatedAt,
+        public readonly ?string $suspendedAt,
+        public readonly bool $mustChangePassword,
         public readonly ?string $phone,
         public readonly ?string $dateOfBirth,
         public readonly ?string $address,
@@ -46,6 +54,12 @@ final class ManagedUserData extends Data
         public readonly ?float $longitude,
         public readonly ?string $gender,
         public readonly array $roles,
+        /**
+         * A server-computed capability, not a role string for the browser to
+         * interpret. The UI combines it with `activeSuperAdminCount` and its own
+         * uuid for the last-admin courtesy guard; the policy still re-checks.
+         */
+        public readonly bool $isSuperAdmin,
         public readonly array $directPermissions,
         public readonly ?string $deletedAt,
         public readonly ?string $createdAt,
@@ -78,6 +92,12 @@ final class ManagedUserData extends Data
             username: $user->username,
             email: (string) $user->email,
             emailVerified: $user->hasVerifiedEmail(),
+            status: $user->status,
+            statusLabel: $user->status->label(),
+            invitationSentAt: $user->invitation_sent_at?->toIso8601String(),
+            activatedAt: $user->activated_at?->toIso8601String(),
+            suspendedAt: $user->suspended_at?->toIso8601String(),
+            mustChangePassword: $user->must_change_password,
             phone: $user->phone,
             dateOfBirth: $user->date_of_birth,
             address: $user->address,
@@ -90,6 +110,7 @@ final class ManagedUserData extends Data
             longitude: $user->longitude,
             gender: $user->gender,
             roles: $roles,
+            isSuperAdmin: in_array(RoleName::SuperAdmin->value, $roles, true),
             directPermissions: $directPermissions,
             deletedAt: $user->deleted_at?->toIso8601String(),
             createdAt: $user->created_at?->toIso8601String(),

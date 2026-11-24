@@ -6,8 +6,9 @@ description: Directory tree, layer boundaries and module layout for src/Modules 
 # BACKEND ARCHITECTURE — directory tree, layers, complexity modes
 
 > Read with `backend-php/SKILL.md` (language + framework rules) and `owasp/SKILL.md` (always on).
-> Current state: `src/Modules/` is **empty** — everything below is a contract, not a description.
-> See §10.
+> Current state: `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and
+> `Users` (FLAT), plus `Backups` and `LeadAppointment` (PROGRESSIVE).
+> Everything below is the contract they must satisfy; see §10.
 
 ## 0. The one rule that matters
 
@@ -153,8 +154,9 @@ gets marked so nobody assumes a machine is checking it.
 ### Transport, not business state
 
 Invariant 3 does **not** forbid one route serving two transports. In this stack a single route
-legitimately answers an Inertia page visit and a plain JSON data request (what Pinia Colada calls),
-selected by request format. That is one route, one serialization contract, two representations.
+legitimately answers an Inertia page visit and a plain JSON data request (what a TanStack Query hook
+calls), selected by request format. That is one route, one serialization contract, two
+representations.
 
 What is banned:
 
@@ -258,7 +260,7 @@ test. Note the inverse case: a wrapper that _transforms_ an argument is doing wo
 
 **Duplication that is allowed.** Naming the exceptions is what stops an absolute rule from being
 applied where it hurts. Accept: two identical controller actions in two modules (they will diverge);
-test setup that repeats production's shape (independence is the point); two composables with the same
+test setup that repeats production's shape (independence is the point); two React hooks with the same
 shape and different endpoints; test code mirroring production structure. Never acceptable: a second
 definition of a business rule, a permission name, an owner scope or a filter. Full table:
 `PRINCIPLES/SKILL.md` §8.
@@ -307,9 +309,9 @@ src/Shared/
 ├── Domain/            # ports (StoragePort, ExportPort, AuditPort, …), shared
 │                      # exceptions, transversal enums (Currency, BillingUnit)
 ├── Application/       # reusable DTOs (BulkUuidsData, *FilterData), queries
-├── Infrastructure/    # adapters: AI, Mail, Storage(R2), Export, Speech,
-│                      # Research, Resilience, Http/Middleware, Console, OpenApi,
-│                      # Branding, Company, Docs, Audit, Persistence, Support
+├── Infrastructure/    # adapters: AI, Mail, Storage(R2), Export, Research,
+│                      # Resilience, Http/Middleware, Console, OpenApi,
+│                      # Branding, Company, Audit, Persistence, Support
 ├── Providers/         # SharedServiceProvider — the ONLY place ports bind
 └── Support/           # pure helpers (PhoneFormatter, EuSchengenCountries)
 ```
@@ -329,12 +331,18 @@ Rules:
 - **Middleware order.** `SecurityHeaders` is prepended ahead of Inertia in
   `bootstrap/app.php`: it syncs the Vite nonce + emits CSP/OWASP headers.
   Do not duplicate that sync in module/app middleware.
-- **Config switches, not code changes.** Mail (`mail.adapter`), speech
-  (`services.speech.synthesizer`) pick adapters via env. New switchable
-  adapter = new config key + provider `match`, documented the same day.
+- **Config switches, not code changes.** Mail (`mail.adapter`) picks its adapter
+  via env. New switchable adapter = new config key + provider `match`,
+  documented the same day.
 - New adapters still wait for their first real consumer — **an adapter with
   no consumer is dead code.** The catalogue above is the record of where each
   one goes when the need arrives, not a licence to pre-build the next one.
+- **Declared exception, dated 2026-11-22.** `AI/` and `Research/` stay without a
+  consumer: they are the tooling the Claim + Scope Sheet modules will call.
+  Review due **2027-05-19** with the LeadAppointment bet — if no module consumes
+  them by then, delete them. The same rule removed `Infrastructure/Docs/` and
+  `Infrastructure/Speech/` (and their `Domain/Ports`) on 2026-11-22; git history
+  has them if they are ever needed.
 
 ---
 
@@ -350,8 +358,8 @@ Rules:
 }
 ```
 
-`src/volt/` is intentionally **not** mapped — it holds `.vue` files resolved by the Vite `@` alias,
-not PHP.
+`resources/js/` is intentionally **not** mapped — it holds `.tsx` sources resolved by the Vite `@`
+alias, not PHP.
 
 Run `composer dump-autoload` after adding a new root.
 
@@ -396,32 +404,41 @@ module's migration goes in the project's `database/migrations/` — which is wha
 
 This section exists because a skill that describes a tree can be read as a description of a codebase.
 
-| Path                      | State                                                                                                                                                                                                                                                                                                                     |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/Modules/`            | **empty** — `.gitkeep` + `README.md`. No domain module is implemented.                                                                                                                                                                                                                                                    |
-| `tests/Architecture/`     | three suites — `ModuleComplexityTest.php` (declared modes, layer boundaries, global hygiene), `DesignSmellsTest.php` (dumb pass-throughs, orphan module code), `FrontendBoundariesTest.php` (frontend import/token/no-`any` rules). Module- and page-specific assertions **skip themselves** while their trees are empty. |
-| `resources/js/generated/` | `.gitkeep` only — `typescript:transform` has no `Data` class to read yet.                                                                                                                                                                                                                                                 |
-| `stubs/architecture/`     | both variants present, ready to copy                                                                                                                                                                                                                                                                                      |
-| `src/Shared/`             | populated — ports, adapters, DTOs, `SharedServiceProvider`                                                                                                                                                                                                                                                                |
-| `app/`                    | the framework shell: Fortify actions, `User`, Inertia middleware, providers                                                                                                                                                                                                                                               |
+| Path                      | State                                                                                                                                                                                                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/Modules/`            | six modules — `AccessControl`, `ActivityLog`, `Backups`, `CompanyData`, `Users` and `LeadAppointment` — each with `ARCHITECTURE.md` and tests.                                                                                                                                            |
+| `tests/Architecture/`     | three suites — `ModuleComplexityTest.php` (declared modes, layer boundaries, global hygiene), `DesignSmellsTest.php` (dumb pass-throughs, orphan module code), `FrontendBoundariesTest.php` (frontend import/token/no-`any` rules). 41 tests green against the six modules on 2026-11-24. |
+| `resources/js/generated/` | `generated.d.ts` + the transformer manifest — regenerated by `typescript:transform`.                                                                                                                                                                                                      |
+| `stubs/architecture/`     | both variants present, ready to copy                                                                                                                                                                                                                                                      |
+| `src/Shared/`             | populated — ports, adapters, DTOs, `SharedServiceProvider`                                                                                                                                                                                                                                |
+| `app/`                    | the framework shell: Fortify actions, `User`, Inertia middleware, providers                                                                                                                                                                                                               |
 
 Consequences you must respect:
 
-- **The invariant registry in §3 is currently vacuous.** Nothing is enforcing anything yet, because
-  there is no module to enforce it on. It becomes real the moment the first module lands — which is
-  why the first module must be generated by `module-make` and keep its `ARCHITECTURE.md`.
-- **Do not claim a module, screen, DTO or policy exists** because a rule above names it.
+- **The invariant registry in §3 is live.** The six modules are checked by the architecture suites;
+  a new module must satisfy the same rows, which is why it is generated by `module-make` and keeps its
+  `ARCHITECTURE.md`.
+- **Do not claim a module, screen, DTO or policy exists** because a rule above names it — check the
+  module's `ARCHITECTURE.md` and the disk.
 - The 401/403/422 coverage in invariant 15 is emitted by `scripts/module-make.mjs`. Writing a module
   by hand means writing those three cases by hand.
-- `phpstan.neon` analyses `app`, `src/Shared` and `src/Modules`; with `src/Modules` empty it is
-  analysing two of three. Level 5 is global; raising it per module is a manual edit, not an automatic
-  ratchet — treat it as a deliberate, dated decision.
+- `phpstan.neon` analyses `app`, `src/Shared` and `src/Modules`; all three roots are populated now.
+  Level 5 is global; raising it per module is a manual edit, not an automatic ratchet — treat it as a
+  deliberate, dated decision.
 
 ---
 
 ## 11. Non-negotiable conventions
 
-- **UUIDv7 primary keys** on every model via `HasUuids`. `HasVersion7Uuids` was removed in Laravel 12.
+- **UUIDv7 public identifiers** on every model via `HasUuids`. The numeric `id` stays internal;
+  `uniqueIds()` returns `['uuid']`, and `uuid` is the only identifier that crosses HTTP.
+  `HasVersion7Uuids` was removed in Laravel 12.
+  **Vendor-owned tables keep the vendor key internal.** A package table
+  (`spatie/laravel-permission` `roles`/`permissions`) gets a public `uuid` (UUIDv7) column, not a
+  replaced primary key: extend the vendor model, `use HasUuids`, return `['uuid']` from
+  `uniqueIds()`, override `getRouteKeyName()` to `uuid`, and point the package config at the model.
+  Never migrate a vendor pivot unless you also migrate every `*_id` column that references it.
+  `AccessControl` follows this recipe (2026-11-24).
 - **Bidirectional relations** — if a FK exists, both `hasMany`/`belongsTo` sides are declared.
 - **Response shapes are Spatie Data**, for Inertia props _and_ JSON. `JsonResource` is a FAIL.
 - **Bulk delete + bulk restore ship together** whenever the UI exposes row selection. Never one without

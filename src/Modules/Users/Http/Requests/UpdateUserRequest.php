@@ -43,7 +43,7 @@ final class UpdateUserRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                new AllowedEmailDomain(),
+                new AllowedEmailDomain,
                 Rule::unique('users', 'email')->ignore($ignore),
             ],
             'phone' => ['nullable', 'string', 'max:32'],

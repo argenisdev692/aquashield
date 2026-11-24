@@ -71,6 +71,19 @@ it('refuses authenticator login when the account has not enabled it', function (
     $this->assertGuest();
 });
 
+it('refuses authenticator login while the account is locked', function (): void {
+    $user = User::factory()->create(['locked_until' => now()->addMinutes(10)]);
+    app(EnableTwoFactorAuthentication::class)($user);
+    $user->forceFill(['two_factor_confirmed_at' => now()])->save();
+
+    $this->post('/login/authenticator', [
+        'email' => $user->email,
+        'code' => authenticatorCode($user),
+    ])->assertSessionHasErrors('email');
+
+    $this->assertGuest();
+});
+
 it('throttles authenticator login attempts', function (): void {
     $user = User::factory()->create();
 

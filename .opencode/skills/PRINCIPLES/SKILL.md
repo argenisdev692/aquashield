@@ -201,13 +201,13 @@ across modules because it got long is not extraction, it is guessing.
 
 Naming the exceptions is what stops an absolute rule from being applied where it hurts.
 
-| Accept                                                                                 | Why                                                                                                        |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Two identical controller actions in two modules                                        | They will diverge — different filters, different policies. Merging them is a premature shared abstraction. |
-| A test that repeats a setup the production test already has                            | Setup is the specification of the case. A shared fixture hides the case.                                   |
-| Two Colada composables with the same shape, different endpoints                        | The shape is a coincidence; the endpoints are the knowledge.                                               |
-| A `pt` override at a call site when a Volt primitive is being _temporarily_ overridden | Deliberate, with a comment naming when it goes. Not a pattern to repeat.                                   |
-| Test code that mirrors production structure                                            | Independence is the point. A test sharing production's shape cannot catch a structural error.              |
+| Accept                                                            | Why                                                                                                        |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Two identical controller actions in two modules                   | They will diverge — different filters, different policies. Merging them is a premature shared abstraction. |
+| A test that repeats a setup the production test already has       | Setup is the specification of the case. A shared fixture hides the case.                                   |
+| Two TanStack Query hooks with the same shape, different endpoints | The shape is a coincidence; the endpoints are the knowledge.                                               |
+| A one-off wrapper around a shadcn primitive for a single screen   | Deliberate, with a comment naming when it goes. Not a pattern to repeat.                                   |
+| Test code that mirrors production structure                       | Independence is the point. A test sharing production's shape cannot catch a structural error.              |
 
 What is **not** acceptable, ever: a second place where a business rule, a permission name, an owner
 scope or a filter is defined. Those are knowledge, and knowledge has one authoritative home.

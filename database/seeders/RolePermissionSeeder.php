@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Permission;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use Shared\Domain\Enums\Role as RoleName;
 use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
@@ -19,8 +20,8 @@ class RolePermissionSeeder extends Seeder
      * @var list<string>
      */
     private const array ROLES = [
-        'SUPER_ADMIN',
-        'ADMIN',
+        RoleName::SuperAdmin->value,
+        RoleName::Admin->value,
         'MANAGER',
         'USER',
         'MARKETING_MANAGER',
@@ -56,9 +57,9 @@ class RolePermissionSeeder extends Seeder
     private const array MODULES = [
         'USER',
         'EMAIL_DATA',
-        'SERVICE_CATEGORY',
+        'AVAILABILITY_RULE',
+        'AVAILABILITY_EXCEPTION',
         'PORTFOLIO',
-        'COMPANY_DATA',
         'PROJECT_TYPE',
         'APPOINTMENT',
         'BLOG_CATEGORY',
@@ -116,8 +117,13 @@ class RolePermissionSeeder extends Seeder
      */
     private const array SINGLETON_MODULES = ['COMPANY_DATA'];
 
-    /** @var list<string> */
-    private const array SINGLETON_ACTIONS = ['VIEW', 'UPDATE', 'DELETE', 'RESTORE'];
+    /**
+     * A singleton is read and replaced in place. It has no create, list,
+     * delete, restore, bulk or export capability.
+     *
+     * @var list<string>
+     */
+    private const array SINGLETON_ACTIONS = ['VIEW', 'UPDATE'];
 
     /**
      * Full action set granted to standard modules.
@@ -150,6 +156,22 @@ class RolePermissionSeeder extends Seeder
         'PROPERTIES',
         'CLAIM',
         'SCOPE_SHEET',
+        'LEAD',
+        'AVAILABILITY_RULE',
+        'AVAILABILITY_EXCEPTION',
+    ];
+
+    /**
+     * Modules owned by LeadAppointment. SUPER_ADMIN, ADMIN and MANAGER receive
+     * the full action set; ADMINISTRATIVE and LEAD receive lead read/write only.
+     *
+     * @var list<string>
+     */
+    private const array LEAD_APPOINTMENT_MODULES = [
+        'LEAD',
+        'APPOINTMENT',
+        'AVAILABILITY_RULE',
+        'AVAILABILITY_EXCEPTION',
     ];
 
     /**
@@ -184,7 +206,7 @@ class RolePermissionSeeder extends Seeder
      *
      * @var list<string>
      */
-    private const array SELF_SERVICE_ROLES = ['ADMIN', 'MANAGER', 'USER', 'MODERATOR'];
+    private const array SELF_SERVICE_ROLES = [RoleName::Admin->value, 'MANAGER', 'USER', 'MODERATOR'];
 
     /**
      * Backups panel actions.
@@ -212,8 +234,10 @@ class RolePermissionSeeder extends Seeder
 
         $this->ensureRoles();
         $this->ensurePermissions($this->permissionNames());
+        $this->pruneObsoleteCompanyDataPermissions();
         $this->grantAllToSuperAdmin();
         $this->grantModulesToAdmin();
+        $this->grantLeadAppointmentMatrix();
         $this->grantSelfServiceModules();
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -249,6 +273,26 @@ class RolePermissionSeeder extends Seeder
     }
 
     /**
+     * Older runs seeded COMPANY_DATA through the full CRUD matrix. Those
+     * capabilities have no route and contradict the singleton contract; remove
+     * them so least privilege is real, not only aspirational.
+     */
+    private function pruneObsoleteCompanyDataPermissions(): void
+    {
+        Permission::query()
+            ->whereIn('name', [
+                'VIEW_ANY_COMPANY_DATA',
+                'CREATE_COMPANY_DATA',
+                'DELETE_COMPANY_DATA',
+                'RESTORE_COMPANY_DATA',
+                'BULK_DELETE_COMPANY_DATA',
+                'BULK_RESTORE_COMPANY_DATA',
+                'EXPORT_COMPANY_DATA',
+            ])
+            ->delete();
+    }
+
+    /**
      * Cartesian product of modules × actions → "{ACTION}_{MODULE}".
      *
      * @param list<string> $modules
@@ -274,8 +318,15 @@ class RolePermissionSeeder extends Seeder
     private function ensurePermissions(array $names): void
     {
         foreach ($names as $name) {
-            Permission::firstOrCreate(
+            /*
+             * `updateOrCreate`, not `firstOrCreate`: the catalogue is the
+             * system set. Re-seeding must re-protect a name that a human may
+             * have created through the AccessControl module before it was
+             * added to the matrix.
+             */
+            Permission::query()->updateOrCreate(
                 ['name' => $name, 'guard_name' => self::GUARD],
+                ['is_system' => true],
             );
         }
     }
@@ -287,7 +338,7 @@ class RolePermissionSeeder extends Seeder
     {
         $role = Role::query()
             ->with('permissions')
-            ->where('name', 'SUPER_ADMIN')
+            ->where('name', RoleName::SuperAdmin->value)
             ->where('guard_name', self::GUARD)
             ->first();
 
@@ -313,10 +364,59 @@ class RolePermissionSeeder extends Seeder
 
         Role::query()
             ->with('permissions')
-            ->where('name', 'ADMIN')
+            ->where('name', RoleName::Admin->value)
             ->where('guard_name', self::GUARD)
             ->first()
             ?->givePermissionTo($names);
+    }
+
+    /**
+     * LeadAppointment role matrix.
+     *
+     * All five roles can read, create and update leads. Only SUPER_ADMIN,
+     * ADMIN and MANAGER receive delete, restore, bulk and export. ADMIN and
+     * MANAGER also receive the full appointment/technician/availability
+     * action set; ADMINISTRATIVE and LEAD stay on the lead read/write slice.
+     */
+    private function grantLeadAppointmentMatrix(): void
+    {
+        $leadReadWrite = [
+            'VIEW_ANY_LEAD',
+            'VIEW_LEAD',
+            'CREATE_LEAD',
+            'UPDATE_LEAD',
+        ];
+
+        $leadFull = [
+            ...$leadReadWrite,
+            'DELETE_LEAD',
+            'RESTORE_LEAD',
+            'BULK_DELETE_LEAD',
+            'BULK_RESTORE_LEAD',
+            'EXPORT_LEAD',
+        ];
+
+        $this->grant('ADMINISTRATIVE', $leadReadWrite);
+        $this->grant('LEAD', $leadReadWrite);
+
+        $this->grant('MANAGER', [
+            ...$this->matrix(self::LEAD_APPOINTMENT_MODULES, self::MODULES_ACTIONS),
+            ...$leadFull,
+        ]);
+
+        $this->grant(RoleName::Admin->value, $leadFull);
+    }
+
+    /**
+     * @param list<string> $names
+     */
+    private function grant(string $roleName, array $names): void
+    {
+        Role::query()
+            ->where('name', $roleName)
+            ->where('guard_name', self::GUARD)
+            ->first()
+            ?->givePermissionTo(array_values(array_unique($names)));
     }
 
     /**

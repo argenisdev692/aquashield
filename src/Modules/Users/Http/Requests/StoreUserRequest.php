@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Users\Http\Requests;
 
+use App\Actions\Fortify\PasswordValidationRules;
 use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\Username;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 final class StoreUserRequest extends FormRequest
 {
+    use PasswordValidationRules;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', User::class) ?? false;
@@ -37,7 +40,7 @@ final class StoreUserRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                new AllowedEmailDomain(),
+                new AllowedEmailDomain,
                 Rule::unique(User::class),
             ],
             'phone' => ['nullable', 'string', 'max:32'],
@@ -51,10 +54,23 @@ final class StoreUserRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'gender' => ['nullable', 'string', 'in:male,female,other', 'max:50'],
-            'roles' => ['nullable', 'array'],
+            // Both arrays run one `exists` query per item, so they must be
+            // bounded (OWASP API4): 50 covers the 26 seeded roles, 600 covers
+            // the 505 seeded permissions.
+            'roles' => ['nullable', 'array', 'max:50'],
             'roles.*' => ['string', 'distinct', 'exists:roles,name'],
-            'permissions' => ['nullable', 'array'],
+            'permissions' => ['nullable', 'array', 'max:600'],
             'permissions.*' => ['string', 'distinct', 'exists:permissions,name'],
+            'send_invitation' => ['sometimes', 'boolean'],
+            'temporary_password' => [
+                'nullable',
+                'string',
+                'required_if:send_invitation,false,0',
+                // One policy, defined in PasswordValidationRules and used by
+                // Fortify, activation and this admin create form alike.
+                $this->passwordRule(),
+                'confirmed',
+            ],
         ];
     }
 
@@ -70,6 +86,10 @@ final class StoreUserRequest extends FormRequest
 
         if ($this->input('permissions') === null) {
             $this->merge(['permissions' => []]);
+        }
+
+        if (! $this->has('send_invitation')) {
+            $this->merge(['send_invitation' => true]);
         }
     }
 }

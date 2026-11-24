@@ -11,6 +11,7 @@ use App\Data\Auth\UserData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Auth\LoginRequest;
 use App\Models\User;
+use App\Support\AccountAccess;
 use App\Support\AccountLockout;
 use App\Support\AuthRequestContext;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
+use Shared\Domain\Enums\Role as RoleName;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\StoragePort;
 use Throwable;
@@ -82,6 +84,8 @@ final class AuthController extends Controller
                 'email' => __('Your email address is not verified. Check your inbox for the verification link, then sign in again.'),
             ]);
         }
+
+        AccountAccess::assertCanSignIn($user);
 
         $this->assertTwoFactor($user, $request);
 
@@ -204,7 +208,10 @@ final class AuthController extends Controller
     private function expiryFor(User $user): Carbon
     {
         // The enterprise policy: 1 hour for admin surfaces, 24 hours otherwise.
-        return now()->addHours($user->hasAnyRole(['SUPER_ADMIN', 'ADMIN']) ? 1 : 24);
+        return now()->addHours($user->hasAnyRole([
+            RoleName::SuperAdmin->value,
+            RoleName::Admin->value,
+        ]) ? 1 : 24);
     }
 
     private function auditFailure(string $email): void

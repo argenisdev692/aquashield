@@ -1,17 +1,15 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
-import { templateCompilerOptions } from '@tresjs/core';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
-import vue from '@vitejs/plugin-vue';
+import react from '@vitejs/plugin-react';
 
 // Order matters: Vite's alias uses the first string-prefix match and never
-// falls through to a later entry when the file is missing. `@/volt` is listed
-// first so Volt components (src/volt) win over the app folder (resources/js).
+// falls through to a later entry when the file is missing. `@/pages` is listed
+// first so pages resolve before the app folder catches the prefix.
 // `find` must NOT end in "/" - the resolver appends it when matching.
 const alias = [
-    { find: '@/volt', replacement: fileURLToPath(new URL('./src/volt/', import.meta.url)) },
     {
         find: '@/pages',
         replacement: fileURLToPath(new URL('./resources/js/Pages/', import.meta.url)),
@@ -32,7 +30,7 @@ export default defineConfig(({ command }) => ({
     publicDir: command === 'serve' ? 'public' : false,
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.ts'],
+            input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
             fonts: [
                 bunny('Inter', {
@@ -40,22 +38,20 @@ export default defineConfig(({ command }) => ({
                 }),
             ],
         }),
-        // TresJS registers `Tres*` and `primitive` on its own custom renderer.
-        // Without these compiler options Vue tries to resolve them as Vue
-        // components, warns, and the camera never reaches the scene.
-        vue({
-            ...templateCompilerOptions,
+        react({
+            babel: {
+                plugins: ['babel-plugin-react-compiler'],
+            },
         }),
         tailwindcss(),
     ],
     resolve: {
         alias,
     },
-    // Three ships hundreds of ES modules. Without pre-bundling, the first
-    // scroll to the brand moment triggers a mid-session dependency optimize
-    // and a full reload — the exact moment the scene is supposed to appear.
-    optimizeDeps: {
-        include: ['three', '@tresjs/core'],
+    build: {
+        // Production bundles ship no source maps: they would expose the
+        // original TSX to anyone with the asset URL (OWASP A02/A05 policy).
+        sourcemap: false,
     },
     server: {
         // Bind IPv4 explicitly. Vite otherwise writes `http://[::1]:5173`
@@ -63,6 +59,11 @@ export default defineConfig(({ command }) => ({
         // IPv6 literal — the dev page loses its stylesheet and fonts while
         // the built assets keep working.
         host: '127.0.0.1',
+        // The CSP allowlist in SecurityHeaders is origin-scoped. Silently
+        // moving to 5174/5175 leaves the font manifest and the policy on
+        // different ports, so fail loudly instead of shipping a font-less page.
+        port: 5173,
+        strictPort: true,
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

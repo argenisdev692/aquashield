@@ -6,6 +6,7 @@ namespace Modules\Backups\Data;
 
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Shared\Application\DTOs\Concerns\DateRangeFilterRules;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
@@ -19,6 +20,8 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 #[MapName(SnakeCaseMapper::class)]
 final class BackupFilterData extends Data
 {
+    use DateRangeFilterRules;
+
     /** @var list<string> */
     private const array ALLOWED_FILTERS = ['status', 'disk', 'date_from', 'date_to'];
 
@@ -83,11 +86,9 @@ final class BackupFilterData extends Data
     public static function rules(): array
     {
         return [
-            'search' => ['nullable', 'string', 'max:255'],
+            ...self::dateRangeRules(),
             'status' => ['required', 'string', 'in:active,trashed,all'],
             'disk' => ['nullable', 'string', 'max:255'],
-            'date_from' => ['nullable', 'date_format:Y-m-d'],
-            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
             'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
             'sort_order' => ['required', 'integer', 'in:-1,1'],
             'page' => ['required', 'integer', 'min:1'],

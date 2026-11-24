@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Backups\Application\Actions;
 
-use Modules\Backups\Application\Repositories\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
-use Modules\Backups\Domain\Models\BackupArchive;
+use Modules\Backups\Domain\Models\BackupInventory;
 use Modules\Backups\Domain\Services\BackupLifecycleGuard;
 use Shared\Domain\Ports\AuditPort;
 
@@ -31,10 +31,10 @@ final readonly class RestoreBackupsAction
      */
     public function execute(array $uuids, ?object $causer): void
     {
-        $trashed = $this->archives->trashed();
-        $active = $this->archives->active();
+        $quarantined = BackupInventory::fromList($this->archives->trashed());
+        $active = BackupInventory::fromList($this->archives->active());
 
-        $targets = $this->resolve($uuids, $trashed);
+        $targets = $quarantined->select($uuids);
 
         foreach ($targets as $target) {
             $this->guard->assertRestorable($target, $active);
@@ -49,31 +49,5 @@ final readonly class RestoreBackupsAction
                 'size_bytes' => $target->sizeBytes,
             ], $causer, 'backups');
         }
-    }
-
-    /**
-     * @param list<string> $uuids
-     * @param list<BackupArchive> $trashed
-     * @return list<BackupArchive>
-     */
-    private function resolve(array $uuids, array $trashed): array
-    {
-        $indexed = [];
-
-        foreach ($trashed as $archive) {
-            $indexed[$archive->uuid] = $archive;
-        }
-
-        $targets = [];
-
-        foreach ($uuids as $uuid) {
-            if (! isset($indexed[$uuid])) {
-                throw BackupNotFound::forUuid($uuid);
-            }
-
-            $targets[] = $indexed[$uuid];
-        }
-
-        return $targets;
     }
 }

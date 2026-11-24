@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Data\Auth\UserData;
 use App\Http\Controllers\Auth\AuthenticatorLoginController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\KeepSessionAliveController;
 use App\Http\Controllers\Auth\OneTimePasswordLoginController;
+use App\Http\Controllers\SavedViewController;
+use App\Http\Controllers\Settings\PasskeyPromptController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ProfilePhotoController;
-use App\Models\User;
 use Illuminate\Support\Facades\Route;
-use Modules\CompanyData\Application\Dtos\CompanyBrandingDto;
-use Shared\Domain\Ports\StoragePort;
+use Modules\CompanyData\Data\CompanyBrandingDto;
+use Modules\LeadAppointment\Http\Controllers\DashboardController;
 use Shared\Infrastructure\Company\CompanyProfile;
 use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
@@ -70,13 +70,21 @@ Route::middleware('guest')->group(function () {
  */
 Route::middleware('auth')->group(function (): void {
     /*
-     * Idle-session heartbeat. The Vue dialog posts here when the user answers
-     * "Keep me signed in"; the route is throttled because a compromised page
-     * should not be able to refresh the session in a tight loop.
+     * Idle-session heartbeat. The React idle dialog posts here when the user
+     * answers "Keep me signed in"; the route is throttled because a compromised
+     * page should not be able to refresh the session in a tight loop.
      */
     Route::post('/auth/keep-alive', KeepSessionAliveController::class)
         ->middleware('throttle:60,1')
         ->name('auth.keep-alive');
+
+    /*
+     * The settings entry point. The hub of cards is gone: every account
+     * surface lives in the tabbed screen, so `/settings` is a permanent alias
+     * for it and old bookmarks still land on the real page.
+     */
+    Route::redirect('/settings', '/settings/profile')
+        ->name('settings.index');
 
     Route::get('/settings/profile', [ProfileController::class, 'edit'])
         ->name('settings.profile.edit');
@@ -84,30 +92,52 @@ Route::middleware('auth')->group(function (): void {
         ->name('settings.profile.photo.store');
     Route::delete('/settings/profile/photo', [ProfilePhotoController::class, 'destroy'])
         ->name('settings.profile.photo.destroy');
+
+    /*
+     * Dismissing the "add a passkey" prompt is a courtesy write: throttled so a
+     * compromised page cannot hammer the users table, and separate from the
+     * settings page so it never triggers a full Inertia visit.
+     */
+    Route::post('/settings/passkey-prompt/dismiss', [PasskeyPromptController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('settings.passkey-prompt.dismiss');
 });
 
 /*
- * Dashboard. Frontend-only placeholder for now: the page renders demo data
- * from a mock set and touches no backend. The board's real data source
- * (a leads pipeline) lands with the first module, and this route becomes an
- * authorized controller then.
+ * Personal saved views for the CRUD tables. JSON only: the table reads them
+ * with TanStack Query and a save/delete is not a page visit.
+ *
+ * Ownership is enforced in the controller by scoping every query to the
+ * authenticated user, so a forged UUID is a 404 rather than a read or delete.
+ * The throttle bounds a user-written collection that is replayed into list
+ * URLs.
  */
-Route::middleware(['auth', 'verified'])->get('/dashboard', function () {
-    $user = auth()->user();
+Route::middleware(['auth', 'throttle:60,1'])
+    ->prefix('saved-views')
+    ->name('saved-views.')
+    ->group(function (): void {
+        Route::get('/', [SavedViewController::class, 'index'])->name('index');
 
-    if (! $user instanceof User) {
-        abort(401);
-    }
+        Route::post('/', [SavedViewController::class, 'store'])->name('store');
 
-    return inertia('Dashboard', [
-        'user' => UserData::fromModel($user, app(StoragePort::class))->toArray(),
-    ]);
-});
+        Route::delete('/{savedView}', [SavedViewController::class, 'destroy'])
+            ->whereUuid('savedView')
+            ->name('destroy');
+    });
+
+/*
+ * Dashboard. One server read: the same lead columns as `/leads/board` plus the
+ * current month of appointments. The client never owns a second copy of the
+ * pipeline.
+ */
+Route::middleware(['auth', 'verified'])
+    ->get('/dashboard', DashboardController::class)
+    ->name('dashboard');
 
 /*
     Cookie consent. Public and unauthenticated by necessity: the whole point is
     to ask someone who has never signed in. It carries no payload, so there is
-    nothing to validate, and CSRF is inherited from the `web` group - the Vue
+    nothing to validate, and CSRF is inherited from the `web` group - the React
     banner posts through Inertia's XHR client, which sends the XSRF header.
 
     The throttle is 30/min against a cookie a visitor sets once, so it only

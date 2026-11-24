@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Modules\Users\Support\AccessCeiling;
+use Shared\Domain\Enums\Role as RoleName;
 use Shared\Domain\Ports\AuditPort;
 
 /**
@@ -46,8 +47,8 @@ final readonly class AssignRolesAction
             $this->ceiling->assertCanGrantRoles($actor, $roles);
 
             $demotesLastSuperAdmin = $this->ceiling->isSuperAdmin($locked)
-                && ! in_array(AccessCeiling::SUPER_ADMIN, $roles, true)
-                && $this->ceiling->isLastSuperAdmin($locked);
+                && ! in_array(RoleName::SuperAdmin->value, $roles, true)
+                && $this->ceiling->isLastActiveSuperAdmin($locked);
 
             if ($demotesLastSuperAdmin) {
                 throw ValidationException::withMessages([

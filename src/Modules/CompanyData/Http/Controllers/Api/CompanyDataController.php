@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Modules\CompanyData\Http\Controllers\Api;
 
-use Modules\CompanyData\Application\Actions\SaveCompanyDataAction;
-use Modules\CompanyData\Application\Dtos\CompanyBrandingDto;
-use Modules\CompanyData\Application\Dtos\CompanyDataDto;
-use Modules\CompanyData\Application\Dtos\SaveCompanyDataData;
-use Modules\CompanyData\Application\Repositories\CompanyRepository;
+use Modules\CompanyData\Actions\SaveCompanyDataAction;
+use Modules\CompanyData\Data\CompanyBrandingDto;
+use Modules\CompanyData\Data\CompanyDataDto;
+use Modules\CompanyData\Data\SaveCompanyDataData;
 use Modules\CompanyData\Http\Requests\UpdateCompanyDataRequest;
+use Modules\CompanyData\Models\CompanyData;
 use Shared\Infrastructure\Company\CompanyProfile;
 
 final class CompanyDataController
 {
     public function __construct(
         private readonly SaveCompanyDataAction $saveCompanyData,
-        private readonly CompanyRepository $companies,
     ) {}
 
     /**
@@ -37,7 +36,7 @@ final class CompanyDataController
      */
     public function showManage(): CompanyDataDto
     {
-        $company = $this->companies->current();
+        $company = CompanyData::current();
 
         abort_if($company === null, 404);
 
@@ -46,14 +45,8 @@ final class CompanyDataController
 
     public function update(UpdateCompanyDataRequest $request): CompanyDataDto
     {
-        $user = $request->user();
-
-        if ($user === null) {
-            abort(401);
-        }
-
         $data = SaveCompanyDataData::from($request->validated());
 
-        return $this->saveCompanyData->execute($data, (int) $user->getAuthIdentifier());
+        return $this->saveCompanyData->execute($data);
     }
 }
