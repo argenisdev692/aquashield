@@ -8,12 +8,13 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\Region;
+use Shared\Domain\Enums\Permission;
 
 final class StoreAppointmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can(Permission::CreateAppointment->value) ?? false;
     }
 
     /**

@@ -412,6 +412,19 @@ declare namespace Modules {
                     uuid: string;
                     name: string;
                 };
+                export type AvailabilityCalendarData = {
+                    data: Modules.LeadAppointment.Application.Dtos.AvailabilityDayData[];
+                };
+                export type AvailabilityDayData = {
+                    date: string;
+                    is_open: boolean;
+                    source: string;
+                    reason: string | null;
+                    windows: {
+                        start: string;
+                        end: string;
+                    }[];
+                };
                 export type AvailabilityExceptionData = {
                     uuid: string;
                     date: string;
@@ -420,6 +433,20 @@ declare namespace Modules {
                     end_time: string | null;
                     reason: string | null;
                     source: string;
+                    deleted_at: string | null;
+                };
+                export type AvailabilityExceptionFilterData = {
+                    readonly availability: string | null;
+                    readonly source: string | null;
+                    readonly record_state: string;
+                    readonly sort_field: string;
+                    readonly sort_order: number;
+                    readonly page: number;
+                    readonly per_page: number;
+                    search: string | null;
+                    status: string | null;
+                    date_from: string | null;
+                    date_to: string | null;
                 };
                 export type AvailabilityRuleData = {
                     uuid: string;
@@ -428,6 +455,11 @@ declare namespace Modules {
                     start_time: string;
                     end_time: string;
                     is_available: boolean;
+                };
+                export type AvailabilityWindowFilterData = {
+                    from: string | null;
+                    to: string | null;
+                    region: string | null;
                 };
                 export type CalendarDayData = {
                     date: string;
@@ -486,6 +518,25 @@ declare namespace Modules {
                     additionalNote: string | null;
                     latitude: number | null;
                     longitude: number | null;
+                };
+                export type DashboardMetricData = {
+                    current: number;
+                    previous: number;
+                };
+                export type DashboardStatsData = {
+                    leads: Modules.LeadAppointment.Application.Dtos.DashboardMetricData;
+                    inspections: Modules.LeadAppointment.Application.Dtos.DashboardMetricData;
+                    won: Modules.LeadAppointment.Application.Dtos.DashboardMetricData;
+                    appointments: Modules.LeadAppointment.Application.Dtos.DashboardMetricData;
+                };
+                export type HolidayResyncResultData = {
+                    purged: number;
+                    created: number;
+                };
+                export type HolidaySyncResultData = {
+                    country: string;
+                    created: number;
+                    skipped: number;
                 };
                 export type LeadActivityData = {
                     uuid: string;
@@ -611,6 +662,10 @@ declare namespace Modules {
                     to: string;
                     rows: Modules.LeadAppointment.Application.Dtos.LeadSourceReportRowData[];
                     average_first_contact_minutes: number | null;
+                };
+                export type LeadSourceReportFilterData = {
+                    from: string | null;
+                    to: string | null;
                 };
                 export type LeadSourceReportRowData = {
                     source: string;
@@ -884,6 +939,10 @@ declare namespace Shared {
                 readonly acceptLabel: string;
                 readonly endpoint: string;
             };
+            export type SelectOptionData = {
+                value: string;
+                label: string;
+            };
             export type SoftDeleteFilterData = {
                 search: string | null;
                 status: string | null;
@@ -920,7 +979,40 @@ declare namespace Shared {
                 | 'EXPORT_PERMISSION'
                 | 'VIEW_ANY_ACTIVITY_LOGS'
                 | 'VIEW_ACTIVITY_LOGS'
-                | 'EXPORT_ACTIVITY_LOGS';
+                | 'EXPORT_ACTIVITY_LOGS'
+                | 'VIEW_ANY_LEAD'
+                | 'VIEW_LEAD'
+                | 'CREATE_LEAD'
+                | 'UPDATE_LEAD'
+                | 'DELETE_LEAD'
+                | 'RESTORE_LEAD'
+                | 'BULK_DELETE_LEAD'
+                | 'BULK_RESTORE_LEAD'
+                | 'EXPORT_LEAD'
+                | 'VIEW_ANY_APPOINTMENT'
+                | 'VIEW_APPOINTMENT'
+                | 'CREATE_APPOINTMENT'
+                | 'UPDATE_APPOINTMENT'
+                | 'DELETE_APPOINTMENT'
+                | 'RESTORE_APPOINTMENT'
+                | 'BULK_DELETE_APPOINTMENT'
+                | 'BULK_RESTORE_APPOINTMENT'
+                | 'EXPORT_APPOINTMENT'
+                | 'VIEW_ANY_AVAILABILITY_RULE'
+                | 'CREATE_AVAILABILITY_RULE'
+                | 'UPDATE_AVAILABILITY_RULE'
+                | 'DELETE_AVAILABILITY_RULE'
+                | 'RESTORE_AVAILABILITY_RULE'
+                | 'BULK_DELETE_AVAILABILITY_RULE'
+                | 'BULK_RESTORE_AVAILABILITY_RULE'
+                | 'VIEW_ANY_AVAILABILITY_EXCEPTION'
+                | 'CREATE_AVAILABILITY_EXCEPTION'
+                | 'UPDATE_AVAILABILITY_EXCEPTION'
+                | 'DELETE_AVAILABILITY_EXCEPTION'
+                | 'RESTORE_AVAILABILITY_EXCEPTION'
+                | 'BULK_DELETE_AVAILABILITY_EXCEPTION'
+                | 'BULK_RESTORE_AVAILABILITY_EXCEPTION'
+                | 'EXPORT_AVAILABILITY_EXCEPTION';
             export type Role = 'SUPER_ADMIN' | 'ADMIN';
         }
     }

@@ -7,6 +7,7 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Shared\Domain\Enums\Role as RoleName;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -381,19 +382,19 @@ class RolePermissionSeeder extends Seeder
     private function grantLeadAppointmentMatrix(): void
     {
         $leadReadWrite = [
-            'VIEW_ANY_LEAD',
-            'VIEW_LEAD',
-            'CREATE_LEAD',
-            'UPDATE_LEAD',
+            PermissionName::ViewAnyLead->value,
+            PermissionName::ViewLead->value,
+            PermissionName::CreateLead->value,
+            PermissionName::UpdateLead->value,
         ];
 
         $leadFull = [
             ...$leadReadWrite,
-            'DELETE_LEAD',
-            'RESTORE_LEAD',
-            'BULK_DELETE_LEAD',
-            'BULK_RESTORE_LEAD',
-            'EXPORT_LEAD',
+            PermissionName::DeleteLead->value,
+            PermissionName::RestoreLead->value,
+            PermissionName::BulkDeleteLead->value,
+            PermissionName::BulkRestoreLead->value,
+            PermissionName::ExportLead->value,
         ];
 
         $this->grant('ADMINISTRATIVE', $leadReadWrite);

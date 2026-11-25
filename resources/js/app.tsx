@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import type { ComponentType } from 'react';
+import { getCspNonce } from '@/lib/csp';
 
 /**
  * One cache for the whole app. The per-module hooks still declare their own
@@ -20,7 +21,17 @@ const queryClient = new QueryClient({
 
 type InertiaPageModule = { default: ComponentType };
 
+const cspNonce = getCspNonce();
+
+// react-remove-scroll (used by Base UI dialogs/popovers) reads this
+// webpack-style global when it injects its scroll-lock styles. Without it the
+// injected `<style>` has no nonce and the CSP blocks it.
+if (cspNonce) {
+    (globalThis as typeof globalThis & { __webpack_nonce__?: string }).__webpack_nonce__ = cspNonce;
+}
+
 createInertiaApp({
+    nonce: cspNonce,
     resolve: (name) => {
         const pages = import.meta.glob<InertiaPageModule>('./Pages/**/*.tsx');
         const pagePath = `./Pages/${name}.tsx`;

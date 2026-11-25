@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Modules\AccessControl\Exports\ExportLimit;
+use Shared\Support\ExportLimit;
 use Tests\TestCase;
 
 uses(TestCase::class);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Infrastructure\Listeners;
 
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Domain\Events\LeadCaptured;
 use Modules\LeadAppointment\Infrastructure\Mail\LeadReceivedMail;
 use Shared\Infrastructure\Mail\MailInterface;
@@ -12,7 +12,7 @@ use Shared\Infrastructure\Mail\MailInterface;
 final readonly class SendLeadReceivedEmail
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
         private MailInterface $mail,
     ) {}
 

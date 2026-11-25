@@ -7,22 +7,19 @@ namespace Modules\LeadAppointment\Application\Ports;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Modules\LeadAppointment\Application\Dtos\AssignableOwnerData;
-use Modules\LeadAppointment\Application\Dtos\CaptureLeadData;
 use Modules\LeadAppointment\Application\Dtos\LeadActivityData;
 use Modules\LeadAppointment\Application\Dtos\LeadBoardColumnData;
 use Modules\LeadAppointment\Application\Dtos\LeadData;
 use Modules\LeadAppointment\Application\Dtos\LeadFilterData;
 use Modules\LeadAppointment\Application\Dtos\LeadListItemData;
 use Modules\LeadAppointment\Application\Dtos\LeadSourceReportData;
-use Modules\LeadAppointment\Application\Dtos\LogLeadActivityData;
-use Modules\LeadAppointment\Application\Dtos\UpdateLeadData;
-use Modules\LeadAppointment\Domain\Enums\InspectionStatus;
-use Modules\LeadAppointment\Domain\Enums\LeadSource;
-use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\ValueObjects\DuplicateCandidate;
-use Modules\LeadAppointment\Domain\ValueObjects\SpamAssessment;
 
-interface LeadRepository
+/**
+ * The read side of the lead aggregate: lists, board, counters, timeline,
+ * duplicate lookup, export stream and the source report.
+ */
+interface LeadReader
 {
     /**
      * @return LengthAwarePaginator<int, LeadListItemData>
@@ -61,51 +58,10 @@ interface LeadRepository
 
     public function find(string $uuid, bool $withTrashed = false): ?LeadData;
 
-    public function create(
-        CaptureLeadData $data,
-        LeadSource $source,
-        ?string $duplicateOfUuid,
-        SpamAssessment $spam,
-        ?string $sourceDetail = null,
-        ?string $externalSource = null,
-        ?string $externalId = null,
-        ?int $createdBy = null,
-    ): LeadData;
-
-    public function update(string $uuid, UpdateLeadData $data): LeadData;
-
-    public function updateStatus(
-        string $uuid,
-        LeadStatus $status,
-        ?string $inspectionDate = null,
-        ?string $inspectionTime = null,
-        ?InspectionStatus $inspectionStatus = null,
-    ): LeadData;
-
-    public function markInspectionScheduled(string $uuid): void;
-
-    public function logActivity(string $leadUuid, LogLeadActivityData $data, ?int $userId): LeadActivityData;
-
     /**
      * @return list<DuplicateCandidate>
      */
     public function findDuplicateCandidates(string $email, ?string $phone, string $address, int $windowDays): array;
-
-    public function merge(string $targetUuid, string $duplicateUuid): LeadData;
-
-    public function delete(string $uuid): void;
-
-    public function restore(string $uuid): LeadData;
-
-    /**
-     * @param list<string> $uuids
-     */
-    public function bulkDelete(array $uuids): void;
-
-    /**
-     * @param list<string> $uuids
-     */
-    public function bulkRestore(array $uuids): void;
 
     public function count(LeadFilterData $filters): int;
 

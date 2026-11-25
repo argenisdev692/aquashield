@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\AccessControl\Exports;
+namespace Shared\Support;
 
 /**
  * Per-format export ceilings.

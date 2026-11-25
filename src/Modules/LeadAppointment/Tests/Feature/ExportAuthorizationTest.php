@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -42,4 +43,15 @@ it('allows the lead export when both the read and export capabilities are held',
 
     expect($entry->log_name)->toBe('leads')
         ->and($entry->properties->toArray())->not->toHaveKey('search');
+});
+
+it('refuses a PDF export above the PDF row cap', function (): void {
+    $this->mock(LeadReader::class)
+        ->shouldReceive('count')
+        ->once()
+        ->andReturn(2_001);
+
+    $this->actingAs(LeadAppointmentFixtures::superAdmin())
+        ->get('/leads/export/pdf')
+        ->assertStatus(422);
 });

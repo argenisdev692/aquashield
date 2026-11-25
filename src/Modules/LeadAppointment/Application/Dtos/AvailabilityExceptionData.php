@@ -19,5 +19,6 @@ final class AvailabilityExceptionData extends Data
         public ?string $endTime,
         public ?string $reason,
         public string $source,
+        public ?string $deletedAt = null,
     ) {}
 }

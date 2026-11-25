@@ -8,7 +8,7 @@ use Carbon\CarbonImmutable;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\CalendarDayData;
 use Modules\LeadAppointment\Application\Dtos\CalendarFeedData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\Services\AvailabilityResolver;
 use Modules\LeadAppointment\Domain\ValueObjects\ResolvedDay;
@@ -22,7 +22,7 @@ use Modules\LeadAppointment\Domain\ValueObjects\TimeWindow;
 final readonly class CalendarFeedQuery
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
         private AvailabilityResolver $availability,
     ) {}
 

@@ -1,6 +1,6 @@
 ---
 name: owasp-stack
-description: Stack bindings for the OWASP baseline — PHP 8.5 · Laravel 13 · React 19.3 · Inertia v3 · Spatie · R2. Load alongside owasp/SKILL.md on any backend/frontend task of THIS project. Not portable.
+description: Stack bindings for the OWASP baseline — PHP 8.6 · Laravel 13 · React 19.3 · Inertia v3 · Spatie · R2. Load alongside owasp/SKILL.md on any backend/frontend task of THIS project. Not portable.
 ---
 
 # OWASP Stack Bindings — this project (not portable)
@@ -9,9 +9,9 @@ description: Stack bindings for the OWASP baseline — PHP 8.5 · Laravel 13 · 
 > is stack-specific: package names, snippets, env keys, verified state. When the
 > stack upgrades, update THIS file — the core stays untouched.
 >
-> **Stack (verified 2026-11-23):** PHP 8.5.13 · Laravel 13.43 · React 19.3.1 ·
+> **Stack (verified 2026-11-25):** PHP 8.6.0 · Laravel 13.44.1 · React 19.3.1 ·
 > Inertia 3.11.0/3.4.0 · shadcn/ui CLI 4.23 + Base UI 1.9 · TanStack Query 5.108 +
-> Table 9.3 · Tailwind 4.3.5 · Spatie permission 8.x / data 4.x / activitylog 5.x · R2 storage.
+> Table 9.3 · Tailwind 4.3.5 · Spatie permission 8.x / data 4.23.1 / activitylog 5.1.5 · R2 storage.
 
 ---
 
@@ -208,6 +208,7 @@ None open as of **2026-11-24**. The previous list is closed, verified through th
 2. `laravel/doctor` excludes two diagnostics on Windows: `SqliteDatabaseExists` (v0.1.0 false positive) and `ComposerAutoloadIsValid`. The second runs `composer dump-autoload --optimize` through Laravel's `Process`, which has a hard 60 s default; this repo's optimized classmap (53,830 classes) takes 55 s or more on Windows, so the check times out rather than detecting a real defect. `composer doctor:all` still runs the full set (use it in CI / on Linux), and `doctor --fix` must never run for `SqliteDatabaseExists`.
 3. `.env` is not readable from inside the agent sandbox. The §17 Red list is therefore verified through the framework (`config:show` / `about` / `doctor`), not by opening the file. This is a restriction, not a skipped check.
 4. `laravel/pao` changes tool output shape under an agent. Any check that reads a human-readable trace to decide pass/fail is a false negative here — the gate is exit codes.
+5. **Lead PII at rest is plaintext** (declared 2026-11-25, review due 2027-05-19). The lead list search, duplicate detection and exports use exact/`LIKE` predicates on email and phone; field-level encryption needs a blind-index design and a backfill. PII is excluded from `LogsActivity` and application logs. Recorded in `src/Modules/LeadAppointment/ARCHITECTURE.md`.
 
 ## The gate (this repo's closing pipeline)
 

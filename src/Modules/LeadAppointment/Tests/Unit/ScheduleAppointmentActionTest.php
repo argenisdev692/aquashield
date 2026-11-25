@@ -10,8 +10,9 @@ use Modules\LeadAppointment\Application\Actions\ScheduleAppointmentAction;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\LeadData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Services\AvailabilityResolver;
 use Modules\LeadAppointment\Domain\Services\BookingGuard;
@@ -101,14 +102,16 @@ it('schedules through ports and a pure availability engine without touching the 
         ->setTime(10, 0)
         ->format('Y-m-d H:i');
 
-    $leads = Mockery::mock(LeadRepository::class, function (MockInterface $mock) use ($lead): void {
+    $leads = Mockery::mock(LeadReader::class, function (MockInterface $mock) use ($lead): void {
         $mock->shouldReceive('find')->once()->with($lead->uuid)->andReturn($lead);
-        $mock->shouldReceive('markInspectionScheduled')->once()->with($lead->uuid);
     });
 
-    $appointments = Mockery::mock(AppointmentRepository::class, function (MockInterface $mock) use ($lead): void {
+    $appointmentReader = Mockery::mock(AppointmentReader::class, function (MockInterface $mock): void {
         $mock->shouldReceive('existingIntervalsForDay')->once()->andReturn([]);
         $mock->shouldReceive('dailyCountForDay')->once()->andReturn(0);
+    });
+
+    $appointmentWriter = Mockery::mock(AppointmentWriter::class, function (MockInterface $mock) use ($lead): void {
         $mock->shouldReceive('createWithLock')->once()->andReturn(actionAppointment($lead->uuid));
     });
 
@@ -122,7 +125,8 @@ it('schedules through ports and a pure availability engine without touching the 
 
     $action = new ScheduleAppointmentAction(
         leads: $leads,
-        appointments: $appointments,
+        appointmentReader: $appointmentReader,
+        appointmentWriter: $appointmentWriter,
         availability: $resolver,
         guard: new BookingGuard,
         transitions: new StatusTransition,

@@ -6,6 +6,7 @@ namespace Modules\LeadAppointment\Infrastructure\Mail;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Shared\Domain\Enums\Role;
 use Shared\Infrastructure\Company\CompanyProfile;
 
 /**
@@ -18,7 +19,7 @@ use Shared\Infrastructure\Company\CompanyProfile;
  */
 final readonly class OfficeMailRecipients
 {
-    private const string ADMIN_ROLE = 'ADMIN';
+    private const string ADMIN_ROLE = Role::Admin->value;
 
     /**
      * @param list<string> $cc

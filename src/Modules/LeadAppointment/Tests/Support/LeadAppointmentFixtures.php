@@ -12,6 +12,7 @@ use Carbon\CarbonInterface;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityRule;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Permission\PermissionRegistrar;
 
 final class LeadAppointmentFixtures
@@ -20,18 +21,39 @@ final class LeadAppointmentFixtures
      * @var list<string>
      */
     public const array PERMISSIONS = [
-        'VIEW_ANY_LEAD', 'VIEW_LEAD', 'CREATE_LEAD', 'UPDATE_LEAD', 'DELETE_LEAD',
-        'RESTORE_LEAD', 'BULK_DELETE_LEAD', 'BULK_RESTORE_LEAD', 'EXPORT_LEAD',
-        'VIEW_ANY_APPOINTMENT', 'VIEW_APPOINTMENT', 'CREATE_APPOINTMENT', 'UPDATE_APPOINTMENT',
-        'DELETE_APPOINTMENT', 'RESTORE_APPOINTMENT', 'BULK_DELETE_APPOINTMENT',
-        'BULK_RESTORE_APPOINTMENT', 'EXPORT_APPOINTMENT',
-        'VIEW_ANY_AVAILABILITY_RULE', 'CREATE_AVAILABILITY_RULE', 'UPDATE_AVAILABILITY_RULE',
-        'DELETE_AVAILABILITY_RULE', 'RESTORE_AVAILABILITY_RULE', 'BULK_DELETE_AVAILABILITY_RULE',
-        'BULK_RESTORE_AVAILABILITY_RULE',
-        'VIEW_ANY_AVAILABILITY_EXCEPTION', 'CREATE_AVAILABILITY_EXCEPTION',
-        'UPDATE_AVAILABILITY_EXCEPTION', 'DELETE_AVAILABILITY_EXCEPTION',
-        'RESTORE_AVAILABILITY_EXCEPTION', 'BULK_DELETE_AVAILABILITY_EXCEPTION',
-        'BULK_RESTORE_AVAILABILITY_EXCEPTION',
+        PermissionName::ViewAnyLead->value,
+        PermissionName::ViewLead->value,
+        PermissionName::CreateLead->value,
+        PermissionName::UpdateLead->value,
+        PermissionName::DeleteLead->value,
+        PermissionName::RestoreLead->value,
+        PermissionName::BulkDeleteLead->value,
+        PermissionName::BulkRestoreLead->value,
+        PermissionName::ExportLead->value,
+        PermissionName::ViewAnyAppointment->value,
+        PermissionName::ViewAppointment->value,
+        PermissionName::CreateAppointment->value,
+        PermissionName::UpdateAppointment->value,
+        PermissionName::DeleteAppointment->value,
+        PermissionName::RestoreAppointment->value,
+        PermissionName::BulkDeleteAppointment->value,
+        PermissionName::BulkRestoreAppointment->value,
+        PermissionName::ExportAppointment->value,
+        PermissionName::ViewAnyAvailabilityRule->value,
+        PermissionName::CreateAvailabilityRule->value,
+        PermissionName::UpdateAvailabilityRule->value,
+        PermissionName::DeleteAvailabilityRule->value,
+        PermissionName::RestoreAvailabilityRule->value,
+        PermissionName::BulkDeleteAvailabilityRule->value,
+        PermissionName::BulkRestoreAvailabilityRule->value,
+        PermissionName::ViewAnyAvailabilityException->value,
+        PermissionName::CreateAvailabilityException->value,
+        PermissionName::UpdateAvailabilityException->value,
+        PermissionName::DeleteAvailabilityException->value,
+        PermissionName::RestoreAvailabilityException->value,
+        PermissionName::BulkDeleteAvailabilityException->value,
+        PermissionName::BulkRestoreAvailabilityException->value,
+        PermissionName::ExportAvailabilityException->value,
     ];
 
     public static function seedPermissions(): void

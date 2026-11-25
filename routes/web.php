@@ -12,7 +12,6 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ProfilePhotoController;
 use Illuminate\Support\Facades\Route;
 use Modules\CompanyData\Data\CompanyBrandingDto;
-use Modules\LeadAppointment\Http\Controllers\DashboardController;
 use Shared\Infrastructure\Company\CompanyProfile;
 use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
@@ -124,15 +123,6 @@ Route::middleware(['auth', 'throttle:60,1'])
             ->whereUuid('savedView')
             ->name('destroy');
     });
-
-/*
- * Dashboard. One server read: the same lead columns as `/leads/board` plus the
- * current month of appointments. The client never owns a second copy of the
- * pipeline.
- */
-Route::middleware(['auth', 'verified'])
-    ->get('/dashboard', DashboardController::class)
-    ->name('dashboard');
 
 /*
     Cookie consent. Public and unauthenticated by necessity: the whole point is

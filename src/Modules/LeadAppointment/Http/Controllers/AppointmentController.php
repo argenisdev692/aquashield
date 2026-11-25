@@ -17,7 +17,8 @@ use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\CancelAppointmentData;
 use Modules\LeadAppointment\Application\Dtos\RescheduleAppointmentData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
@@ -31,6 +32,8 @@ use Modules\LeadAppointment\Http\Requests\RescheduleAppointmentRequest;
 use Modules\LeadAppointment\Http\Requests\StoreAppointmentRequest;
 use Modules\LeadAppointment\Http\Support\AppointmentFilterFactory;
 use Shared\Application\DTOs\BulkUuidsData;
+use Shared\Application\DTOs\SelectOptionData;
+use Shared\Domain\Enums\Permission;
 
 /**
  * One read, two transports: the DataTable kit receives the page as Inertia
@@ -41,7 +44,8 @@ use Shared\Application\DTOs\BulkUuidsData;
 final readonly class AppointmentController
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
+        private AppointmentWriter $appointmentWriter,
         private ScheduleAppointmentAction $scheduleAppointment,
         private RescheduleAppointmentAction $rescheduleAppointment,
         private CancelAppointmentAction $cancelAppointment,
@@ -69,13 +73,13 @@ final readonly class AppointmentController
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
             'options' => $this->options(),
-            'canCreate' => $this->can($request, 'CREATE_APPOINTMENT'),
-            'canUpdate' => $this->can($request, 'UPDATE_APPOINTMENT'),
-            'canDelete' => $this->can($request, 'DELETE_APPOINTMENT'),
-            'canRestore' => $this->can($request, 'RESTORE_APPOINTMENT'),
-            'canExport' => $this->can($request, 'EXPORT_APPOINTMENT'),
-            'canBulkDelete' => $this->can($request, 'BULK_DELETE_APPOINTMENT'),
-            'canBulkRestore' => $this->can($request, 'BULK_RESTORE_APPOINTMENT'),
+            'canCreate' => $this->can($request, Permission::CreateAppointment->value),
+            'canUpdate' => $this->can($request, Permission::UpdateAppointment->value),
+            'canDelete' => $this->can($request, Permission::DeleteAppointment->value),
+            'canRestore' => $this->can($request, Permission::RestoreAppointment->value),
+            'canExport' => $this->can($request, Permission::ExportAppointment->value),
+            'canBulkDelete' => $this->can($request, Permission::BulkDeleteAppointment->value),
+            'canBulkRestore' => $this->can($request, Permission::BulkRestoreAppointment->value),
         ]);
     }
 
@@ -125,9 +129,9 @@ final readonly class AppointmentController
 
         return inertia('Appointments/Show', [
             'appointment' => $appointment,
-            'canUpdate' => $this->can($request, 'UPDATE_APPOINTMENT'),
-            'canDelete' => $this->can($request, 'DELETE_APPOINTMENT'),
-            'canRestore' => $this->can($request, 'RESTORE_APPOINTMENT'),
+            'canUpdate' => $this->can($request, Permission::UpdateAppointment->value),
+            'canDelete' => $this->can($request, Permission::DeleteAppointment->value),
+            'canRestore' => $this->can($request, Permission::RestoreAppointment->value),
         ]);
     }
 
@@ -206,7 +210,7 @@ final readonly class AppointmentController
 
     public function destroy(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $this->appointments->delete($uuid);
+        $this->appointmentWriter->delete($uuid);
 
         if ($request->wantsJson()) {
             return response()->json(null, 204);
@@ -219,7 +223,7 @@ final readonly class AppointmentController
 
     public function restore(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $appointment = $this->appointments->restore($uuid);
+        $appointment = $this->appointmentWriter->restore($uuid);
 
         if ($request->wantsJson()) {
             return response()->json($appointment);
@@ -231,7 +235,7 @@ final readonly class AppointmentController
     public function bulkDelete(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->appointments->bulkDelete($data->uuids);
+        $this->appointmentWriter->bulkDelete($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -239,7 +243,7 @@ final readonly class AppointmentController
     public function bulkRestore(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->appointments->bulkRestore($data->uuids);
+        $this->appointmentWriter->bulkRestore($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -249,24 +253,24 @@ final readonly class AppointmentController
      * a new kind or status appears without touching the frontend.
      *
      * @return array{
-     *     statuses: list<array{value: string, label: string}>,
-     *     kinds: list<array{value: string, label: string}>,
-     *     regions: list<array{value: string, label: string}>
+     *     statuses: list<SelectOptionData>,
+     *     kinds: list<SelectOptionData>,
+     *     regions: list<SelectOptionData>
      * }
      */
     private function options(): array
     {
         return [
             'statuses' => array_map(
-                static fn (AppointmentStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                static fn (AppointmentStatus $status): SelectOptionData => new SelectOptionData($status->value, $status->label()),
                 AppointmentStatus::cases(),
             ),
             'kinds' => array_map(
-                static fn (AppointmentKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()],
+                static fn (AppointmentKind $kind): SelectOptionData => new SelectOptionData($kind->value, $kind->label()),
                 AppointmentKind::cases(),
             ),
             'regions' => array_map(
-                static fn (Region $region): array => ['value' => $region->value, 'label' => $region->label()],
+                static fn (Region $region): SelectOptionData => new SelectOptionData($region->value, $region->label()),
                 Region::cases(),
             ),
         ];

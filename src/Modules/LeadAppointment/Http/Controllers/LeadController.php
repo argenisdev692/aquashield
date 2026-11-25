@@ -18,7 +18,8 @@ use Modules\LeadAppointment\Application\Dtos\LogLeadActivityData;
 use Modules\LeadAppointment\Application\Dtos\MergeLeadData;
 use Modules\LeadAppointment\Application\Dtos\UpdateLeadData;
 use Modules\LeadAppointment\Application\Dtos\UpdateLeadStatusData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
+use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
@@ -30,11 +31,14 @@ use Modules\LeadAppointment\Http\Requests\UpdateLeadRequest;
 use Modules\LeadAppointment\Http\Requests\UpdateLeadStatusRequest;
 use Modules\LeadAppointment\Http\Support\LeadFilterFactory;
 use Shared\Application\DTOs\BulkUuidsData;
+use Shared\Application\DTOs\SelectOptionData;
+use Shared\Domain\Enums\Permission;
 
 final readonly class LeadController
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
+        private LeadWriter $leadWriter,
         private CaptureLeadAction $captureLead,
         private UpdateLeadAction $updateLead,
         private UpdateLeadStatusAction $updateLeadStatus,
@@ -65,13 +69,13 @@ final readonly class LeadController
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
             'options' => $this->options(),
-            'canCreate' => $this->can($request, 'CREATE_LEAD'),
-            'canUpdate' => $this->can($request, 'UPDATE_LEAD'),
-            'canDelete' => $this->can($request, 'DELETE_LEAD'),
-            'canRestore' => $this->can($request, 'RESTORE_LEAD'),
-            'canExport' => $this->can($request, 'EXPORT_LEAD'),
-            'canBulkDelete' => $this->can($request, 'BULK_DELETE_LEAD'),
-            'canBulkRestore' => $this->can($request, 'BULK_RESTORE_LEAD'),
+            'canCreate' => $this->can($request, Permission::CreateLead->value),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canDelete' => $this->can($request, Permission::DeleteLead->value),
+            'canRestore' => $this->can($request, Permission::RestoreLead->value),
+            'canExport' => $this->can($request, Permission::ExportLead->value),
+            'canBulkDelete' => $this->can($request, Permission::BulkDeleteLead->value),
+            'canBulkRestore' => $this->can($request, Permission::BulkRestoreLead->value),
         ]);
     }
 
@@ -90,8 +94,8 @@ final readonly class LeadController
         return inertia('Leads/Board', [
             'columns' => $columns,
             'transitions' => $this->transitions(),
-            'canUpdate' => $this->can($request, 'UPDATE_LEAD'),
-            'canCreate' => $this->can($request, 'CREATE_LEAD'),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canCreate' => $this->can($request, Permission::CreateLead->value),
         ]);
     }
 
@@ -137,9 +141,9 @@ final readonly class LeadController
             'lead' => $lead,
             'activities' => $this->leads->activities($uuid),
             'transitions' => $this->transitions(),
-            'canUpdate' => $this->can($request, 'UPDATE_LEAD'),
-            'canDelete' => $this->can($request, 'DELETE_LEAD'),
-            'canRestore' => $this->can($request, 'RESTORE_LEAD'),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canDelete' => $this->can($request, Permission::DeleteLead->value),
+            'canRestore' => $this->can($request, Permission::RestoreLead->value),
         ]);
     }
 
@@ -196,7 +200,7 @@ final readonly class LeadController
 
     public function logActivity(LogLeadActivityRequest $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $activity = $this->leads->logActivity(
+        $activity = $this->leadWriter->logActivity(
             $uuid,
             LogLeadActivityData::from($request->validated()),
             $request->user()?->id,
@@ -218,7 +222,7 @@ final readonly class LeadController
 
     public function destroy(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $this->leads->delete($uuid);
+        $this->leadWriter->delete($uuid);
 
         if ($request->wantsJson()) {
             return response()->json(null, 204);
@@ -231,7 +235,7 @@ final readonly class LeadController
 
     public function restore(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $lead = $this->leads->restore($uuid);
+        $lead = $this->leadWriter->restore($uuid);
 
         if ($request->wantsJson()) {
             return response()->json($lead);
@@ -243,7 +247,7 @@ final readonly class LeadController
     public function bulkDelete(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->leads->bulkDelete($data->uuids);
+        $this->leadWriter->bulkDelete($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -251,7 +255,7 @@ final readonly class LeadController
     public function bulkRestore(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->leads->bulkRestore($data->uuids);
+        $this->leadWriter->bulkRestore($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -261,9 +265,9 @@ final readonly class LeadController
      * are the enum's own labels, so a new stage or metro appears automatically.
      *
      * @return array{
-     *     statuses: list<array{value: string, label: string}>,
-     *     sources: list<array{value: string, label: string}>,
-     *     regions: list<array{value: string, label: string}>,
+     *     statuses: list<SelectOptionData>,
+     *     sources: list<SelectOptionData>,
+     *     regions: list<SelectOptionData>,
      *     owners: list<AssignableOwnerData>
      * }
      */
@@ -271,15 +275,15 @@ final readonly class LeadController
     {
         return [
             'statuses' => array_map(
-                static fn (LeadStatus $status): array => ['value' => $status->value, 'label' => $status->label()],
+                static fn (LeadStatus $status): SelectOptionData => new SelectOptionData($status->value, $status->label()),
                 LeadStatus::cases(),
             ),
             'sources' => array_map(
-                static fn (LeadSource $source): array => ['value' => $source->value, 'label' => $source->label()],
+                static fn (LeadSource $source): SelectOptionData => new SelectOptionData($source->value, $source->label()),
                 LeadSource::cases(),
             ),
             'regions' => array_map(
-                static fn (Region $region): array => ['value' => $region->value, 'label' => $region->label()],
+                static fn (Region $region): SelectOptionData => new SelectOptionData($region->value, $region->label()),
                 Region::cases(),
             ),
             'owners' => $this->leads->assignableOwners(),

@@ -8,7 +8,9 @@ namespace Shared\Application\DTOs\Concerns;
  * Identical `search` + `date_from` / `date_to` validation shared by every
  * list/export filter DTO across the modules (DRY — the same three rules were
  * previously re-declared in each filter). `date_to` may not precede
- * `date_from`; both filter on `created_at`.
+ * `date_from`. Each module applies the inclusive window to the date column
+ * that names its domain: leads use `created_at`, appointments use `starts_at`,
+ * availability exceptions use `date`.
  */
 trait DateRangeFilterRules
 {

@@ -6,18 +6,19 @@ namespace Modules\LeadAppointment\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
-use Modules\LeadAppointment\Exports\AppointmentExportTransformer;
+use Modules\LeadAppointment\Application\Exports\AppointmentExportTransformer;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Http\Support\AppointmentFilterFactory;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
+use Shared\Support\ExportLimit;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final readonly class AppointmentExportController
 {
     public function __construct(
         private ExportPort $exporter,
-        private AppointmentRepository $repository,
+        private AppointmentReader $repository,
         private AuditPort $audit,
     ) {}
 
@@ -25,9 +26,10 @@ final readonly class AppointmentExportController
     {
         $filters = AppointmentFilterFactory::fromRequest($request);
         $rowCount = $this->repository->count($filters);
+        $limit = ExportLimit::for($format);
 
-        if ($rowCount > AppointmentExportTransformer::MAX_ROWS) {
-            abort(422, 'The export is limited to '.AppointmentExportTransformer::MAX_ROWS.' rows. Narrow the filters.');
+        if ($rowCount > $limit) {
+            abort(422, "The export is limited to {$limit} rows for {$format}. Narrow the filters.");
         }
 
         $this->audit->log('appointment.exported', null, [

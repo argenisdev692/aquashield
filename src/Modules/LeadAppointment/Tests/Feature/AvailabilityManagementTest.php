@@ -64,6 +64,16 @@ it('materialises US federal holidays and keeps manual rows', function (): void {
         ->and($manual->is_available)->toBeTrue();
 });
 
+it('bounds the availability exceptions JSON window', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/availability-exceptions?from=2026-01-01&to=2026-12-31')
+        ->assertUnprocessable();
+
+    $this->actingAs($this->admin)
+        ->getJson('/availability-exceptions')
+        ->assertOk();
+});
+
 it('returns the resolved availability calendar', function (): void {
     LeadAppointmentFixtures::companyRule(1, '08:00', '17:00');
 

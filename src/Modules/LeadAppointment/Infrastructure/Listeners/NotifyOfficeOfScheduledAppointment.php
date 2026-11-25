@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Infrastructure\Listeners;
 
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
 use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeEvent;
 use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeMail;
@@ -14,7 +14,7 @@ use Shared\Infrastructure\Mail\MailInterface;
 final readonly class NotifyOfficeOfScheduledAppointment
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
         private MailInterface $mail,
     ) {}
 

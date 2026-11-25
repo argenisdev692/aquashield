@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Application\Actions;
 
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
 use Modules\LeadAppointment\Domain\Services\StatusTransition;
@@ -13,7 +14,8 @@ use Modules\LeadAppointment\Domain\Services\StatusTransition;
 final readonly class ConfirmAppointmentAction
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
+        private AppointmentWriter $appointmentWriter,
         private StatusTransition $transitions,
     ) {}
 
@@ -30,6 +32,6 @@ final readonly class ConfirmAppointmentAction
             AppointmentStatus::Confirmed,
         );
 
-        return $this->appointments->updateStatus($uuid, AppointmentStatus::Confirmed);
+        return $this->appointmentWriter->updateStatus($uuid, AppointmentStatus::Confirmed);
     }
 }

@@ -218,6 +218,8 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
 export interface CrudBulkActionsOptions {
     deleteUrl?: string;
     restoreUrl?: string;
+    /** Runs after the partial reload, e.g. to invalidate a client-owned panel. */
+    onSettled?: () => void;
 }
 
 export interface CrudBulkActions {
@@ -232,7 +234,11 @@ export interface CrudBulkActions {
  * reload of the current URL. The endpoint already answers 204 to a JSON
  * request, so this path never fights Inertia's redirect contract.
  */
-export function useBulkActions({ deleteUrl, restoreUrl }: CrudBulkActionsOptions): CrudBulkActions {
+export function useBulkActions({
+    deleteUrl,
+    restoreUrl,
+    onSettled,
+}: CrudBulkActionsOptions): CrudBulkActions {
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -258,6 +264,8 @@ export function useBulkActions({ deleteUrl, restoreUrl }: CrudBulkActionsOptions
             router.reload({
                 only: ['rows', 'total', 'currentPage', 'perPage', 'filters'],
             });
+
+            onSettled?.();
         } catch (cause) {
             setError(
                 cause instanceof Error

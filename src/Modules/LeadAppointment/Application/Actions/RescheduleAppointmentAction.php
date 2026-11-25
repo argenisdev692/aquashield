@@ -8,7 +8,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\RescheduleAppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
 use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
@@ -20,7 +21,8 @@ use Modules\LeadAppointment\Domain\ValueObjects\BookingIntent;
 final readonly class RescheduleAppointmentAction
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
+        private AppointmentWriter $appointmentWriter,
         private AvailabilityResolver $availability,
         private BookingGuard $guard,
         private Dispatcher $events,
@@ -66,7 +68,7 @@ final readonly class RescheduleAppointmentAction
             $this->appointments->dailyCountForDay($dayStart, $dayEnd, $appointment->uuid),
         );
 
-        $updated = $this->appointments->reschedule(
+        $updated = $this->appointmentWriter->reschedule(
             $uuid,
             $startsAt,
             $endsAt,

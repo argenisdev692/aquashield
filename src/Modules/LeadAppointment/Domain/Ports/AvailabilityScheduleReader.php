@@ -30,8 +30,4 @@ interface AvailabilityScheduleReader
      * @return array<int, list<TimeWindow>> weekday => windows
      */
     public function slotsGroupedByDay(): array;
-
-    public function purgeHolidayExceptionsFrom(string $date): int;
-
-    public function createHolidayException(string $date, string $name): void;
 }

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 use Mockery\MockInterface;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Application\Ports\CalendarSyncPort;
 use Modules\LeadAppointment\Domain\Events\AppointmentCancelled;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
@@ -43,8 +44,11 @@ function googleAppointment(): AppointmentData
 it('creates a Google event and stores its id on schedule', function (): void {
     $appointment = googleAppointment();
 
-    $appointments = Mockery::mock(AppointmentRepository::class, function (MockInterface $mock) use ($appointment): void {
+    $appointments = Mockery::mock(AppointmentReader::class, function (MockInterface $mock) use ($appointment): void {
         $mock->shouldReceive('find')->once()->with($appointment->uuid)->andReturn($appointment);
+    });
+
+    $writer = Mockery::mock(AppointmentWriter::class, function (MockInterface $mock) use ($appointment): void {
         $mock->shouldReceive('setGoogleEventId')->once()->with($appointment->uuid, 'event-1');
     });
 
@@ -52,7 +56,7 @@ it('creates a Google event and stores its id on schedule', function (): void {
         $mock->shouldReceive('create')->once()->andReturn('event-1');
     });
 
-    (new SyncAppointmentToGoogleCalendar($appointments, $calendar))
+    (new SyncAppointmentToGoogleCalendar($appointments, $writer, $calendar))
         ->handle(new AppointmentScheduled($appointment->uuid));
 
     expect(true)->toBeTrue();
@@ -61,30 +65,34 @@ it('creates a Google event and stores its id on schedule', function (): void {
 it('updates the same Google event on reschedule', function (): void {
     $appointment = googleAppointment();
 
-    $appointments = Mockery::mock(AppointmentRepository::class, function (MockInterface $mock) use ($appointment): void {
+    $appointments = Mockery::mock(AppointmentReader::class, function (MockInterface $mock) use ($appointment): void {
         $mock->shouldReceive('find')->once()->with($appointment->uuid)->andReturn($appointment);
-        $mock->shouldNotReceive('setGoogleEventId');
     });
+
+    $writer = Mockery::mock(AppointmentWriter::class);
+    $writer->shouldNotReceive('setGoogleEventId');
 
     $calendar = Mockery::mock(CalendarSyncPort::class, function (MockInterface $mock): void {
         $mock->shouldReceive('update')->once();
     });
 
-    (new SyncAppointmentToGoogleCalendar($appointments, $calendar))
+    (new SyncAppointmentToGoogleCalendar($appointments, $writer, $calendar))
         ->handle(new AppointmentRescheduled($appointment->uuid, 'Weather'));
 });
 
 it('deletes the Google event on cancellation', function (): void {
     $appointment = googleAppointment();
 
-    $appointments = Mockery::mock(AppointmentRepository::class, function (MockInterface $mock) use ($appointment): void {
+    $appointments = Mockery::mock(AppointmentReader::class, function (MockInterface $mock) use ($appointment): void {
         $mock->shouldReceive('find')->once()->with($appointment->uuid)->andReturn($appointment);
     });
+
+    $writer = Mockery::mock(AppointmentWriter::class);
 
     $calendar = Mockery::mock(CalendarSyncPort::class, function (MockInterface $mock): void {
         $mock->shouldReceive('delete')->once();
     });
 
-    (new SyncAppointmentToGoogleCalendar($appointments, $calendar))
+    (new SyncAppointmentToGoogleCalendar($appointments, $writer, $calendar))
         ->handle(new AppointmentCancelled($appointment->uuid, 'Weather'));
 });

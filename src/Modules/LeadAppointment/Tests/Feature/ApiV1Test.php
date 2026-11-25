@@ -84,6 +84,12 @@ it('exposes appointment management through the Sanctum surface', function (): vo
     ])->assertCreated()->assertJsonPath('status', 'scheduled');
 });
 
+it('exports availability exceptions through the Sanctum surface', function (): void {
+    Sanctum::actingAs($this->admin);
+
+    $this->get('/api/v1/availability/export/csv')->assertOk();
+});
+
 it('denies a suspended token with 403 on the admin API', function (): void {
     $suspended = LeadAppointmentFixtures::superAdmin();
     $suspended->forceFill([

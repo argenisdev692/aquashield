@@ -7,7 +7,8 @@ namespace Modules\LeadAppointment\Application\Actions;
 use Illuminate\Contracts\Events\Dispatcher;
 use Modules\LeadAppointment\Application\Dtos\CaptureLeadData;
 use Modules\LeadAppointment\Application\Dtos\LeadData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
+use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Events\LeadCaptured;
 use Modules\LeadAppointment\Domain\Services\DuplicateDetector;
@@ -23,7 +24,8 @@ use Modules\LeadAppointment\Domain\Services\SpamGuard;
 final readonly class CaptureLeadAction
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
+        private LeadWriter $leadWriter,
         private DuplicateDetector $duplicates,
         private SpamGuard $spamGuard,
         private EmailSpamGuard $emailGuard,
@@ -67,7 +69,7 @@ final readonly class CaptureLeadAction
             ->resolve($data->state, $data->city, $data->zipCode, $data->region)
             ?->value;
 
-        $lead = $this->leads->create(
+        $lead = $this->leadWriter->create(
             data: $data,
             source: $source,
             duplicateOfUuid: $match?->leadUuid,

@@ -25,6 +25,7 @@ import {
     startsAtFrom,
     type RescheduleFormValues,
 } from '@/Modules/LeadAppointment/schemas/appointment';
+import AvailabilityNotice from '@/Modules/LeadAppointment/components/AvailabilityNotice';
 import { humanize, statusVariant } from './components/appointmentDisplay';
 
 type Appointment = Modules.LeadAppointment.Application.Dtos.AppointmentData;
@@ -111,15 +112,23 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                     className="rounded-xl border border-surface-200 bg-surface-0 p-4 sm:p-6 dark:border-surface-800 dark:bg-surface-900"
                 >
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <DateField
-                            label="New date"
-                            name="date"
-                            value={form.data.date === '' ? null : form.data.date}
-                            onChange={(value) => form.setData('date', value ?? '')}
-                            onBlur={() => touch('date')}
-                            error={errors.date ?? errors.starts_at}
-                            required
-                        />
+                        <div className="flex flex-col gap-2">
+                            <DateField
+                                label="New date"
+                                name="date"
+                                value={form.data.date === '' ? null : form.data.date}
+                                onChange={(value) => form.setData('date', value ?? '')}
+                                onBlur={() => touch('date')}
+                                error={errors.date ?? errors.starts_at}
+                                required
+                            />
+
+                            <AvailabilityNotice
+                                date={form.data.date}
+                                region={appointment.region}
+                                onPickDate={(date) => form.setData('date', date)}
+                            />
+                        </div>
 
                         <TimeField
                             label="New start time"

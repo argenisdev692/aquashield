@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Modules\LeadAppointment\Exports;
+namespace Modules\LeadAppointment\Application\Exports;
 
 use Modules\LeadAppointment\Application\Dtos\LeadFilterData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Shared\Support\SpreadsheetCell;
 
 /**
@@ -15,11 +15,9 @@ use Shared\Support\SpreadsheetCell;
  */
 final readonly class LeadExportTransformer
 {
-    public const int MAX_ROWS = 10_000;
-
     public function __construct(
         private LeadFilterData $filters,
-        private LeadRepository $leads,
+        private LeadReader $leads,
     ) {}
 
     /**

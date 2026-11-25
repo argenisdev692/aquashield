@@ -25,6 +25,7 @@
     "laravel/tinker": "^3.0",
     "league/flysystem-aws-s3-v3": "^3.35",
     "pragmarx/google2fa-laravel": "^3.0",
+    "predis/predis": "*",
     "propaganistas/laravel-phone": "^6.0",
     "ramsey/uuid": "^4.9",
     "resend/resend-laravel": "^1.5",

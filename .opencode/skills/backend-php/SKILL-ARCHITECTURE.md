@@ -78,13 +78,16 @@ src/Modules/{Module}/
 ├── Application/                     # use cases
 │   ├── Actions/                     # one per operation
 │   ├── Queries/                     # read side (see §5)
-│   └── Dtos/
+│   ├── Dtos/
+│   └── Exports/                     # CSV/XLSX/PDF transformers (Http may import Application)
 ├── Infrastructure/
 │   ├── Persistence/Eloquent/        # models + repository impls
 │   ├── Migrations/
 │   └── Services/                    # third-party SDKs, email, payments
 ├── Http/{Controllers,Requests}/
-├── Data/                            # Spatie Data (still the response contract)
+├── Data/                            # Spatie Data response contract; OR Application/Dtos/
+│                                    # when the module keeps its DTOs with the use cases —
+│                                    # pick one and keep it consistent
 ├── Routes/{web,api}.php
 ├── ARCHITECTURE.md
 └── Tests/
@@ -110,18 +113,31 @@ into another module's `Domain/` or `Application/`. If it needs something from an
 something is a port in `Shared\Domain\Ports`, a DTO in `Shared\Application\DTOs`, or a public `Data`
 class. There is no third option, and "just this once" is how it starts.
 
-### The one declared exception to Domain purity
+### The declared exceptions to Domain purity
 
-`Shared\Domain\Ports` names `Illuminate\Http\Response` and `Symfony\...\StreamedResponse` **in return
-positions** — `ExportPort::tabular()` and `::pdf()`, `WordExportPort`. A port whose entire job is
-"stream this download" cannot describe that job without naming the response type, and the alternative
-— pushing the streaming back into every module's controller — is the exact DRY failure the port
-exists to prevent.
+**1. `Shared\Domain\Ports` names HTTP response types in return positions.**
+`ExportPort::tabular()` and `::pdf()`, `WordExportPort` name `Illuminate\Http\Response` and
+`Symfony\...\StreamedResponse` **in return positions**. A port whose entire job is "stream this
+download" cannot describe that job without naming the response type, and the alternative — pushing
+the streaming back into every module's controller — is the exact DRY failure the port exists to
+prevent.
 
 So: the ORM, facades and the framework core are banned from `Shared\Domain` entirely (enforced by
 `arch()`), and `Illuminate\Http` / `Symfony` are permitted in `Ports` and nowhere else. The review
 item that `arch()` cannot see: a port that reaches _past_ its return type — injecting a `Request`, a
 Facade or a query builder into `Shared\Domain\Ports` is a real violation.
+
+**2. `Domain/Events/*` may implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit`.**
+Invariant 13 requires the after-commit guarantee, and that guarantee is expressed by a framework
+marker interface. It carries no behaviour and does not let the domain call the container or the
+dispatcher. This is the _only_ `Illuminate\*` import allowed under `Domain/`; adding a second one is
+a review failure. `arch()` deliberately does not assert `Illuminate\Contracts` for this reason.
+
+**3. `Domain/` may use Carbon (`nesbot/carbon`) as its date/time value library.**
+Carbon carries no container, ORM, HTTP or facade; it is a value library, and the alternative
+(`DateTimeImmutable`) would duplicate the immutable API the domain already relies on. This is not a
+licence for other third-party packages: a new `Domain/` dependency is a review failure unless it is
+added to this list first.
 
 ---
 
@@ -131,9 +147,9 @@ Verifiable rules. "Follow hexagonal and SOLID" is not an invariant — a comment
 
 | #   | Invariant                                                                                                                                                                                                                                                                                                      | Enforcement                                        |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 1   | **Domain MUST NOT import** framework, ORM, HTTP, infrastructure, `Application/`, `Http/`. Only own VOs/entities/events, `Shared\Domain\*`, native PHP.                                                                                                                                                         | `arch()` — `ModuleComplexityTest`                  |
+| 1   | **Domain MUST NOT import** framework, ORM, HTTP, infrastructure, `Application/`, `Http/`. Only own VOs/entities/events, `Shared\Domain\*`, native PHP and the declared exceptions in §2.                                                                                                                       | `arch()` — `ModuleComplexityTest`                  |
 | 2   | **Application MAY import** domain, application abstractions, `Illuminate\Contracts\*` (interfaces only). MUST NOT access the ORM directly, HTTP objects, facades, or `new` an infrastructure implementation.                                                                                                   | `arch()` — `ModuleComplexityTest`                  |
-| 3   | **Controllers MUST** validate transport input, invoke one use case (PROGRESSIVE) or hold one scoped query (FLAT), and map the response. No business logic.                                                                                                                                                     | review                                             |
+| 3   | **Controllers MUST** validate transport input and map the response. A multi-step flow goes through exactly one Action/Query; a one-step CRUD read/write MAY call one Application port directly — a forwarding Action is a dumb pass-through (`DesignSmellsTest`), not a use case. No business logic.           | review                                             |
 | 4   | **Repository implementations MUST** live in `Infrastructure/Persistence/` and implement a `Domain`/`Application` port with a _different_ name (`SlotRepository` → `EloquentSlotRepository`). A contract returning Eloquent models gained nothing.                                                              | review                                             |
 | 5   | **Use cases MUST NOT** access the ORM, HTTP objects, or `new` an adapter — they take ports resolved by the module provider.                                                                                                                                                                                    | `arch()` (the `new` half is review)                |
 | 6   | **Every dependency points inward**: `Infrastructure/` → `Application/` → `Domain/`.                                                                                                                                                                                                                            | `arch()` — `ModuleComplexityTest`                  |
@@ -150,6 +166,12 @@ Verifiable rules. "Follow hexagonal and SOLID" is not an invariant — a comment
 Rows marked `review` are conventions. That is allowed — but it must be visible, which is why this is a
 table and not a bulleted list. Anything that can be made testable, gets a test; anything that cannot
 gets marked so nobody assumes a machine is checking it.
+
+**Invariant 3 is not a mandate for forwarding Actions.** A one-step CRUD operation with no invariant
+and no second write calls the Application port directly; an `Action` whose body only forwards its own
+arguments is a dumb pass-through and fails `DesignSmellsTest`. Multi-step flows (capture, schedule,
+merge, status transitions) still get an Action. Extracting `DeleteLeadAction` around
+`LeadRepository::delete()` is ceremony, not a use case.
 
 ### Transport, not business state
 
@@ -404,14 +426,14 @@ module's migration goes in the project's `database/migrations/` — which is wha
 
 This section exists because a skill that describes a tree can be read as a description of a codebase.
 
-| Path                      | State                                                                                                                                                                                                                                                                                     |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/Modules/`            | six modules — `AccessControl`, `ActivityLog`, `Backups`, `CompanyData`, `Users` and `LeadAppointment` — each with `ARCHITECTURE.md` and tests.                                                                                                                                            |
-| `tests/Architecture/`     | three suites — `ModuleComplexityTest.php` (declared modes, layer boundaries, global hygiene), `DesignSmellsTest.php` (dumb pass-throughs, orphan module code), `FrontendBoundariesTest.php` (frontend import/token/no-`any` rules). 41 tests green against the six modules on 2026-11-24. |
-| `resources/js/generated/` | `generated.d.ts` + the transformer manifest — regenerated by `typescript:transform`.                                                                                                                                                                                                      |
-| `stubs/architecture/`     | both variants present, ready to copy                                                                                                                                                                                                                                                      |
-| `src/Shared/`             | populated — ports, adapters, DTOs, `SharedServiceProvider`                                                                                                                                                                                                                                |
-| `app/`                    | the framework shell: Fortify actions, `User`, Inertia middleware, providers                                                                                                                                                                                                               |
+| Path                      | State                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/Modules/`            | six modules — `AccessControl`, `ActivityLog`, `Backups`, `CompanyData`, `Users` and `LeadAppointment` — each with `ARCHITECTURE.md` and tests.                                                                                                                                                                                                      |
+| `tests/Architecture/`     | four suites - `ModuleComplexityTest.php` (declared modes, layer boundaries, global hygiene), `DesignSmellsTest.php` (dumb pass-throughs, orphan module code), `FrontendBoundariesTest.php` (frontend import/token/no-`any` rules) and `FrontendRouteLinksTest.php` (nav/link resolution). **45 tests green** against the six modules on 2026-11-25. |
+| `resources/js/generated/` | `generated.d.ts` + the transformer manifest — regenerated by `typescript:transform`.                                                                                                                                                                                                                                                                |
+| `stubs/architecture/`     | both variants present, ready to copy                                                                                                                                                                                                                                                                                                                |
+| `src/Shared/`             | populated — ports, adapters, DTOs, `SharedServiceProvider`                                                                                                                                                                                                                                                                                          |
+| `app/`                    | the framework shell: Fortify actions, `User`, Inertia middleware, providers                                                                                                                                                                                                                                                                         |
 
 Consequences you must respect:
 

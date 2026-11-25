@@ -42,6 +42,43 @@ enum Permission: string
     case ViewActivityLog = 'VIEW_ACTIVITY_LOGS';
     case ExportActivityLog = 'EXPORT_ACTIVITY_LOGS';
 
+    case ViewAnyLead = 'VIEW_ANY_LEAD';
+    case ViewLead = 'VIEW_LEAD';
+    case CreateLead = 'CREATE_LEAD';
+    case UpdateLead = 'UPDATE_LEAD';
+    case DeleteLead = 'DELETE_LEAD';
+    case RestoreLead = 'RESTORE_LEAD';
+    case BulkDeleteLead = 'BULK_DELETE_LEAD';
+    case BulkRestoreLead = 'BULK_RESTORE_LEAD';
+    case ExportLead = 'EXPORT_LEAD';
+
+    case ViewAnyAppointment = 'VIEW_ANY_APPOINTMENT';
+    case ViewAppointment = 'VIEW_APPOINTMENT';
+    case CreateAppointment = 'CREATE_APPOINTMENT';
+    case UpdateAppointment = 'UPDATE_APPOINTMENT';
+    case DeleteAppointment = 'DELETE_APPOINTMENT';
+    case RestoreAppointment = 'RESTORE_APPOINTMENT';
+    case BulkDeleteAppointment = 'BULK_DELETE_APPOINTMENT';
+    case BulkRestoreAppointment = 'BULK_RESTORE_APPOINTMENT';
+    case ExportAppointment = 'EXPORT_APPOINTMENT';
+
+    case ViewAnyAvailabilityRule = 'VIEW_ANY_AVAILABILITY_RULE';
+    case CreateAvailabilityRule = 'CREATE_AVAILABILITY_RULE';
+    case UpdateAvailabilityRule = 'UPDATE_AVAILABILITY_RULE';
+    case DeleteAvailabilityRule = 'DELETE_AVAILABILITY_RULE';
+    case RestoreAvailabilityRule = 'RESTORE_AVAILABILITY_RULE';
+    case BulkDeleteAvailabilityRule = 'BULK_DELETE_AVAILABILITY_RULE';
+    case BulkRestoreAvailabilityRule = 'BULK_RESTORE_AVAILABILITY_RULE';
+
+    case ViewAnyAvailabilityException = 'VIEW_ANY_AVAILABILITY_EXCEPTION';
+    case CreateAvailabilityException = 'CREATE_AVAILABILITY_EXCEPTION';
+    case UpdateAvailabilityException = 'UPDATE_AVAILABILITY_EXCEPTION';
+    case DeleteAvailabilityException = 'DELETE_AVAILABILITY_EXCEPTION';
+    case RestoreAvailabilityException = 'RESTORE_AVAILABILITY_EXCEPTION';
+    case BulkDeleteAvailabilityException = 'BULK_DELETE_AVAILABILITY_EXCEPTION';
+    case BulkRestoreAvailabilityException = 'BULK_RESTORE_AVAILABILITY_EXCEPTION';
+    case ExportAvailabilityException = 'EXPORT_AVAILABILITY_EXCEPTION';
+
     /**
      * @return list<string>
      */

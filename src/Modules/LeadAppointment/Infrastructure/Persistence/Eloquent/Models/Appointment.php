@@ -48,7 +48,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Table('appointments')]
 #[Fillable([
-    'uuid', 'lead_id', 'kind', 'status', 'starts_at', 'ends_at',
+    'lead_id', 'kind', 'status', 'starts_at', 'ends_at',
     'timezone', 'previous_starts_at', 'previous_ends_at', 'region', 'google_event_id',
     'cancel_reason', 'cancelled_at', 'completed_at', 'created_by', 'notes',
 ])]
@@ -90,6 +90,10 @@ final class Appointment extends Model
      */
     public function scopeApplyFilters(Builder $query, AppointmentFilterData $filters): Builder
     {
+        $sortField = in_array($filters->sortField, AppointmentFilterData::SORTABLE, true)
+            ? $filters->sortField
+            : 'starts_at';
+
         return $query
             ->when($filters->search !== null && $filters->search !== '', function (Builder $q) use ($filters): void {
                 $term = '%'.addcslashes($filters->search ?? '', '\\%_').'%';
@@ -108,9 +112,20 @@ final class Appointment extends Model
             ->when($filters->region !== null, fn (Builder $q): Builder => $q->where('region', $filters->region))
             ->when($filters->recordState === 'trashed', fn (Builder $q): Builder => $q->onlyTrashed())
             ->when($filters->recordState === 'all', fn (Builder $q): Builder => $q->withTrashed())
-            ->when($filters->dateFrom !== null, fn (Builder $q): Builder => $q->whereDate('starts_at', '>=', $filters->dateFrom))
-            ->when($filters->dateTo !== null, fn (Builder $q): Builder => $q->whereDate('starts_at', '<=', $filters->dateTo))
-            ->orderBy($filters->sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
+            ->when($filters->dateFrom !== null || $filters->dateTo !== null, function (Builder $q) use ($filters): void {
+                $timezone = Region::from(
+                    (string) config('lead-appointment.default_region', Region::Houston->value),
+                )->timezone();
+
+                if ($filters->dateFrom !== null) {
+                    $q->where('starts_at', '>=', CarbonImmutable::parse($filters->dateFrom, $timezone)->startOfDay()->utc());
+                }
+
+                if ($filters->dateTo !== null) {
+                    $q->where('starts_at', '<=', CarbonImmutable::parse($filters->dateTo, $timezone)->endOfDay()->utc());
+                }
+            })
+            ->orderBy($sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
             ->orderBy('id');
     }
 

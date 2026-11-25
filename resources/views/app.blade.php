@@ -34,6 +34,11 @@
     <title inertia>AquaShield Operations</title>
     <meta name="robots" content="noindex, nofollow, noarchive" />
 
+    {{-- Vite's dev client looks up this meta tag and copies the nonce onto
+        every `<style>` tag it injects for imported CSS. Without it the CSP
+        blocks all dev styles; the production build does not inject tags. --}}
+    <meta property="csp-nonce" @cspNonce />
+
     @fonts
 
     {{-- Theme FOUC-killer: `.dark` on <html> BEFORE first paint. The key

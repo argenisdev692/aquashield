@@ -5,22 +5,27 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\LeadAppointment\Application\Dtos\AvailabilityExceptionData;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityExceptionFilterData;
 use Modules\LeadAppointment\Application\Dtos\AvailabilityRuleData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityExceptionData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityRuleData;
-use Modules\LeadAppointment\Application\Ports\AvailabilityRepository;
+use Modules\LeadAppointment\Application\Ports\AvailabilityReader;
+use Modules\LeadAppointment\Application\Ports\AvailabilityWriter;
 use Modules\LeadAppointment\Domain\Enums\AvailabilitySource;
 use Modules\LeadAppointment\Domain\Exceptions\AvailabilityConflictException;
 use Modules\LeadAppointment\Domain\Ports\AvailabilityScheduleReader;
+use Modules\LeadAppointment\Domain\Ports\HolidayScheduleWriter;
 use Modules\LeadAppointment\Domain\ValueObjects\AvailabilityException as AvailabilityExceptionVo;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeWindow;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityException;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityRule;
 
-final readonly class EloquentAvailabilityRepository implements AvailabilityRepository, AvailabilityScheduleReader
+final readonly class EloquentAvailabilityRepository implements AvailabilityReader, AvailabilityScheduleReader, AvailabilityWriter, HolidayScheduleWriter
 {
     private const array DAY_LABELS = [
         0 => 'Sunday',
@@ -93,24 +98,46 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
             ->all();
     }
 
-    public function purgeHolidayExceptionsFrom(string $date): int
+    /**
+     * @param array<string, string> $holidays date (Y-m-d) => holiday name
+     * @return array{purged: int, created: int, skipped: int}
+     */
+    public function syncHolidays(array $holidays, ?string $purgeFrom = null): array
     {
-        return AvailabilityException::query()
-            ->where('source', AvailabilitySource::Holiday->value)
-            ->whereDate('date', '>=', $date)
-            ->delete();
-    }
+        return DB::transaction(function () use ($holidays, $purgeFrom): array {
+            $purged = 0;
 
-    public function createHolidayException(string $date, string $name): void
-    {
-        AvailabilityException::query()->create([
-            'date' => $date,
-            'is_available' => false,
-            'start_time' => null,
-            'end_time' => null,
-            'reason' => $name,
-            'source' => AvailabilitySource::Holiday->value,
-        ]);
+            if ($purgeFrom !== null) {
+                $purged = AvailabilityException::query()
+                    ->where('source', AvailabilitySource::Holiday->value)
+                    ->whereDate('date', '>=', $purgeFrom)
+                    ->delete();
+            }
+
+            $created = 0;
+            $skipped = 0;
+
+            foreach ($holidays as $date => $name) {
+                if (AvailabilityException::query()->whereDate('date', $date)->exists()) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                AvailabilityException::query()->create([
+                    'date' => $date,
+                    'is_available' => false,
+                    'start_time' => null,
+                    'end_time' => null,
+                    'reason' => $name,
+                    'source' => AvailabilitySource::Holiday->value,
+                ]);
+
+                $created++;
+            }
+
+            return ['purged' => $purged, 'created' => $created, 'skipped' => $skipped];
+        });
     }
 
     /**
@@ -155,7 +182,7 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
 
     public function deleteRule(string $uuid): void
     {
-        AvailabilityRule::query()->where('uuid', $uuid)->delete();
+        AvailabilityRule::query()->where('uuid', $uuid)->first()?->delete();
     }
 
     public function restoreRule(string $uuid): AvailabilityRuleData
@@ -171,7 +198,9 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
      */
     public function bulkDeleteRules(array $uuids): void
     {
-        AvailabilityRule::query()->whereIn('uuid', $uuids)->delete();
+        AvailabilityRule::query()->whereIn('uuid', $uuids)->get()->each(
+            static fn (AvailabilityRule $rule) => $rule->delete(),
+        );
     }
 
     /**
@@ -179,7 +208,35 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
      */
     public function bulkRestoreRules(array $uuids): void
     {
-        AvailabilityRule::onlyTrashed()->whereIn('uuid', $uuids)->restore();
+        AvailabilityRule::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
+            static fn (AvailabilityRule $rule) => $rule->restore(),
+        );
+    }
+
+    /**
+     * @return LengthAwarePaginator<int, AvailabilityExceptionData>
+     */
+    public function paginateExceptions(AvailabilityExceptionFilterData $filters): LengthAwarePaginator
+    {
+        return $this->exceptionQuery($filters)
+            ->paginate(perPage: $filters->perPage, page: $filters->page)
+            ->withQueryString()
+            ->through(fn (AvailabilityException $exception): AvailabilityExceptionData => $this->toExceptionData($exception));
+    }
+
+    public function countExceptions(AvailabilityExceptionFilterData $filters): int
+    {
+        return $this->exceptionQuery($filters)->count();
+    }
+
+    /**
+     * @return iterable<int, AvailabilityExceptionData>
+     */
+    public function streamExceptions(AvailabilityExceptionFilterData $filters): iterable
+    {
+        foreach ($this->exceptionQuery($filters)->lazy(500) as $exception) {
+            yield $this->toExceptionData($exception);
+        }
     }
 
     /**
@@ -238,7 +295,7 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
 
     public function deleteException(string $uuid): void
     {
-        AvailabilityException::query()->where('uuid', $uuid)->delete();
+        AvailabilityException::query()->where('uuid', $uuid)->first()?->delete();
     }
 
     public function restoreException(string $uuid): AvailabilityExceptionData
@@ -260,7 +317,9 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
      */
     public function bulkDeleteExceptions(array $uuids): void
     {
-        AvailabilityException::query()->whereIn('uuid', $uuids)->delete();
+        AvailabilityException::query()->whereIn('uuid', $uuids)->get()->each(
+            static fn (AvailabilityException $exception) => $exception->delete(),
+        );
     }
 
     /**
@@ -268,7 +327,9 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
      */
     public function bulkRestoreExceptions(array $uuids): void
     {
-        AvailabilityException::onlyTrashed()->whereIn('uuid', $uuids)->restore();
+        AvailabilityException::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
+            static fn (AvailabilityException $exception) => $exception->restore(),
+        );
     }
 
     public function createRangeExceptions(
@@ -321,6 +382,32 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
         return substr($value, 0, 5);
     }
 
+    /**
+     * @return Builder<AvailabilityException>
+     */
+    private function exceptionQuery(AvailabilityExceptionFilterData $filters): Builder
+    {
+        $sortField = in_array($filters->sortField, AvailabilityExceptionFilterData::SORTABLE, true)
+            ? $filters->sortField
+            : 'date';
+
+        $search = $filters->search === null
+            ? null
+            : '%'.addcslashes($filters->search, '\\%_').'%';
+
+        return AvailabilityException::query()
+            ->when($search !== null, fn (Builder $query): Builder => $query->where('reason', 'like', $search))
+            ->when($filters->availability === 'open', fn (Builder $query): Builder => $query->where('is_available', true))
+            ->when($filters->availability === 'closed', fn (Builder $query): Builder => $query->where('is_available', false))
+            ->when($filters->source !== null, fn (Builder $query): Builder => $query->where('source', $filters->source))
+            ->when($filters->recordState === 'trashed', fn (Builder $query): Builder => $query->onlyTrashed())
+            ->when($filters->recordState === 'all', fn (Builder $query): Builder => $query->withTrashed())
+            ->when($filters->dateFrom !== null, fn (Builder $query): Builder => $query->whereDate('date', '>=', $filters->dateFrom))
+            ->when($filters->dateTo !== null, fn (Builder $query): Builder => $query->whereDate('date', '<=', $filters->dateTo))
+            ->orderBy($sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
+            ->orderBy('id');
+    }
+
     private function toExceptionVo(AvailabilityException $exception): AvailabilityExceptionVo
     {
         return new AvailabilityExceptionVo(
@@ -355,6 +442,7 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityRepos
             endTime: $exception->end_time === null ? null : $this->time($exception->end_time),
             reason: $exception->reason,
             source: $exception->source->value,
+            deletedAt: $exception->deleted_at?->toIso8601String(),
         );
     }
 }

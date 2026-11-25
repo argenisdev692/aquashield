@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\Model;
  * @mixin \Eloquent
  */
 #[Table('lead_ingestion_events')]
-#[Fillable(['uuid', 'provider', 'external_id', 'payload', 'status', 'attempts', 'last_error', 'received_at', 'processed_at'])]
+#[Fillable(['provider', 'external_id', 'payload', 'status', 'attempts', 'last_error', 'received_at', 'processed_at'])]
 final class LeadIngestionEvent extends Model
 {
     use HasUuids;

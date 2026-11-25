@@ -7,11 +7,11 @@ namespace Modules\AccessControl\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\AccessControl\Data\PermissionFilterData;
-use Modules\AccessControl\Exports\ExportLimit;
 use Modules\AccessControl\Exports\PermissionExportTransformer;
 use Modules\AccessControl\Queries\PermissionListQuery;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
+use Shared\Support\ExportLimit;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final readonly class PermissionExportController

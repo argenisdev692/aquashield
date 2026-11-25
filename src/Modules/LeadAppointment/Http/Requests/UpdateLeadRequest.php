@@ -11,6 +11,7 @@ use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Http\Requests\Concerns\NormalizesLegacyLeadInput;
 use Modules\LeadAppointment\Http\Requests\Concerns\NormalizesPersonName;
 use Modules\LeadAppointment\Http\Rules\PersonName;
+use Shared\Domain\Enums\Permission;
 
 final class UpdateLeadRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ final class UpdateLeadRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can(Permission::UpdateLead->value) ?? false;
     }
 
     /**

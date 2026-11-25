@@ -6,7 +6,8 @@ namespace Modules\LeadAppointment\Application\Actions;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Events\AppointmentCancelled;
 use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
@@ -15,7 +16,8 @@ use Modules\LeadAppointment\Domain\Services\StatusTransition;
 final readonly class CancelAppointmentAction
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
+        private AppointmentWriter $appointmentWriter,
         private StatusTransition $transitions,
         private Dispatcher $events,
     ) {}
@@ -33,7 +35,7 @@ final readonly class CancelAppointmentAction
             AppointmentStatus::Cancelled,
         );
 
-        $updated = $this->appointments->updateStatus($uuid, AppointmentStatus::Cancelled, $reason);
+        $updated = $this->appointmentWriter->updateStatus($uuid, AppointmentStatus::Cancelled, $reason);
         $this->events->dispatch(new AppointmentCancelled($uuid, $reason));
 
         return $updated;

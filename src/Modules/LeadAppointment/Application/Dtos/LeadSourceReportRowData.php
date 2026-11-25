@@ -8,6 +8,12 @@ use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
+/**
+ * One source cohort. `won` counts leads CREATED in the window whose current
+ * status is won; the dashboard's "won" KPI counts conversions BY converted_at
+ * in the month. The two numbers answer different questions and are not meant
+ * to match.
+ */
 #[MapOutputName(SnakeCaseMapper::class)]
 final class LeadSourceReportRowData extends Data
 {

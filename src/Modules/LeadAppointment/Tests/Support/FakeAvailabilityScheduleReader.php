@@ -46,11 +46,4 @@ final readonly class FakeAvailabilityScheduleReader implements AvailabilitySched
     {
         return $this->companyRules;
     }
-
-    public function purgeHolidayExceptionsFrom(string $date): int
-    {
-        return 0;
-    }
-
-    public function createHolidayException(string $date, string $name): void {}
 }

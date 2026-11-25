@@ -7,11 +7,11 @@ namespace Modules\AccessControl\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\AccessControl\Data\RoleFilterData;
-use Modules\AccessControl\Exports\ExportLimit;
 use Modules\AccessControl\Exports\RoleExportTransformer;
 use Modules\AccessControl\Queries\RoleListQuery;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
+use Shared\Support\ExportLimit;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final readonly class RoleExportController

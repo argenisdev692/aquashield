@@ -86,7 +86,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Table('leads')]
 #[Fillable([
-    'uuid', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'address', 'address_2',
+    'first_name', 'last_name', 'company_name', 'email', 'phone', 'address', 'address_2',
     'city', 'state', 'zip_code', 'country', 'insurance_property', 'region', 'source',
     'source_detail', 'external_source', 'external_id', 'status', 'owner_id', 'created_by',
     'duplicate_of_id',
@@ -188,6 +188,10 @@ final class Lead extends Model
      */
     public function scopeApplyFilters(Builder $query, LeadFilterData $filters): Builder
     {
+        $sortField = in_array($filters->sortField, LeadFilterData::SORTABLE, true)
+            ? $filters->sortField
+            : 'created_at';
+
         return $query
             ->when($filters->search !== null && $filters->search !== '', function (Builder $q) use ($filters): void {
                 $term = '%'.addcslashes($filters->search ?? '', '\\%_').'%';
@@ -214,9 +218,20 @@ final class Lead extends Model
             ->when($filters->spam === 'ham', fn (Builder $q): Builder => $q->where('is_spam', false))
             ->when($filters->recordState === 'trashed', fn (Builder $q): Builder => $q->onlyTrashed())
             ->when($filters->recordState === 'all', fn (Builder $q): Builder => $q->withTrashed())
-            ->when($filters->dateFrom !== null, fn (Builder $q): Builder => $q->whereDate('created_at', '>=', $filters->dateFrom))
-            ->when($filters->dateTo !== null, fn (Builder $q): Builder => $q->whereDate('created_at', '<=', $filters->dateTo))
-            ->orderBy($filters->sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
+            ->when($filters->dateFrom !== null || $filters->dateTo !== null, function (Builder $q) use ($filters): void {
+                $timezone = Region::from(
+                    (string) config('lead-appointment.default_region', Region::Houston->value),
+                )->timezone();
+
+                if ($filters->dateFrom !== null) {
+                    $q->where('created_at', '>=', CarbonImmutable::parse($filters->dateFrom, $timezone)->startOfDay()->utc());
+                }
+
+                if ($filters->dateTo !== null) {
+                    $q->where('created_at', '<=', CarbonImmutable::parse($filters->dateTo, $timezone)->endOfDay()->utc());
+                }
+            })
+            ->orderBy($sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
             ->orderBy('id');
     }
 

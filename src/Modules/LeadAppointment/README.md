@@ -6,9 +6,11 @@
 
 **Status:** backend complete; lead CRUD, pipeline board, detail screens, the
 appointment screens and the real dashboard (lead columns + current-month
-appointments) are live. Availability remains API-only.
-**Last verified:** 2026-11-24 · module tests 130 / 670 assertions.
-`doctor` is red only on the known Windows autoload timeout (see §11).
+appointments) are live. The availability screen set (month grid, weekly hours,
+day exceptions and their CSV/XLSX/PDF export) is live too.
+**Last verified:** 2026-11-25 · module tests 161 / 868 assertions.
+`doctor` passes on 2026-11-25 (25 diagnostics, 0 failed, 1 skipped); the known
+Windows autoload timeout is excluded by the gate (see §11).
 
 This document is the review entry point. It states what the module owns, what it
 deliberately does not, its size budget, and how much a change costs. Read this
@@ -38,7 +40,7 @@ before opening the 180+ files.
 | Surface           | Count | Auth                                 |
 | ----------------- | ----- | ------------------------------------ |
 | Public API routes | 4     | None; throttled, honeypot, HMAC      |
-| Admin web routes  | 47    | `auth` + `verified` + `permission:*` |
+| Admin web routes  | 57    | `auth` + `verified` + `permission:*` |
 | Admin API v1      | 44    | `auth:sanctum` + `permission:*`      |
 | Console commands  | 1     | Scheduler                            |
 | Database tables   | 6     | —                                    |
@@ -49,7 +51,15 @@ The web surface is now dual-transport: `GET /leads` and `GET /leads/{uuid}`
 answer JSON for the DataTable/API and Inertia for the React pages, while
 `/leads/board`, `/leads/create` and `/leads/{uuid}/edit` are page-only. Instead
 of a second permission source, `Routes/web.php` reuses `Routes/admin.php` and
-adds only the three screens that cannot be shared with `/api/v1`.
+adds only the screens that cannot be shared with `/api/v1`.
+
+The availability screen set is the one surface that keeps the two contracts
+apart on purpose. The JSON resource stays at `GET/POST /availability-exceptions`
+and `GET/POST /availability-rules`, and the month grid reads
+`GET /availability/calendar`; the pages live at `/availability`,
+`/availability/create` and `/availability/{uuid}/edit`, and their writes are
+Inertia redirects. Both read the same repositories, so the table, the month grid
+and the export cannot disagree about a day.
 
 ### Admin roles and permissions
 
@@ -65,8 +75,10 @@ grants the LeadAppointment matrix:
 | `LEAD`           | View, create, update | —                          |
 
 "Full" means view, create, update, delete, restore and bulk delete/restore;
-the lead, appointment and source-report surfaces also expose exports (there is
-no availability export in v1). `LEAD` is not owner-scoped today:
+the lead, appointment, availability and source-report surfaces also expose
+exports. The availability export is served on both surfaces because
+`Routes/admin.php` is reused by `/api/v1`; it carries the same two permission
+gates and the export throttle. `LEAD` is not owner-scoped today:
 `VIEW_ANY_LEAD` lists every lead. If
 that role must see only its own leads, add a `VIEW_OWN_LEAD` permission and an
 `owner_id` scope before granting it.
@@ -127,22 +139,22 @@ document is test-covered by then. The de-escalation condition is in
 
 ## 4. Complexity budget
 
-Measured on 2026-11-24, excluding `vendor/` and `node_modules/`:
+Measured on 2026-11-25, excluding `vendor/` and `node_modules/`:
 
 | Measure                 |                                              Value |
 | ----------------------- | -------------------------------------------------: |
-| PHP files in the module |                                            **196** |
-| Production PHP files    |                                            **170** |
-| Production PHP lines    |                                          **8,657** |
-| Test files              |                                             **26** |
-| Test lines              |                                          **2,381** |
+| PHP files in the module |                                            **218** |
+| Production PHP files    |                                            **187** |
+| Production PHP lines    |                                          **9,612** |
+| Test files              |                                             **29** |
+| Test lines              |                                          **2,851** |
 | Average production file |                                      **~51 lines** |
 | Actions                 |                                             **11** |
-| DTOs                    |                                             **27** |
-| FormRequests            |                                             **12** |
-| Ports                   |                                              **7** |
+| DTOs                    |                                             **36** |
+| FormRequests            |                                             **13** |
+| Ports                   |                                             **11** |
 | Query objects           | **2** (`CalendarFeedQuery`, `DashboardStatsQuery`) |
-| Migrations              |                  **12** (7 create + 5 lead alters) |
+| Migrations              |                  **13** (7 create + 6 lead alters) |
 
 The file count is high; the line count is not. This is a wide, shallow module:
 many small classes with one reason to change, not a few large classes with many.
@@ -336,15 +348,17 @@ Pint --blade --test      clean
 PHPStan level 5          0 errors
 tsc --noEmit             clean
 Vite build               green
-Module tests             130 tests / 670 assertions
-Architecture tests       41 tests / 240 assertions
+Module tests             161 tests / 868 assertions
+Architecture tests       45 tests / 265 assertions
 SavedViews tests         10 tests / 67 assertions
 Composer audit           clean
-doctor                   red: "Composer autoload works" exceeds 60 s on this box
+doctor                   green: 25 diagnostics, 0 failed, 1 skipped
 ```
 
-The last full Pest run was 674 tests / 3,182 assertions. `doctor` is the known
-Windows environment finding documented in `.opencode/rules/rules.md`; it is not
+The last full Pest run was 750 tests / 3,573 assertions (`phpunit.xml` sets
+`memory_limit=1G` for the test process). `doctor` passes on 2026-11-25; the Windows
+\`Composer autoload works\` timeout is documented in `.opencode/rules/rules.md`
+and is not
 a module finding and must not be silenced by changing the project.
 
 ## 12. Read these seven files first

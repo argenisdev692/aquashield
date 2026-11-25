@@ -25,11 +25,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $end_time
  * @property string|null $reason
  * @property AvailabilitySource $source
+ * @property CarbonImmutable|null $deleted_at
  *
  * @mixin \Eloquent
  */
 #[Table('availability_exceptions')]
-#[Fillable(['uuid', 'date', 'is_available', 'start_time', 'end_time', 'reason', 'source'])]
+#[Fillable(['date', 'is_available', 'start_time', 'end_time', 'reason', 'source'])]
 final class AvailabilityException extends Model
 {
     /** @use HasFactory<AvailabilityExceptionFactory> */

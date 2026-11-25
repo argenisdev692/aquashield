@@ -8,12 +8,14 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
-use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
-use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeInterval;
 
-interface AppointmentRepository
+/**
+ * The read side of the appointment aggregate: lists, calendar, capacity reads
+ * and the export stream.
+ */
+interface AppointmentReader
 {
     /**
      * @return LengthAwarePaginator<int, AppointmentData>
@@ -21,28 +23,6 @@ interface AppointmentRepository
     public function paginate(AppointmentFilterData $filters): LengthAwarePaginator;
 
     public function find(string $uuid, bool $withTrashed = false): ?AppointmentData;
-
-    public function createWithLock(
-        ScheduleAppointmentData $data,
-        int $durationMinutes,
-        string $timezone,
-        string $region,
-        ?int $createdBy,
-    ): AppointmentData;
-
-    public function reschedule(
-        string $uuid,
-        CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt,
-        string $timezone,
-        string $reason,
-    ): AppointmentData;
-
-    public function updateStatus(
-        string $uuid,
-        AppointmentStatus $status,
-        ?string $reason = null,
-    ): AppointmentData;
 
     /**
      * @return list<TimeInterval>
@@ -78,22 +58,6 @@ interface AppointmentRepository
         CarbonImmutable $to,
         ?AppointmentKind $kind = null,
     ): int;
-
-    public function setGoogleEventId(string $uuid, ?string $eventId): void;
-
-    public function delete(string $uuid): void;
-
-    public function restore(string $uuid): AppointmentData;
-
-    /**
-     * @param list<string> $uuids
-     */
-    public function bulkDelete(array $uuids): void;
-
-    /**
-     * @param list<string> $uuids
-     */
-    public function bulkRestore(array $uuids): void;
 
     public function count(AppointmentFilterData $filters): int;
 

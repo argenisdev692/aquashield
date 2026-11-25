@@ -20,10 +20,12 @@ use Modules\LeadAppointment\Application\Dtos\LeadSourceReportData;
 use Modules\LeadAppointment\Application\Dtos\LeadSourceReportRowData;
 use Modules\LeadAppointment\Application\Dtos\LogLeadActivityData;
 use Modules\LeadAppointment\Application\Dtos\UpdateLeadData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
+use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Enums\InspectionStatus;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
+use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\ValueObjects\DuplicateCandidate;
 use Modules\LeadAppointment\Domain\ValueObjects\PhoneNumber;
 use Modules\LeadAppointment\Domain\ValueObjects\SpamAssessment;
@@ -31,7 +33,7 @@ use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointme
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\LeadActivity;
 
-final readonly class EloquentLeadRepository implements LeadRepository
+final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 {
     /**
      * @return LengthAwarePaginator<int, LeadListItemData>
@@ -309,22 +311,6 @@ final readonly class EloquentLeadRepository implements LeadRepository
         return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
     }
 
-    public function markInspectionScheduled(string $uuid): void
-    {
-        $lead = Lead::query()->where('uuid', $uuid)->first();
-
-        if ($lead === null) {
-            return;
-        }
-
-        if (in_array($lead->status, [LeadStatus::Won, LeadStatus::Lost], true)) {
-            return;
-        }
-
-        $lead->status = LeadStatus::InspectionScheduled;
-        $lead->save();
-    }
-
     public function logActivity(string $leadUuid, LogLeadActivityData $data, ?int $userId): LeadActivityData
     {
         return DB::transaction(function () use ($leadUuid, $data, $userId): LeadActivityData {
@@ -406,7 +392,7 @@ final readonly class EloquentLeadRepository implements LeadRepository
 
     public function delete(string $uuid): void
     {
-        Lead::query()->where('uuid', $uuid)->delete();
+        Lead::query()->where('uuid', $uuid)->first()?->delete();
     }
 
     public function restore(string $uuid): LeadData
@@ -422,7 +408,9 @@ final readonly class EloquentLeadRepository implements LeadRepository
      */
     public function bulkDelete(array $uuids): void
     {
-        Lead::query()->whereIn('uuid', $uuids)->delete();
+        Lead::query()->whereIn('uuid', $uuids)->get()->each(
+            static fn (Lead $lead) => $lead->delete(),
+        );
     }
 
     /**
@@ -430,7 +418,9 @@ final readonly class EloquentLeadRepository implements LeadRepository
      */
     public function bulkRestore(array $uuids): void
     {
-        Lead::onlyTrashed()->whereIn('uuid', $uuids)->restore();
+        Lead::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
+            static fn (Lead $lead) => $lead->restore(),
+        );
     }
 
     public function count(LeadFilterData $filters): int
@@ -458,11 +448,16 @@ final readonly class EloquentLeadRepository implements LeadRepository
 
     public function sourceReport(string $from, string $to): LeadSourceReportData
     {
-        $start = CarbonImmutable::parse($from)->startOfDay();
-        $end = CarbonImmutable::parse($to)->endOfDay();
+        $timezone = Region::from(
+            (string) config('lead-appointment.default_region', Region::Houston->value),
+        )->timezone();
+
+        $start = CarbonImmutable::parse($from, $timezone)->startOfDay()->utc();
+        $end = CarbonImmutable::parse($to, $timezone)->endOfDay()->utc();
 
         $rows = DB::table('leads')
             ->selectRaw('source, COUNT(*) as leads, COUNT(DISTINCT CASE WHEN status = ? THEN id END) as won', [LeadStatus::Won->value])
+            ->whereNull('deleted_at')
             ->whereBetween('created_at', [$start, $end])
             ->groupBy('source')
             ->orderByDesc('leads')
@@ -488,6 +483,7 @@ final readonly class EloquentLeadRepository implements LeadRepository
         $appointmentCounts = DB::table('appointments')
             ->join('leads', 'appointments.lead_id', '=', 'leads.id')
             ->whereNull('appointments.deleted_at')
+            ->whereNull('leads.deleted_at')
             ->whereBetween('leads.created_at', [$start, $end])
             ->selectRaw('leads.source as source, COUNT(*) as aggregate')
             ->groupBy('leads.source')
@@ -511,8 +507,8 @@ final readonly class EloquentLeadRepository implements LeadRepository
         })->values()->all();
 
         return new LeadSourceReportData(
-            from: $start->toDateString(),
-            to: $end->toDateString(),
+            from: $from,
+            to: $to,
             rows: $reportRows,
             averageFirstContactMinutes: $average,
         );

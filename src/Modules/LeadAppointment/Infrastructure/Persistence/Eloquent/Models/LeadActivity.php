@@ -28,7 +28,7 @@ use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Factories\LeadAc
  * @mixin \Eloquent
  */
 #[Table('lead_activities')]
-#[Fillable(['uuid', 'lead_id', 'user_id', 'type', 'outcome', 'notes', 'occurred_at'])]
+#[Fillable(['lead_id', 'user_id', 'type', 'outcome', 'notes', 'occurred_at'])]
 final class LeadActivity extends Model
 {
     /** @use HasFactory<LeadActivityFactory> */

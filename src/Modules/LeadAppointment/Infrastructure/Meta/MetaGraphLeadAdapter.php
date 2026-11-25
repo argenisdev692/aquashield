@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Infrastructure\Meta;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Http;
 use Modules\LeadAppointment\Application\Dtos\MetaLeadData;
 use Modules\LeadAppointment\Application\Ports\LeadSourceGateway;
@@ -54,10 +55,19 @@ final readonly class MetaGraphLeadAdapter implements LeadSourceGateway
                     continue;
                 }
 
-                $event = LeadIngestionEvent::query()->firstOrCreate(
-                    ['provider' => 'meta', 'external_id' => (string) $leadgenId],
-                    ['payload' => $value, 'status' => 'received', 'received_at' => now()],
-                );
+                try {
+                    $event = LeadIngestionEvent::query()->firstOrCreate(
+                        ['provider' => 'meta', 'external_id' => (string) $leadgenId],
+                        ['payload' => $value, 'status' => 'received', 'received_at' => now()],
+                    );
+                } catch (UniqueConstraintViolationException) {
+                    // Two Meta retries can race the unique index; the row is
+                    // already there, so re-read it instead of failing the callback.
+                    $event = LeadIngestionEvent::query()
+                        ->where('provider', 'meta')
+                        ->where('external_id', (string) $leadgenId)
+                        ->firstOrFail();
+                }
 
                 if ($event->status !== 'processed') {
                     IngestMetaLeadJob::dispatch($event->uuid)->afterCommit();
@@ -76,7 +86,7 @@ final readonly class MetaGraphLeadAdapter implements LeadSourceGateway
             throw MetaLeadFetchException::unavailable('Meta Graph credentials are not configured.');
         }
 
-        $url = rtrim($base, '/').'/'.$version.'/'.$externalId;
+        $url = rtrim($base, '/').'/'.$version.'/'.rawurlencode($externalId);
 
         /** @var array<string, mixed> $payload */
         $payload = $this->breaker->call(

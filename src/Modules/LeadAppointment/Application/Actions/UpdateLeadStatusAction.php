@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Application\Actions;
 
-use Illuminate\Contracts\Events\Dispatcher;
 use Modules\LeadAppointment\Application\Dtos\LeadData;
 use Modules\LeadAppointment\Application\Dtos\LogLeadActivityData;
 use Modules\LeadAppointment\Application\Dtos\UpdateLeadStatusData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
+use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Enums\LeadActivityType;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
-use Modules\LeadAppointment\Domain\Events\LeadStatusChanged;
 use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
 use Modules\LeadAppointment\Domain\Services\StatusTransition;
 
 final readonly class UpdateLeadStatusAction
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
+        private LeadWriter $leadWriter,
         private StatusTransition $transitions,
-        private Dispatcher $events,
     ) {}
 
     public function execute(string $uuid, UpdateLeadStatusData $data, ?int $actorId = null): LeadData
@@ -37,7 +36,7 @@ final readonly class UpdateLeadStatusAction
             $this->transitions->assertLead($from, $data->status);
         }
 
-        $updated = $this->leads->updateStatus(
+        $updated = $this->leadWriter->updateStatus(
             $uuid,
             $data->status,
             $data->inspectionDate,
@@ -46,15 +45,11 @@ final readonly class UpdateLeadStatusAction
         );
 
         if ($data->note !== null && $data->note !== '') {
-            $this->leads->logActivity(
+            $this->leadWriter->logActivity(
                 $uuid,
                 new LogLeadActivityData(LeadActivityType::Note, null, $data->note, null),
                 $actorId,
             );
-        }
-
-        if ($from !== $data->status) {
-            $this->events->dispatch(new LeadStatusChanged($uuid, $from, $data->status));
         }
 
         return $updated;

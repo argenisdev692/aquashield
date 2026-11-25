@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Shared\Domain\Enums\Permission;
 
 final class SaveAvailabilityRuleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can(
+            $this->isMethod('POST') ? Permission::CreateAvailabilityRule->value : Permission::UpdateAvailabilityRule->value,
+        ) ?? false;
     }
 
     /**

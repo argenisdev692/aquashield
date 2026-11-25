@@ -26,7 +26,7 @@ prints a STOP warning of its own; obey it rather than working around it.
 ## 2. Read, in this order
 
 1. `GUIDE/module-make.md` — the spec schema and the exact file list
-2. `.opencode/skills/backend-php/SKILL.md` — PHP 8.5 + Laravel 13 rules
+2. `.opencode/skills/backend-php/SKILL.md` — PHP 8.6 + Laravel 13 rules
 3. `.opencode/skills/backend-php/SKILL-ARCHITECTURE.md` §1 and §4 — the FLAT tree and why `Data/` exists
 4. `.opencode/skills/PRINCIPLES/SKILL.md` §1 — before you decide anything needs extracting
 5. `.opencode/skills/owasp/SKILL.md` + `STACK.md` — always-on, both halves

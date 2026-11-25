@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -215,6 +217,22 @@ it('merges a duplicate into the target lead and soft-deletes it', function (): v
         ->and($duplicate->duplicate_of_id)->toBe($target->id);
 });
 
+it('rejects a self-merge and a trashed duplicate with 422', function (): void {
+    $target = Lead::factory()->create(['region' => 'houston', 'state' => 'TX']);
+    $trashed = Lead::factory()->create(['region' => 'houston', 'state' => 'TX']);
+    $trashed->delete();
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/'.$target->uuid.'/merge', ['duplicate_uuid' => $target->uuid])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['duplicate_uuid']);
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/'.$target->uuid.'/merge', ['duplicate_uuid' => $trashed->uuid])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['duplicate_uuid']);
+});
+
 it('exports the filtered list as CSV and PDF', function (): void {
     Lead::factory()->create([
         'first_name' => 'Ada',
@@ -252,4 +270,47 @@ it('forbids an export without EXPORT_LEAD', function (): void {
     $this->actingAs(User::factory()->create())
         ->get('/leads/export/csv')
         ->assertForbidden();
+});
+
+it('filters by the business date rather than the UTC date', function (): void {
+    $lead = Lead::factory()->create();
+    $lead->forceFill(['created_at' => CarbonImmutable::parse('2026-11-25 05:30:00', 'UTC')])->saveQuietly();
+
+    $this->actingAs($this->admin)
+        ->getJson('/leads?'.http_build_query([
+            'filter' => ['date_from' => '2026-11-24', 'date_to' => '2026-11-24'],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 1);
+});
+
+it('exposes the inverse user relations', function (): void {
+    Lead::factory()->create([
+        'owner_id' => $this->admin->id,
+        'created_by' => $this->admin->id,
+    ]);
+
+    expect($this->admin->ownedLeads()->count())->toBe(1)
+        ->and($this->admin->createdLeads()->count())->toBe(1);
+});
+
+it('audits single and bulk lead deletes', function (): void {
+    $first = Lead::factory()->create();
+    $second = Lead::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->deleteJson('/leads/'.$first->uuid)
+        ->assertNoContent();
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/bulk-delete', ['uuids' => [$second->uuid]])
+        ->assertNoContent();
+
+    $events = Activity::query()
+        ->where('subject_type', Lead::class)
+        ->where('event', 'deleted')
+        ->whereIn('subject_id', [$first->id, $second->id])
+        ->count();
+
+    expect($events)->toBe(2);
 });

@@ -44,12 +44,33 @@ final class IngestMetaLeadJob implements ShouldQueue
             $event->last_error = null;
             $event->save();
         } catch (Throwable $exception) {
+            // A duplicate dispatch can lose the race to a successful one; never
+            // downgrade a processed event back to failed.
+            if ($event->fresh()?->status === 'processed') {
+                return;
+            }
+
             $event->attempts++;
             $event->status = 'failed';
-            $event->last_error = Str::limit($exception->getMessage(), 1000);
+            $event->last_error = $this->safeError($exception);
             $event->save();
 
             throw $exception;
         }
+    }
+
+    /**
+     * `last_error` is a database sink for third-party error text: a Graph error
+     * can echo the request URL and its access token. Redact before persisting.
+     */
+    private function safeError(Throwable $exception): string
+    {
+        $message = (string) preg_replace(
+            '/((?:access_token|key|token|secret|password)=)[^&\s]+/i',
+            '$1[REDACTED]',
+            $exception->getMessage(),
+        );
+
+        return Str::limit($message, 1000);
     }
 }

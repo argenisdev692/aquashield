@@ -6,7 +6,8 @@ namespace Modules\LeadAppointment\Application\Actions;
 
 use Modules\LeadAppointment\Application\Dtos\LeadData;
 use Modules\LeadAppointment\Application\Dtos\UpdateLeadData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
+use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Services\RegionResolver;
 
 /**
@@ -17,7 +18,8 @@ use Modules\LeadAppointment\Domain\Services\RegionResolver;
 final readonly class UpdateLeadAction
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
+        private LeadWriter $leadWriter,
         private RegionResolver $regions,
     ) {}
 
@@ -29,6 +31,6 @@ final readonly class UpdateLeadAction
             ->resolve($data->state, $data->city, $data->zipCode, $data->region ?? $current?->region)
             ?->value;
 
-        return $this->leads->update($uuid, $data);
+        return $this->leadWriter->update($uuid, $data);
     }
 }

@@ -48,7 +48,7 @@ enum AppointmentStatus: string
 
         return in_array($next, match ($this) {
             self::Requested => [self::Scheduled, self::Cancelled],
-            self::Scheduled => [self::Confirmed, self::Cancelled, self::NoShow, self::Scheduled],
+            self::Scheduled => [self::Confirmed, self::Cancelled, self::NoShow],
             self::Confirmed => [self::EnRoute, self::OnSite, self::Completed, self::NoShow, self::Cancelled, self::Scheduled],
             self::EnRoute => [self::OnSite, self::NoShow, self::Cancelled],
             self::OnSite => [self::Completed, self::Cancelled],

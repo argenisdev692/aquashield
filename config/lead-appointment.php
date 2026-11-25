@@ -30,6 +30,10 @@ return [
 
     'calendar_max_days' => 92,
 
+    // The source report is a cohort aggregate over the lead table. One year is
+    // the largest window that stays a bounded read on the current indexes.
+    'report_max_days' => 366,
+
     /*
     | Version identifier of the SMS consent disclosure currently published on
     | the landing page. The form may send its own version; this is the fallback
@@ -243,11 +247,5 @@ return [
         'app_secret' => env('META_APP_SECRET'),
         'verify_token' => env('META_VERIFY_TOKEN'),
         'page_access_token' => env('META_PAGE_ACCESS_TOKEN'),
-    ],
-
-    'turnstile' => [
-        'enabled' => (bool) env('TURNSTILE_ENABLED', false),
-        'secret' => env('TURNSTILE_SECRET_KEY'),
-        'verify_url' => 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
     ],
 ];

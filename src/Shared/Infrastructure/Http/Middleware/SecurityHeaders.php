@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
 use Laravel\Horizon\Horizon;
 use Laravel\Telescope\Telescope;
+use Shared\Infrastructure\Http\Csp\DirectUploadStoragePreset;
+use Shared\Infrastructure\Http\Csp\GoogleMapsPreset;
+use Shared\Infrastructure\Http\Csp\R2PublicStoragePreset;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -183,27 +186,53 @@ final class SecurityHeaders
     /**
      * Build the nonce-based CSP. Production stays strict on scripts and style
      * elements; only style ATTRIBUTES are relaxed (`style-src-attr`) because
-     * Base UI portals position themselves with `style=""`. No first-party view
-     * emits an inline `<style>` element, so `style-src-elem` needs no
-     * `'unsafe-inline'`. Local development also allows the Vite dev-server
-     * origin for scripts, styles, fonts and HMR; HTTPS responses add
-     * `upgrade-insecure-requests` as a mixed-content safety net.
+     * Base UI portals position themselves with `style=""`. The one inline
+     * `<style>` element is Laravel's `@fonts` block: Vite stamps it with the
+     * request nonce, so `style-src-elem` allows that nonce and still needs no
+     * `'unsafe-inline'`. Vite's dev client copies the nonce from the
+     * `meta[property="csp-nonce"]` tag onto the style tags it injects.
+     * Local development also allows the Vite dev-server origin for scripts,
+     * styles, fonts and HMR; HTTPS responses add `upgrade-insecure-requests`
+     * as a mixed-content safety net. Google Maps and R2 origins are merged
+     * from their presets in {@see self::externalCspSources()}.
      */
     private function contentSecurityPolicy(string $nonce, Request $request): string
     {
         $isLocal = app()->environment('local');
 
-        $scriptSrc = ["'self'", "'nonce-{$nonce}'", ...(array) config('security.headers.csp.script_src', [])];
-        $connectSrc = ["'self'", ...(array) config('security.headers.csp.connect_src', [])];
-        $imgSrc = ["'self'", ...(array) config('security.headers.csp.img_src', [])];
+        $external = $this->externalCspSources();
+
+        $scriptSrc = [
+            "'self'",
+            "'nonce-{$nonce}'",
+            // Google Maps recommends a strict nonce policy; its loader copies
+            // this page's script nonce and the API stamps the same nonce on
+            // the scripts/styles it injects. The host below is only a fallback
+            // for browsers without CSP3 support. With 'strict-dynamic' every
+            // executable script must carry the nonce in CSP3 browsers.
+            "'strict-dynamic'",
+            ...(array) config('security.headers.csp.script_src', []),
+            ...$external['script-src'],
+        ];
+        $connectSrc = [
+            "'self'",
+            ...(array) config('security.headers.csp.connect_src', []),
+            ...$external['connect-src'],
+        ];
+        $imgSrc = [
+            "'self'",
+            ...(array) config('security.headers.csp.img_src', []),
+            ...$external['img-src'],
+        ];
         $fontSrc = ["'self'", ...(array) config('security.headers.csp.font_src', [])];
 
-        // External stylesheets (`@vite` → /build/assets/*.css) only. Base UI
-        // portals position themselves with `style=""` ATTRIBUTES, which the
-        // `style-src-attr` directive covers — no inline `<style>` ELEMENT is
-        // emitted by any first-party view (the PDF/email templates are rendered
-        // server-side by DomPDF/mail and never travel under this policy).
-        $styleSrcElem = ["'self'"];
+        // External stylesheets (`@vite` → /build/assets/*.css) plus the
+        // nonce-stamped inline `<style>` emitted by `@fonts` (and by Vite's
+        // dev client). Base UI portals position themselves with `style=""`
+        // ATTRIBUTES, which the `style-src-attr` directive covers. The PDF and
+        // email templates are rendered server-side by DomPDF/mail and never
+        // travel under this policy.
+        $styleSrcElem = ["'self'", "'nonce-{$nonce}'"];
         $styleSrcAttr = ["'unsafe-inline'"];
 
         if ($isLocal) {
@@ -251,5 +280,42 @@ final class SecurityHeaders
         }
 
         return $policy;
+    }
+
+    /**
+     * External origins owned by the CSP presets. The same classes can be used
+     * by Spatie's Policy if the emitter ever changes, so this middleware and
+     * the presets cannot drift apart.
+     *
+     * @return array{script-src: list<string>, connect-src: list<string>, img-src: list<string>}
+     */
+    private function externalCspSources(): array
+    {
+        $uploadOrigin = DirectUploadStoragePreset::uploadOrigin();
+        $publicOrigin = R2PublicStoragePreset::publicOrigin();
+
+        $connectSrc = GoogleMapsPreset::connectSources();
+
+        if ($uploadOrigin !== null) {
+            $connectSrc[] = $uploadOrigin;
+        }
+
+        $imgSrc = [];
+
+        if ($publicOrigin !== null) {
+            $imgSrc[] = $publicOrigin;
+        }
+
+        // Signed GET URLs (`temporaryUrl()`) point at the S3 endpoint, not at
+        // the public bucket URL, and are rendered as <img> signatures.
+        if ($uploadOrigin !== null) {
+            $imgSrc[] = $uploadOrigin;
+        }
+
+        return [
+            'script-src' => GoogleMapsPreset::scriptSources(),
+            'connect-src' => $connectSrc,
+            'img-src' => array_values(array_unique($imgSrc)),
+        ];
     }
 }

@@ -2,19 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Modules\LeadAppointment\Exports;
+namespace Modules\LeadAppointment\Application\Exports;
 
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Shared\Support\SpreadsheetCell;
 
 final readonly class AppointmentExportTransformer
 {
-    public const int MAX_ROWS = 10_000;
-
     public function __construct(
         private AppointmentFilterData $filters,
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
     ) {}
 
     /**

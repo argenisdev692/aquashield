@@ -11,6 +11,7 @@ import TextField from '@/Components/Forms/TextField';
 import TextareaField from '@/Components/Forms/TextareaField';
 import TimeField from '@/Components/Forms/TimeField';
 import LeadPicker from './LeadPicker';
+import AvailabilityNotice from './AvailabilityNotice';
 import type { FormErrorMap } from '@/lib/forms';
 import { regionLabel } from '@/lib/regions';
 import type { AppointmentFormValues } from '../schemas/appointment';
@@ -131,16 +132,24 @@ export default function AppointmentFormFields({
                     />
                 )}
 
-                <DateField
-                    label="Date"
-                    name="date"
-                    value={values.date === '' ? null : values.date}
-                    onChange={(value) => update({ date: value ?? '' })}
-                    onBlur={() => onBlur('date')}
-                    error={errors.date ?? errors.starts_at}
-                    required
-                    disabled={disabled}
-                />
+                <div className="flex flex-col gap-2">
+                    <DateField
+                        label="Date"
+                        name="date"
+                        value={values.date === '' ? null : values.date}
+                        onChange={(value) => update({ date: value ?? '' })}
+                        onBlur={() => onBlur('date')}
+                        error={errors.date ?? errors.starts_at}
+                        required
+                        disabled={disabled}
+                    />
+
+                    <AvailabilityNotice
+                        date={values.date}
+                        region={fixedLead?.region ?? (values.region === '' ? null : values.region)}
+                        onPickDate={(date) => update({ date })}
+                    />
+                </div>
 
                 <TimeField
                     label="Start time"

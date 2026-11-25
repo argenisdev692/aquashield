@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\BlogCategory;
+use Illuminate\Database\Seeder;
 use Ramsey\Uuid\Uuid;
 
 class BlogCategorySeeder extends Seeder
@@ -38,4 +40,4 @@ class BlogCategorySeeder extends Seeder
             ]);
         }
     }
-} 
+}

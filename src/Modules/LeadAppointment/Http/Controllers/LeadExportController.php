@@ -6,18 +6,19 @@ namespace Modules\LeadAppointment\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
-use Modules\LeadAppointment\Exports\LeadExportTransformer;
+use Modules\LeadAppointment\Application\Exports\LeadExportTransformer;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Http\Support\LeadFilterFactory;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
+use Shared\Support\ExportLimit;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final readonly class LeadExportController
 {
     public function __construct(
         private ExportPort $exporter,
-        private LeadRepository $repository,
+        private LeadReader $repository,
         private AuditPort $audit,
     ) {}
 
@@ -25,9 +26,10 @@ final readonly class LeadExportController
     {
         $filters = LeadFilterFactory::fromRequest($request);
         $rowCount = $this->repository->count($filters);
+        $limit = ExportLimit::for($format);
 
-        if ($rowCount > LeadExportTransformer::MAX_ROWS) {
-            abort(422, 'The export is limited to '.LeadExportTransformer::MAX_ROWS.' rows. Narrow the filters.');
+        if ($rowCount > $limit) {
+            abort(422, "The export is limited to {$limit} rows for {$format}. Narrow the filters.");
         }
 
         // Non-PII filter summary only; never the search term itself.

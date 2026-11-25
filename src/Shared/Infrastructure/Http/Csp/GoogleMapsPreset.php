@@ -22,13 +22,38 @@ use Spatie\Csp\Preset;
  */
 final class GoogleMapsPreset implements Preset
 {
+    /**
+     * Fallback host sources for browsers that do not implement CSP3
+     * `'strict-dynamic'`. Modern browsers trust the nonced loader script and
+     * the scripts it creates; the Maps loader copies the page nonce.
+     *
+     * @return list<string>
+     */
+    #[\NoDiscard]
+    public static function scriptSources(): array
+    {
+        return ['https://maps.googleapis.com'];
+    }
+
+    /**
+     * Places API (New) XHRs. No map tiles or Maps UI are used: the address
+     * field renders suggestions into the app's own Combobox.
+     *
+     * @return list<string>
+     */
+    #[\NoDiscard]
+    public static function connectSources(): array
+    {
+        return [
+            'https://maps.googleapis.com',
+            'https://places.googleapis.com',
+        ];
+    }
+
     public function configure(Policy $policy): void
     {
         $policy
-            ->add(Directive::SCRIPT, 'https://maps.googleapis.com')
-            ->add(Directive::CONNECT, [
-                'https://maps.googleapis.com',
-                'https://places.googleapis.com',
-            ]);
+            ->add(Directive::SCRIPT, self::scriptSources())
+            ->add(Directive::CONNECT, self::connectSources());
     }
 }

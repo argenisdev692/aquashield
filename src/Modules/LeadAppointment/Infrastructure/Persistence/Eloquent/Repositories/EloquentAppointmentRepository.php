@@ -10,16 +10,18 @@ use Illuminate\Support\Facades\DB;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
+use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Exceptions\CapacityExceededException;
 use Modules\LeadAppointment\Domain\Exceptions\SlotUnavailableException;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeInterval;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 
-final readonly class EloquentAppointmentRepository implements AppointmentRepository
+final readonly class EloquentAppointmentRepository implements AppointmentReader, AppointmentWriter
 {
     /**
      * @return LengthAwarePaginator<int, AppointmentData>
@@ -91,6 +93,13 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
                 'notes' => $data->notes,
                 'created_by' => $createdBy,
             ]);
+
+            // The status advance belongs to the same transaction as the insert:
+            // a booking must never exist while the lead still says New.
+            if (! in_array($lead->status, [LeadStatus::Won, LeadStatus::Lost], true)) {
+                $lead->status = LeadStatus::InspectionScheduled;
+                $lead->save();
+            }
 
             return $this->find($appointment->uuid)
                 ?? throw new \RuntimeException('Appointment was not persisted.');
@@ -227,7 +236,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
 
     public function delete(string $uuid): void
     {
-        Appointment::query()->where('uuid', $uuid)->delete();
+        Appointment::query()->where('uuid', $uuid)->first()?->delete();
     }
 
     public function restore(string $uuid): AppointmentData
@@ -244,7 +253,9 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
      */
     public function bulkDelete(array $uuids): void
     {
-        Appointment::query()->whereIn('uuid', $uuids)->delete();
+        Appointment::query()->whereIn('uuid', $uuids)->get()->each(
+            static fn (Appointment $appointment) => $appointment->delete(),
+        );
     }
 
     /**
@@ -252,7 +263,9 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
      */
     public function bulkRestore(array $uuids): void
     {
-        Appointment::onlyTrashed()->whereIn('uuid', $uuids)->restore();
+        Appointment::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
+            static fn (Appointment $appointment) => $appointment->restore(),
+        );
     }
 
     public function count(AppointmentFilterData $filters): int

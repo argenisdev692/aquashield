@@ -7,9 +7,11 @@ namespace Modules\LeadAppointment\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 use Modules\LeadAppointment\Application\Dtos\LeadSourceReportData;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
-use Modules\LeadAppointment\Exports\ReportExportTransformer;
+use Modules\LeadAppointment\Application\Dtos\LeadSourceReportFilterData;
+use Modules\LeadAppointment\Application\Exports\ReportExportTransformer;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Shared\Domain\Ports\AuditPort;
 use Shared\Domain\Ports\ExportPort;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,7 +19,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final readonly class ReportController
 {
     public function __construct(
-        private LeadRepository $leads,
+        private LeadReader $leads,
         private ExportPort $exporter,
         private AuditPort $audit,
     ) {}
@@ -60,13 +62,17 @@ final readonly class ReportController
      */
     private function range(Request $request): array
     {
-        $validated = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-        ]);
+        $filters = LeadSourceReportFilterData::validateAndCreate($request->query());
 
-        $from = $validated['from'] ?? CarbonImmutable::now()->subDays(30)->toDateString();
-        $to = $validated['to'] ?? CarbonImmutable::now()->toDateString();
+        $from = $filters->from ?? CarbonImmutable::now()->subDays(30)->toDateString();
+        $to = $filters->to ?? CarbonImmutable::now()->toDateString();
+        $maxDays = (int) config('lead-appointment.report_max_days', 366);
+
+        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > $maxDays) {
+            throw ValidationException::withMessages([
+                'to' => "The report window is limited to {$maxDays} days.",
+            ]);
+        }
 
         return [$from, $to];
     }

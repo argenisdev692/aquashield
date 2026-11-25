@@ -9,15 +9,12 @@ use Modules\LeadAppointment\Application\Dtos\AvailabilityRuleData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityExceptionData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityRuleData;
 
-interface AvailabilityRepository
+/**
+ * The write side of the availability aggregate: weekly rules and dated
+ * exceptions. Holiday materialisation has its own Domain port.
+ */
+interface AvailabilityWriter
 {
-    /**
-     * @return list<AvailabilityRuleData>
-     */
-    public function rules(): array;
-
-    public function findRule(string $uuid): ?AvailabilityRuleData;
-
     public function saveRule(SaveAvailabilityRuleData $data, ?string $uuid = null): AvailabilityRuleData;
 
     public function deleteRule(string $uuid): void;
@@ -33,13 +30,6 @@ interface AvailabilityRepository
      * @param list<string> $uuids
      */
     public function bulkRestoreRules(array $uuids): void;
-
-    /**
-     * @return list<AvailabilityExceptionData>
-     */
-    public function exceptions(?string $from, ?string $to): array;
-
-    public function findException(string $uuid): ?AvailabilityExceptionData;
 
     public function saveException(
         SaveAvailabilityExceptionData $data,

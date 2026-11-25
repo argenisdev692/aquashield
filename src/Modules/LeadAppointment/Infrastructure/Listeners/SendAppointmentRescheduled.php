@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Infrastructure\Listeners;
 
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
 use Modules\LeadAppointment\Infrastructure\Mail\AppointmentRescheduledMail;
 use Shared\Infrastructure\Mail\MailInterface;
@@ -12,7 +12,7 @@ use Shared\Infrastructure\Mail\MailInterface;
 final readonly class SendAppointmentRescheduled
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
         private MailInterface $mail,
     ) {}
 

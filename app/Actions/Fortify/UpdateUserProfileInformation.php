@@ -70,18 +70,28 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
         unset($validated['name']);
         $validated['email'] = Str::lower($validated['email']);
 
-        if ($validated['email'] !== $user->email) {
-            $user->forceFill([
-                ...$validated,
-                'email_verified_at' => null,
-            ])->save();
+        $emailChanged = $validated['email'] !== $user->email;
 
-            $user->sendEmailVerificationNotification();
-
-            return;
+        /*
+         * `forceFill()` is typed by Larastan as accepting only a map of known
+         * model properties. `$validated` is a dynamic, rule-shaped payload, so
+         * the typed entry point is `setAttribute()`: the validation rules above
+         * are the allowlist, and every key has already passed through them.
+         * Absent keys stay absent, which is what a partial profile update means.
+         */
+        foreach ($validated as $attribute => $value) {
+            $user->setAttribute($attribute, $value);
         }
 
-        $user->forceFill($validated)->save();
+        if ($emailChanged) {
+            $user->setAttribute('email_verified_at', null);
+        }
+
+        $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
     }
 
     /**

@@ -7,12 +7,14 @@ namespace Modules\LeadAppointment\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Response as InertiaResponse;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Application\Queries\DashboardStatsQuery;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
+use Shared\Application\DTOs\SelectOptionData;
+use Shared\Domain\Enums\Permission;
 
 /**
  * The real dashboard: the same server-grouped lead columns as `/leads/board`
@@ -26,18 +28,18 @@ use Modules\LeadAppointment\Domain\Enums\Region;
 final readonly class DashboardController
 {
     public function __construct(
-        private LeadRepository $leads,
-        private AppointmentRepository $appointments,
+        private LeadReader $leads,
+        private AppointmentReader $appointments,
         private DashboardStatsQuery $stats,
     ) {}
 
     public function __invoke(Request $request): InertiaResponse
     {
-        $canViewLeads = $request->user()?->can('VIEW_ANY_LEAD') ?? false;
-        $canViewAppointments = $request->user()?->can('VIEW_ANY_APPOINTMENT') ?? false;
-        $canCreateLead = $request->user()?->can('CREATE_LEAD') ?? false;
-        $canUpdateLead = $request->user()?->can('UPDATE_LEAD') ?? false;
-        $canScheduleAppointment = $request->user()?->can('CREATE_APPOINTMENT') ?? false;
+        $canViewLeads = $request->user()?->can(Permission::ViewAnyLead->value) ?? false;
+        $canViewAppointments = $request->user()?->can(Permission::ViewAnyAppointment->value) ?? false;
+        $canCreateLead = $request->user()?->can(Permission::CreateLead->value) ?? false;
+        $canUpdateLead = $request->user()?->can(Permission::UpdateLead->value) ?? false;
+        $canScheduleAppointment = $request->user()?->can(Permission::CreateAppointment->value) ?? false;
         $columns = $canViewLeads ? $this->leads->board() : [];
 
         $timezone = Region::from((string) config('lead-appointment.default_region', Region::Houston->value))
@@ -60,7 +62,7 @@ final readonly class DashboardController
             'canScheduleAppointment' => $canScheduleAppointment,
             'leadOptions' => [
                 'regions' => array_map(
-                    static fn (Region $region): array => ['value' => $region->value, 'label' => $region->label()],
+                    static fn (Region $region): SelectOptionData => new SelectOptionData($region->value, $region->label()),
                     Region::cases(),
                 ),
                 'owners' => $canCreateLead ? $this->leads->assignableOwners() : [],
@@ -68,11 +70,11 @@ final readonly class DashboardController
             'googleMapsApiKey' => (string) config('services.google.maps_key', ''),
             'options' => [
                 'kinds' => array_map(
-                    static fn (AppointmentKind $kind): array => ['value' => $kind->value, 'label' => $kind->label()],
+                    static fn (AppointmentKind $kind): SelectOptionData => new SelectOptionData($kind->value, $kind->label()),
                     AppointmentKind::cases(),
                 ),
                 'regions' => array_map(
-                    static fn (Region $region): array => ['value' => $region->value, 'label' => $region->label()],
+                    static fn (Region $region): SelectOptionData => new SelectOptionData($region->value, $region->label()),
                     Region::cases(),
                 ),
             ],

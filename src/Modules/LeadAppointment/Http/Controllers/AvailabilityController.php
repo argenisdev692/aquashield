@@ -7,11 +7,15 @@ namespace Modules\LeadAppointment\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Modules\LeadAppointment\Application\Actions\SyncHolidaysAction;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityCalendarData;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityDayData;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityWindowFilterData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityExceptionData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityRuleData;
-use Modules\LeadAppointment\Application\Ports\AvailabilityRepository;
+use Modules\LeadAppointment\Application\Ports\AvailabilityReader;
+use Modules\LeadAppointment\Application\Ports\AvailabilityWriter;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\Services\AvailabilityResolver;
 use Modules\LeadAppointment\Domain\ValueObjects\ResolvedDay;
@@ -24,7 +28,8 @@ use Shared\Application\DTOs\BulkUuidsData;
 final readonly class AvailabilityController
 {
     public function __construct(
-        private AvailabilityRepository $availability,
+        private AvailabilityReader $availability,
+        private AvailabilityWriter $availabilityWriter,
         private AvailabilityResolver $resolver,
         private SyncHolidaysAction $syncHolidays,
     ) {}
@@ -39,7 +44,7 @@ final readonly class AvailabilityController
     public function storeRule(SaveAvailabilityRuleRequest $request): JsonResponse
     {
         return response()->json(
-            $this->availability->saveRule(SaveAvailabilityRuleData::from($request->validated())),
+            $this->availabilityWriter->saveRule(SaveAvailabilityRuleData::from($request->validated())),
             201,
         );
     }
@@ -47,26 +52,26 @@ final readonly class AvailabilityController
     public function updateRule(SaveAvailabilityRuleRequest $request, string $uuid): JsonResponse
     {
         return response()->json(
-            $this->availability->saveRule(SaveAvailabilityRuleData::from($request->validated()), $uuid),
+            $this->availabilityWriter->saveRule(SaveAvailabilityRuleData::from($request->validated()), $uuid),
         );
     }
 
     public function destroyRule(string $uuid): JsonResponse
     {
-        $this->availability->deleteRule($uuid);
+        $this->availabilityWriter->deleteRule($uuid);
 
         return response()->json(null, 204);
     }
 
     public function restoreRule(string $uuid): JsonResponse
     {
-        return response()->json($this->availability->restoreRule($uuid));
+        return response()->json($this->availabilityWriter->restoreRule($uuid));
     }
 
     public function bulkDeleteRules(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->availability->bulkDeleteRules($data->uuids);
+        $this->availabilityWriter->bulkDeleteRules($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -74,30 +79,24 @@ final readonly class AvailabilityController
     public function bulkRestoreRules(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->availability->bulkRestoreRules($data->uuids);
+        $this->availabilityWriter->bulkRestoreRules($data->uuids);
 
         return response()->json(null, 204);
     }
 
     public function exceptions(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
-        ]);
+        [, $from, $to] = $this->window($request);
 
         return response()->json([
-            'data' => $this->availability->exceptions(
-                $validated['from'] ?? null,
-                $validated['to'] ?? null,
-            ),
+            'data' => $this->availability->exceptions($from, $to),
         ]);
     }
 
     public function storeException(SaveAvailabilityExceptionRequest $request): JsonResponse
     {
         return response()->json(
-            $this->availability->saveException(SaveAvailabilityExceptionData::from($request->validated())),
+            $this->availabilityWriter->saveException(SaveAvailabilityExceptionData::from($request->validated())),
             201,
         );
     }
@@ -105,26 +104,26 @@ final readonly class AvailabilityController
     public function updateException(SaveAvailabilityExceptionRequest $request, string $uuid): JsonResponse
     {
         return response()->json(
-            $this->availability->saveException(SaveAvailabilityExceptionData::from($request->validated()), $uuid),
+            $this->availabilityWriter->saveException(SaveAvailabilityExceptionData::from($request->validated()), $uuid),
         );
     }
 
     public function destroyException(string $uuid): JsonResponse
     {
-        $this->availability->deleteException($uuid);
+        $this->availabilityWriter->deleteException($uuid);
 
         return response()->json(null, 204);
     }
 
     public function restoreException(string $uuid): JsonResponse
     {
-        return response()->json($this->availability->restoreException($uuid));
+        return response()->json($this->availabilityWriter->restoreException($uuid));
     }
 
     public function bulkDeleteExceptions(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->availability->bulkDeleteExceptions($data->uuids);
+        $this->availabilityWriter->bulkDeleteExceptions($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -132,7 +131,7 @@ final readonly class AvailabilityController
     public function bulkRestoreExceptions(Request $request): JsonResponse
     {
         $data = BulkUuidsData::validateAndCreate($request->all());
-        $this->availability->bulkRestoreExceptions($data->uuids);
+        $this->availabilityWriter->bulkRestoreExceptions($data->uuids);
 
         return response()->json(null, 204);
     }
@@ -150,7 +149,7 @@ final readonly class AvailabilityController
             ], 422);
         }
 
-        $created = $this->availability->createRangeExceptions(
+        $created = $this->availabilityWriter->createRangeExceptions(
             new SaveAvailabilityExceptionData(
                 date: $from->toDateString(),
                 isAvailable: (bool) ($validated['is_available'] ?? false),
@@ -165,44 +164,58 @@ final readonly class AvailabilityController
         return response()->json(['created' => $created], 201);
     }
 
-    public function calendar(Request $request): JsonResponse
+    public function calendar(Request $request): AvailabilityCalendarData
     {
-        $validated = $request->validate([
-            'from' => ['required', 'date_format:Y-m-d'],
-            'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
-            'region' => ['nullable', Rule::enum(Region::class)],
-        ]);
-
-        $timezone = Region::from($validated['region'] ?? (string) config('lead-appointment.default_region', Region::Houston->value))->timezone();
-        $from = CarbonImmutable::parse((string) $validated['from'], $timezone);
-        $to = CarbonImmutable::parse((string) $validated['to'], $timezone);
-        $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
-
-        if ($from->diffInDays($to) > $maxDays) {
-            return response()->json([
-                'message' => "The calendar window is limited to {$maxDays} days.",
-            ], 422);
-        }
+        [, $from, $to, $timezone] = $this->window($request);
 
         $days = array_map(
-            static fn (ResolvedDay $day): array => [
-                'date' => $day->date,
-                'is_open' => $day->isOpen,
-                'source' => $day->source,
-                'reason' => $day->reason,
-                'windows' => array_map(
+            static fn (ResolvedDay $day): AvailabilityDayData => new AvailabilityDayData(
+                date: $day->date,
+                isOpen: $day->isOpen,
+                source: $day->source,
+                reason: $day->reason,
+                windows: array_map(
                     static fn (TimeWindow $window): array => ['start' => $window->start, 'end' => $window->end],
                     $day->windows,
                 ),
-            ],
-            array_values($this->resolver->resolveRange($from, $to)),
+            ),
+            array_values($this->resolver->resolveRange(
+                CarbonImmutable::parse($from, $timezone),
+                CarbonImmutable::parse($to, $timezone),
+            )),
         );
 
-        return response()->json(['data' => $days]);
+        return new AvailabilityCalendarData($days);
+    }
+
+    /**
+     * @return array{0: AvailabilityWindowFilterData, 1: string, 2: string, 3: string}
+     */
+    private function window(Request $request): array
+    {
+        $filters = AvailabilityWindowFilterData::validateAndCreate($request->query());
+        $timezone = Region::from(
+            $filters->region ?? (string) config('lead-appointment.default_region', Region::Houston->value),
+        )->timezone();
+
+        $now = CarbonImmutable::now($timezone);
+        $from = $filters->from ?? $now->startOfMonth()->toDateString();
+        $to = $filters->to ?? $now->endOfMonth()->toDateString();
+        $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
+
+        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > $maxDays) {
+            throw ValidationException::withMessages([
+                'to' => "The availability window is limited to {$maxDays} days.",
+            ]);
+        }
+
+        return [$filters, $from, $to, $timezone];
     }
 
     public function syncHolidays(): JsonResponse
     {
+        // Explicit 200: the command is idempotent, not a resource creation, and
+        // the POST default of a Responsable Data object would be 201.
         return response()->json($this->syncHolidays->execute());
     }
 }

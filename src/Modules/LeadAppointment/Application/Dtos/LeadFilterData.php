@@ -12,9 +12,9 @@ use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * The one list/export filter contract. The admin table, the export controller
- * and the report all consume it, so a filter cannot be applied on screen and
- * forgotten in the file.
+ * The one lead list/export filter contract. The admin table and the export
+ * controller both consume it, so a filter cannot be applied on screen and
+ * forgotten in the file. The source report uses its own bounded date window.
  */
 #[MapName(SnakeCaseMapper::class)]
 final class LeadFilterData extends SoftDeleteFilterData

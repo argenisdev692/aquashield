@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Application\Queries;
 
 use Carbon\CarbonImmutable;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Dtos\DashboardMetricData;
+use Modules\LeadAppointment\Application\Dtos\DashboardStatsData;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 
 /**
@@ -22,64 +24,55 @@ use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 final readonly class DashboardStatsQuery
 {
     public function __construct(
-        private LeadRepository $leads,
-        private AppointmentRepository $appointments,
+        private LeadReader $leads,
+        private AppointmentReader $appointments,
     ) {}
 
-    /**
-     * @return array{
-     *     leads: array{current: int, previous: int},
-     *     inspections: array{current: int, previous: int},
-     *     won: array{current: int, previous: int},
-     *     appointments: array{current: int, previous: int}
-     * }
-     */
     public function execute(
         CarbonImmutable $now,
         bool $includeLeads = true,
         bool $includeAppointments = true,
-    ): array {
+    ): DashboardStatsData {
         $currentStart = $now->startOfMonth();
         $currentEnd = $now->endOfMonth();
         $previousStart = $currentStart->subMonthNoOverflow()->startOfMonth();
         $previousEnd = $currentStart->subSecond();
 
-        /** @var array{current: int, previous: int} $empty */
-        $empty = ['current' => 0, 'previous' => 0];
+        $empty = new DashboardMetricData(0, 0);
 
-        return [
-            'leads' => $includeLeads
-                ? [
-                    'current' => $this->leads->countCreatedBetween($currentStart, $currentEnd),
-                    'previous' => $this->leads->countCreatedBetween($previousStart, $previousEnd),
-                ]
+        return new DashboardStatsData(
+            leads: $includeLeads
+                ? new DashboardMetricData(
+                    current: $this->leads->countCreatedBetween($currentStart, $currentEnd),
+                    previous: $this->leads->countCreatedBetween($previousStart, $previousEnd),
+                )
                 : $empty,
-            'inspections' => $includeAppointments
-                ? [
-                    'current' => $this->appointments->countScheduledBetween(
+            inspections: $includeAppointments
+                ? new DashboardMetricData(
+                    current: $this->appointments->countScheduledBetween(
                         $currentStart,
                         $currentEnd,
                         AppointmentKind::Inspection,
                     ),
-                    'previous' => $this->appointments->countScheduledBetween(
+                    previous: $this->appointments->countScheduledBetween(
                         $previousStart,
                         $previousEnd,
                         AppointmentKind::Inspection,
                     ),
-                ]
+                )
                 : $empty,
-            'won' => $includeLeads
-                ? [
-                    'current' => $this->leads->countWonBetween($currentStart, $currentEnd),
-                    'previous' => $this->leads->countWonBetween($previousStart, $previousEnd),
-                ]
+            won: $includeLeads
+                ? new DashboardMetricData(
+                    current: $this->leads->countWonBetween($currentStart, $currentEnd),
+                    previous: $this->leads->countWonBetween($previousStart, $previousEnd),
+                )
                 : $empty,
-            'appointments' => $includeAppointments
-                ? [
-                    'current' => $this->appointments->countScheduledBetween($currentStart, $currentEnd),
-                    'previous' => $this->appointments->countScheduledBetween($previousStart, $previousEnd),
-                ]
+            appointments: $includeAppointments
+                ? new DashboardMetricData(
+                    current: $this->appointments->countScheduledBetween($currentStart, $currentEnd),
+                    previous: $this->appointments->countScheduledBetween($previousStart, $previousEnd),
+                )
                 : $empty,
-        ];
+        );
     }
 }

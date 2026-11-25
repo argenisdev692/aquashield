@@ -17,7 +17,7 @@ Route::middleware('api')->prefix('api')->group(function (): void {
         ->name('api.leads.store');
 
     Route::get('/leads/honeypot', [PublicLeadController::class, 'honeypot'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:'.config('lead-appointment.public.honeypot_throttle_per_minute', 30).',1')
         ->name('api.leads.honeypot');
 
     Route::get('/meta/webhook', [MetaWebhookController::class, 'verify'])

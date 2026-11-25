@@ -133,7 +133,11 @@ final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
         Log::warning('lead-appointment.google_calendar.'.$operation.'_failed', [
             'appointment_uuid' => $appointment->uuid,
             'google_event_id' => $appointment->googleEventId,
-            'error' => $exception->getMessage(),
+            'error' => (string) preg_replace(
+                '/((?:access_token|key|token)=)[^&\s]+/i',
+                '$1[REDACTED]',
+                $exception->getMessage(),
+            ),
         ]);
     }
 }

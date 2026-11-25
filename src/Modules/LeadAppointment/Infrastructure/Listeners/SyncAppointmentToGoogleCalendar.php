@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Infrastructure\Listeners;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Application\Ports\CalendarSyncPort;
 use Modules\LeadAppointment\Domain\Events\AppointmentCancelled;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
@@ -14,7 +15,8 @@ use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
 final readonly class SyncAppointmentToGoogleCalendar implements ShouldQueue
 {
     public function __construct(
-        private AppointmentRepository $appointments,
+        private AppointmentReader $appointments,
+        private AppointmentWriter $appointmentWriter,
         private CalendarSyncPort $calendar,
     ) {}
 
@@ -41,7 +43,7 @@ final readonly class SyncAppointmentToGoogleCalendar implements ShouldQueue
         $eventId = $this->calendar->create($appointment);
 
         if ($eventId !== null) {
-            $this->appointments->setGoogleEventId($appointment->uuid, $eventId);
+            $this->appointmentWriter->setGoogleEventId($appointment->uuid, $eventId);
         }
     }
 }

@@ -18,7 +18,7 @@ final class SyncUsHolidaysCommand extends Command
         $year = $this->option('year');
         $result = $action->execute($year === null ? null : (int) $year);
 
-        $this->info(json_encode($result, JSON_THROW_ON_ERROR));
+        $this->info(json_encode($result->toArray(), JSON_THROW_ON_ERROR));
 
         return self::SUCCESS;
     }

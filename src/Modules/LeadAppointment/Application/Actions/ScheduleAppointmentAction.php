@@ -8,8 +8,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Events\Dispatcher;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
-use Modules\LeadAppointment\Application\Ports\AppointmentRepository;
-use Modules\LeadAppointment\Application\Ports\LeadRepository;
+use Modules\LeadAppointment\Application\Ports\AppointmentReader;
+use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
@@ -31,8 +32,9 @@ use Modules\LeadAppointment\Domain\ValueObjects\BookingIntent;
 final readonly class ScheduleAppointmentAction
 {
     public function __construct(
-        private LeadRepository $leads,
-        private AppointmentRepository $appointments,
+        private LeadReader $leads,
+        private AppointmentReader $appointmentReader,
+        private AppointmentWriter $appointmentWriter,
         private AvailabilityResolver $availability,
         private BookingGuard $guard,
         private StatusTransition $transitions,
@@ -80,13 +82,13 @@ final readonly class ScheduleAppointmentAction
                 isEmergency: $data->isEmergency,
             ),
             $day,
-            $this->appointments->existingIntervalsForDay($dayStart, $dayEnd),
-            $this->appointments->dailyCountForDay($dayStart, $dayEnd),
+            $this->appointmentReader->existingIntervalsForDay($dayStart, $dayEnd),
+            $this->appointmentReader->dailyCountForDay($dayStart, $dayEnd),
         );
 
         $this->transitions->assertLead(LeadStatus::from($lead->status), LeadStatus::InspectionScheduled);
 
-        $appointment = $this->appointments->createWithLock(
+        $appointment = $this->appointmentWriter->createWithLock(
             $data,
             $duration,
             $timezone,
@@ -94,7 +96,6 @@ final readonly class ScheduleAppointmentAction
             $actorId,
         );
 
-        $this->leads->markInspectionScheduled($lead->uuid);
         $this->events->dispatch(new AppointmentScheduled($appointment->uuid));
 
         return $appointment;

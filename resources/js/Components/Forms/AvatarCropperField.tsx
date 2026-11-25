@@ -273,6 +273,10 @@ export default function AvatarCropperField({
                                         aspect={1}
                                         cropShape={shape === 'circle' ? 'round' : 'rect'}
                                         showGrid={false}
+                                        // The CSS is imported above, so skip the
+                                        // library's runtime <style> injection
+                                        // (it would need the CSP nonce).
+                                        disableAutomaticStylesInjection
                                         onCropChange={setCrop}
                                         onZoomChange={setZoom}
                                         onCropComplete={(_area, pixels) => setCroppedArea(pixels)}

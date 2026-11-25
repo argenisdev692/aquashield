@@ -107,12 +107,28 @@ foreach ($progressive as $module) {
             'Illuminate\\Support\\Facades',
             'Illuminate\\Http',
             'Illuminate\\Foundation\\Http',
+            // `Illuminate\Contracts\*` is the allowed framework surface; Rule is
+            // a concrete validator and belongs in Http/Requests, not a DTO.
+            'Illuminate\\Validation',
+            "Modules\\{$module}\\Infrastructure",
+            "Modules\\{$module}\\Http",
         ]);
 
     // Invariant 6: every dependency points inward.
     arch("{$module} Infrastructure may depend on the layers inside it")
         ->expect("Modules\\{$module}\\Infrastructure")
-        ->not->toUse(["Modules\\{$module}\\Domain\\Services"]);
+        ->not->toUse([
+            "Modules\\{$module}\\Domain\\Services",
+            "Modules\\{$module}\\Http",
+        ]);
+
+    // The boundary matrix, row `Http/`: controllers depend on Application/Domain
+    // and map the response; an Infrastructure import is a sibling-outer-layer
+    // dependency, even when the class is only a row mapper (export transformers
+    // live in Application/Exports for this reason).
+    arch("{$module} Http does not import Infrastructure")
+        ->expect("Modules\\{$module}\\Http")
+        ->not->toUse(["Modules\\{$module}\\Infrastructure"]);
 
     // Invariant 7: a Domain is used only inside its own module. Public access
     // goes through ports / Data objects, never into Domain/.

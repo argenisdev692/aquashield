@@ -28,10 +28,13 @@ mode: PROGRESSIVE
 - Public web/JSON admin surface: leads, appointments, calendar feed,
   availability, reports and exports, all session-authenticated and
   permission-gated.
-- Ports other modules may use: none. `Shared\Domain\Ports\ExportPort` is the only
-  cross-module contract consumed.
-- Events emitted: `LeadCaptured`, `LeadStatusChanged`, `AppointmentScheduled`,
-  `AppointmentRescheduled`, `AppointmentCancelled`, `AppointmentCompleted`.
+- Ports other modules may use: none. This module consumes
+  `Shared\Domain\Ports\ExportPort`, `AuditPort`, `Shared\Infrastructure\Mail\MailInterface`,
+  `Shared\Application\DTOs\BulkUuidsData`, `Shared\Support\SpreadsheetCell`,
+  `Shared\Infrastructure\Company\CompanyProfile` and
+  `Shared\Infrastructure\Resilience\CircuitBreakerInterface`.
+- Events emitted: `LeadCaptured`, `AppointmentScheduled`,
+  `AppointmentRescheduled`, `AppointmentCancelled`.
   Listeners live in this module's `Infrastructure/Listeners/` because they are
   side-effect adapters (mail, Google Calendar).
 - What is NEVER exposed: Eloquent models from an API response, internal numeric
@@ -43,7 +46,9 @@ mode: PROGRESSIVE
    `Infrastructure/`. `Domain/Ports` is the only outward seam.
 2. `Application/` imports Domain, own DTOs/ports and `Illuminate\Contracts\*`.
    No Eloquent, no facades (`DB`, `Cache`, `Log`), no `Illuminate\Http`.
-3. Controllers validate → invoke one action/query → map a Data response.
+3. Controllers validate → invoke one Action/Query for a multi-step flow, or one
+   Application port for one-step CRUD → map a Data response. A forwarding
+   Action is a dumb pass-through, not a use case.
 4. Repository implementations live in `Infrastructure/Persistence/Eloquent/` and
    implement a port with a different name.
 5. Transactions and row locks live in repositories, never in Application actions.
@@ -95,6 +100,14 @@ mode: PROGRESSIVE
   future queue job, not a synchronous request.
 - `last_contacted_at` is a timestamp, not a full lead-to-contact event store; the
   `lead_activities` table is the timeline.
+- **Declared OWASP A04 deviation, dated 2026-11-25, review due 2027-05-19:**
+  lead email/phone/address remain plaintext because the list search, duplicate
+  detection and export rely on exact and `LIKE` predicates. Field-level
+  encryption needs a blind-index design for those columns and a migration plan
+  for the existing rows; it is tracked as a cross-cutting change, not a module
+  shortcut. PII is excluded from `LogsActivity` and from application logs.
+- Export transformers live in `Application/Exports/`; the writer/PDF
+  mechanics stay behind `Shared\Domain\Ports\ExportPort`.
 - US federal holidays are computed in `UsFederalHolidayProvider` from Carbon + OPM
   observed rules (no external holiday package). `lead-appointment:sync-holidays`
   runs yearly on Jan 1 at 00:10 America/Chicago with `withoutOverlapping(60)` and
@@ -105,14 +118,18 @@ mode: PROGRESSIVE
 
 ## Tests holding the layers up (no-lock rule)
 
-- `Tests/Unit/AvailabilityResolverTest.php` — fails if the resolver is moved out
-  of `Domain/` or starts importing Eloquent.
+- `Tests/Unit/AvailabilityResolverTest.php` — resolver behaviour with a fake
+  `AvailabilityScheduleReader`; `tests/Architecture/ModuleComplexityTest.php`
+  enforces the `Domain/` purity and inward-dependency rules.
 - `Tests/Unit/BookingGuardTest.php` — 7 h + 1 h travel, one-per-day cap, past/closed.
 - `Tests/Unit/ScheduleAppointmentActionTest.php` — DB-free with mocked ports.
 - `Tests/Feature/PublicLeadApiTest.php` — 201/422/429 + duplicate linking.
 - `Tests/Feature/AppointmentSchedulingTest.php` — 401/403/422 + happy path.
 - `Tests/Feature/LeadPagesTest.php` — Inertia lead screens: index/board/create/
   edit/show props, Inertia create, legal and illegal stage moves.
+- `Tests/Feature/AvailabilityPageTest.php` — Inertia availability screens: month
+  window props, filters (source/state/record state), page writes, duplicate-date
+  error, export contract and the JSON/page separation.
 - `Tests/Feature/SyncHolidaysCommandTest.php` — 11 federal holidays, idempotent.
 - `Tests/Unit/SyncAppointmentToGoogleCalendarTest.php` — listener orchestration.
 - `tests/Architecture/ModuleComplexityTest.php` — mode, purity and no `Resources/`.

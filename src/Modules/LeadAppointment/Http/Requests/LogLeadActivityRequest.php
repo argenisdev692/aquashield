@@ -7,12 +7,13 @@ namespace Modules\LeadAppointment\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\LeadAppointment\Domain\Enums\LeadActivityType;
+use Shared\Domain\Enums\Permission;
 
 final class LogLeadActivityRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can(Permission::UpdateLead->value) ?? false;
     }
 
     /**

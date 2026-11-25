@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\LeadAppointment\Exports;
+namespace Modules\LeadAppointment\Application\Exports;
 
 use Modules\LeadAppointment\Application\Dtos\LeadSourceReportData;
 use Shared\Support\SpreadsheetCell;

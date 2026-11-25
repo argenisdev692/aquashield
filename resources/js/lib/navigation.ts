@@ -17,6 +17,7 @@ import {
     Building2,
     Calendar,
     CalendarClock,
+    CalendarDays,
     ChartLine,
     ChartColumn,
     Database,
@@ -72,6 +73,14 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: CalendarClock,
         keywords: 'appointments calendar inspections estimates visits schedule reschedule cancel',
         permission: 'VIEW_ANY_APPOINTMENT',
+    },
+    {
+        label: 'Availability',
+        href: '/availability',
+        icon: CalendarDays,
+        keywords:
+            'availability days off closures holidays crew schedule weekly hours exceptions blocks',
+        permission: 'VIEW_ANY_AVAILABILITY_EXCEPTION',
     },
     {
         // The CompanyData module's one screen. Adding the module to the shell is
