@@ -6,28 +6,36 @@
 # exist before `npm run build`. (A node:24 stage fails with "php: not found".)
 FROM ubuntu:24.04 AS app
 
-ARG PHP_VERSION=8.5
+ARG PHP_VERSION=8.6
 ARG VITE_REVERB_APP_KEY
 ARG VITE_REVERB_HOST
 ARG VITE_REVERB_PORT
 ARG VITE_REVERB_SCHEME
 ENV DEBIAN_FRONTEND=noninteractive
 
-# PHP 8.5 via ondrej PPA + Node 24 via nodesource. The PostgreSQL 17 client is
-# required by `backup:run --only-db`: Ubuntu 24.04 ships client 16, and pg_dump
-# refuses a newer server (Supabase is 17.6).
+# PHP 8.6 from packages.sury.org, NOT the official php:8.6 image: that image
+# dropped pecl/pear and no longer compiles mbstring in, while the Debian
+# packaging used here ships both as ordinary php8.6-* packages (verified:
+# php8.6-cli/redis/mbstring 8.6.0-3+debsuryorg24.04.1). The ondrej Launchpad
+# PPA is frozen ("no longer receives updates") and still serves 8.6.0-2, so
+# security releases would stop; debsuryorg is the maintained repo.
+#
+# Node 24 via nodesource. The PostgreSQL 17 client is required by
+# `backup:run --only-db`: Ubuntu 24.04 ships client 16, and pg_dump refuses a
+# newer server (Supabase is 17.6).
 RUN mkdir -p /etc/apt/keyrings \
     && apt-get update && apt-get install -y --no-install-recommends \
         gnupg curl ca-certificates git unzip \
-    && curl -sS 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xb8dc7e53946656efbce4c1dd71daeaab4ad4cab6' \
-        | gpg --dearmor | tee /etc/apt/keyrings/ppa_ondrej_php.gpg > /dev/null \
-    && echo "deb [signed-by=/etc/apt/keyrings/ppa_ondrej_php.gpg] https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" \
-        > /etc/apt/sources.list.d/ppa_ondrej_php.list \
+    && curl -sSLo /tmp/debsuryorg-archive-keyring.deb https://packages.sury.org/debsuryorg-archive-keyring.deb \
+    && dpkg -i /tmp/debsuryorg-archive-keyring.deb \
+    && echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ noble main" \
+        > /etc/apt/sources.list.d/php.list \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
         | gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+    && apt-get update \
     && apt-get install -y --no-install-recommends \
         php${PHP_VERSION}-cli \
         php${PHP_VERSION}-pgsql \
@@ -45,6 +53,10 @@ RUN mkdir -p /etc/apt/keyrings \
         ffmpeg \
     && curl -sLS https://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --filename=composer \
     && apt-get -y autoremove && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Limits shared by `artisan serve`, queue:work and schedule:work (see
+# docker/php.ini). Without this, uploads are capped at PHP's 2 MB default.
+COPY docker/php.ini /etc/php/${PHP_VERSION}/cli/conf.d/99-app.ini
 
 WORKDIR /var/www/html
 
