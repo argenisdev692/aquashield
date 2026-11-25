@@ -32,8 +32,8 @@ interface SidebarNavProps {
 
 const rowClass = (active: boolean, collapsed: boolean): string =>
     cn(
-        'group relative flex h-11 items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
-        collapsed ? 'justify-center px-0' : 'px-3',
+        'group relative flex h-10 items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
+        collapsed ? 'justify-center px-0' : 'px-2.5',
         active
             ? 'bg-aq-accent/10 text-surface-900 transition-colors duration-150 dark:bg-aq-accent/15 dark:text-surface-0'
             : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900 dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0',
@@ -65,7 +65,7 @@ export default function SidebarNav({
                 {isItemActive && (
                     <span
                         aria-hidden="true"
-                        className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-aq-accent"
+                        className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-aq-accent"
                     />
                 )}
 
@@ -119,19 +119,25 @@ export default function SidebarNav({
     };
 
     return (
-        <nav aria-label="Primary" className="flex flex-col gap-5">
+        <nav aria-label="Primary" className="flex flex-col gap-3">
             {groups.map((group, groupIndex) => (
                 /*
-                 * Two groups carry no label — the primary destinations and the
-                 * account group — so the index keeps the key unique. A label
-                 * alone would collide and React would reuse one group's
-                 * subtree for the other.
+                 * The index keeps the key unique even if a future group ships
+                 * without a label. Every group gets a hairline separator except
+                 * the first, so sections read as structure instead of as one
+                 * long list with stray headings.
                  */
-                <div key={group.label ?? `group-${groupIndex}`}>
+                <div
+                    key={group.label ?? `group-${groupIndex}`}
+                    className={cn(
+                        groupIndex > 0 &&
+                            'border-t border-surface-100 pt-3 dark:border-surface-800/80',
+                    )}
+                >
                     {group.label && (
                         <p
                             className={cn(
-                                'px-3 pb-1.5 text-[11px] font-semibold tracking-[0.14em] text-surface-600 uppercase dark:text-surface-300',
+                                'px-2.5 pb-1.5 text-[10px] font-semibold tracking-[0.16em] text-surface-600 uppercase dark:text-surface-300',
                                 collapsed && 'sr-only',
                             )}
                         >

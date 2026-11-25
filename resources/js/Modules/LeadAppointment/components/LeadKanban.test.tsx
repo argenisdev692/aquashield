@@ -182,6 +182,21 @@ describe('LeadKanban', () => {
         expect(screen.getByRole('alert').textContent).toContain('not allowed');
     });
 
+    it('keeps the horizontal board reachable from the keyboard', () => {
+        render(
+            <LeadKanban
+                columns={columns}
+                transitions={{ new: ['contacted'], contacted: [] }}
+                canUpdate
+                onSelect={() => undefined}
+            />,
+        );
+
+        const board = screen.getByRole('region', { name: /lead pipeline board/i });
+
+        expect(board.getAttribute('tabindex')).toBe('0');
+    });
+
     it('has no structural accessibility violations', async () => {
         const { container } = render(
             <LeadKanban

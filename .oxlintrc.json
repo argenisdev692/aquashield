@@ -117,6 +117,20 @@
         "react/immutability": "off",
         "react/refs": "off"
       }
+    },
+    {
+      /*
+       * The pipeline board is a horizontally scrollable region. A focus stop on
+       * the scroll container is required for keyboard scrolling (WCAG 2.1.1 and
+       * axe's `scrollable-region-focusable`); the rule treats the labelled
+       * `region` role as decorative and asks for the focus stop to be removed.
+       * The accessible behaviour wins; the element is the only one in the file
+       * that needs the exception.
+       */
+      "files": ["resources/js/Modules/LeadAppointment/components/LeadKanban.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-tabindex": "off"
+      }
     }
   ],
   "ignorePatterns": ["public/**", "vendor/**", "node_modules/**", "resources/js/generated/**"]

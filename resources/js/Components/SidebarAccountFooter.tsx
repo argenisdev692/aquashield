@@ -1,23 +1,18 @@
 /**
  * SidebarAccountFooter — the account block that closes the rail.
  *
- * One row, two things: who is signed in, and the way out. The identity on the
- * left is a link to the account destination; the icon-only control on the
- * right signs out. The rail owns the identity, so the header does not repeat
- * it — one account, one place, on every screen.
+ * One row, two targets: the identity opens the account destination; the
+ * ellipsis opens a contextual menu with the same destination and sign-out. The
+ * way out is no longer a second icon sitting 4px from the profile link, so a
+ * mis-aimed click cannot sign the user out.
  *
- * Expanded, the sign-out button is a real button with an accessible name and a
- * 36px target, above the 24×24 minimum of WCAG 2.2 SC 2.5.8, and it is the only
- * element in the row that leaves the application — so it sits in its own
- * bordered footer zone rather than inside the navigation list.
- *
- * Collapsed, the avatar becomes the account menu trigger: one 36px control
- * opens the account menu instead of stacking a second button under the avatar.
- * It is click/tap/keyboard activated, never hover-only, so the way out stays
- * discoverable and reachable without a pointer.
+ * Expanded, the identity and the menu trigger are separate controls. Collapsed,
+ * the avatar itself becomes the menu trigger — one 36px target instead of a
+ * stacked avatar-plus-button. Both are click/tap/keyboard activated, never
+ * hover-only.
  */
 import { Link, usePage } from '@inertiajs/react';
-import { LogOut } from 'lucide-react';
+import { LogOut, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/ui/avatar';
 import {
     DropdownMenu,
@@ -28,7 +23,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/Components/ui/tooltip';
 import { useLogout } from '@/lib/auth';
 import { SETTINGS_NAV } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
@@ -57,6 +51,7 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
     const page = usePage<{ user?: App.Data.Auth.UserData | null }>();
     const user = page.props.user ?? null;
     const logout = useLogout();
+    const SettingsIcon = SETTINGS_NAV.icon;
 
     // A guest never reaches the shell — every screen that renders it sits
     // behind `auth` — so there is no identity to show and nothing to sign out
@@ -90,42 +85,45 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
         );
 
     /**
-     * The way out. It is an icon-only control, so it carries an accessible
-     * name and a tooltip on hover AND keyboard focus — never a bare glyph and
-     * never a hover-only affordance. A circle, because the avatar beside it is
-     * a circle: two shapes in one 40px row have to agree.
+     * The expanded footer opens the menu upward over the rail. The collapsed
+     * rail opens it to the right instead: a 240px panel anchored to a 72px
+     * column would otherwise hang off the left edge of the screen.
      */
-    const signOutButton = (
-        <button
-            type="button"
-            onClick={() => {
-                logout();
-            }}
-            aria-label="Sign out"
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-content-border bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
-        >
-            <LogOut className="size-4" aria-hidden="true" />
-        </button>
-    );
+    const accountMenu = (side: 'top' | 'right') => (
+        <DropdownMenuContent side={side} align="end" sideOffset={8} className="w-60">
+            <DropdownMenuGroup>
+                <DropdownMenuLabel className="flex flex-col gap-0.5 px-2 py-1.5">
+                    <span className="truncate text-sm font-medium text-surface-900 dark:text-surface-0">
+                        {user.name}
+                    </span>
+                    <span className="truncate text-xs font-normal text-surface-600 dark:text-surface-300">
+                        {user.email}
+                    </span>
+                </DropdownMenuLabel>
+            </DropdownMenuGroup>
 
-    /**
-     * Expanded, the label is the hover affordance, not a hidden button: the
-     * icon-only control carries a tooltip on hover AND keyboard focus. The
-     * collapsed rail does not stack a second control — the avatar opens the
-     * account menu instead (see below).
-     */
-    const signOutControl = (
-        <Tooltip>
-            <TooltipTrigger render={signOutButton} />
-            <TooltipContent side="top" sideOffset={6}>
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem render={<Link href={SETTINGS_NAV.href} />} className="gap-2">
+                <SettingsIcon className="size-4" aria-hidden="true" />
+                Account settings
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+                onClick={() => {
+                    logout();
+                }}
+                className="gap-2"
+            >
+                <LogOut className="size-4" aria-hidden="true" />
                 Sign out
-            </TooltipContent>
-        </Tooltip>
+            </DropdownMenuItem>
+        </DropdownMenuContent>
     );
 
     if (collapsed) {
-        const SettingsIcon = SETTINGS_NAV.icon;
-
         return (
             <div className="flex justify-center">
                 <DropdownMenu>
@@ -141,47 +139,14 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
                         }
                     />
 
-                    <DropdownMenuContent side="right" align="end" sideOffset={8} className="w-60">
-                        <DropdownMenuGroup>
-                            <DropdownMenuLabel className="flex flex-col gap-0.5 px-2 py-1.5">
-                                <span className="truncate text-sm font-medium text-surface-900 dark:text-surface-0">
-                                    {user.name}
-                                </span>
-                                <span className="truncate text-xs font-normal text-surface-500 dark:text-surface-300">
-                                    {user.email}
-                                </span>
-                            </DropdownMenuLabel>
-                        </DropdownMenuGroup>
-
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuItem
-                            render={<Link href={SETTINGS_NAV.href} />}
-                            className="gap-2"
-                        >
-                            <SettingsIcon className="size-4" aria-hidden="true" />
-                            {SETTINGS_NAV.label}
-                        </DropdownMenuItem>
-
-                        <DropdownMenuSeparator />
-
-                        <DropdownMenuItem
-                            onClick={() => {
-                                logout();
-                            }}
-                            className="gap-2"
-                        >
-                            <LogOut className="size-4" aria-hidden="true" />
-                            Sign out
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
+                    {accountMenu('right')}
                 </DropdownMenu>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
             {/*
              * The identity. It is a link to the account destination, so the
              * avatar is a control with a purpose instead of decoration, and
@@ -191,21 +156,41 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
              */}
             <Link
                 href={SETTINGS_NAV.href}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition-colors duration-150 hover:bg-surface-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:hover:bg-surface-800"
+                className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors duration-150 hover:bg-surface-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:hover:bg-surface-800"
             >
                 {avatar('size-9')}
 
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-surface-900 dark:text-surface-0">
+                    <span
+                        className="block truncate text-[13px] leading-tight font-medium text-surface-900 dark:text-surface-0"
+                        title={user.name}
+                    >
                         {user.name}
                     </span>
-                    <span className="block truncate text-xs text-surface-500 dark:text-surface-300">
+                    <span
+                        className="mt-0.5 block truncate text-[11px] leading-tight text-surface-600 dark:text-surface-300"
+                        title={user.email}
+                    >
                         {user.email}
                     </span>
                 </span>
             </Link>
 
-            {signOutControl}
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    render={
+                        <button
+                            type="button"
+                            aria-label={`Account actions for ${user.name}`}
+                            className="grid size-8 shrink-0 place-items-center rounded-md text-surface-500 transition-colors duration-150 hover:bg-surface-0 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                        >
+                            <MoreHorizontal className="size-4" aria-hidden="true" />
+                        </button>
+                    }
+                />
+
+                {accountMenu('top')}
+            </DropdownMenu>
         </div>
     );
 }

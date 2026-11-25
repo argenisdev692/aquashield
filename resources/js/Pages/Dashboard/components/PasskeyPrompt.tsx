@@ -2,8 +2,8 @@
  * Dashboard nudge for a user who has no passkey.
  *
  * A prompt, not a gate: the FIDO rubric disqualifies a modal that forces passkey
- * creation before access, and the copy names the benefit instead of the
- * mechanism. "Not now" is a real choice and is persisted server-side.
+ * creation before access. The dashboard is an operations screen, so the nudge
+ * is a single quiet strip — the action stays, the wall of copy does not.
  */
 import { Link } from '@inertiajs/react';
 import { ScanFace, X } from 'lucide-react';
@@ -19,51 +19,51 @@ export default function PasskeyPrompt({ pending, error, onDismiss }: PasskeyProm
     return (
         <aside
             aria-labelledby="passkey-prompt-title"
-            className="flex flex-col gap-4 rounded-xl border border-aq-accent/30 bg-aq-accent/5 p-4 sm:flex-row sm:items-center"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-aq-accent/20 bg-aq-accent/[0.04] px-3 py-2"
         >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-aq-accent/15 text-aq-accent">
-                <ScanFace className="size-5" aria-hidden="true" />
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-aq-accent/10 text-aq-accent">
+                <ScanFace className="size-4" aria-hidden="true" />
             </span>
 
             <div className="min-w-0 flex-1">
                 <p
                     id="passkey-prompt-title"
-                    className="text-sm font-semibold text-surface-900 dark:text-surface-0"
+                    className="text-xs leading-relaxed text-surface-600 dark:text-surface-300"
                 >
-                    Sign in without typing your password
-                </p>
-                <p className="mt-0.5 text-sm text-surface-600 dark:text-surface-300">
-                    A passkey uses your fingerprint, face or device PIN. It cannot be phished
-                    because it never leaves your device.
+                    <span className="font-semibold text-surface-900 dark:text-surface-0">
+                        Sign in without a password.
+                    </span>{' '}
+                    A passkey is phishing-resistant and never leaves your device.
                 </p>
 
                 {error !== null && (
-                    <p role="alert" className="mt-2 text-sm font-medium text-aq-danger-strong">
+                    <p role="alert" className="mt-1 text-xs font-medium text-aq-danger-strong">
                         {error}
                     </p>
                 )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDismiss}
-                    disabled={pending}
-                >
-                    <X className="mr-1.5 size-3.5" aria-hidden="true" />
-                    Not now
-                </Button>
-
+            <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
                 <Button
                     render={<Link href="/settings/profile#security" />}
                     nativeButton={false}
-                    size="sm"
-                    className="h-9 gap-2 px-3"
+                    variant="ghost"
+                    size="xs"
+                    className="gap-1.5 text-aq-accent-text transition-colors duration-150 hover:bg-aq-accent/10 dark:text-aq-accent"
                 >
                     <ScanFace className="size-3.5" aria-hidden="true" />
                     Add a passkey
+                </Button>
+
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={onDismiss}
+                    disabled={pending}
+                    aria-label="Dismiss passkey suggestion"
+                >
+                    <X className="size-3.5" aria-hidden="true" />
                 </Button>
             </div>
         </aside>

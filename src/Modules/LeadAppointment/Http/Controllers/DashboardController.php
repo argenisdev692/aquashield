@@ -55,6 +55,7 @@ final readonly class DashboardController
             'stats' => $this->stats->execute($now, $canViewLeads, $canViewAppointments),
             'canCreate' => $canCreateLead,
             'canUpdate' => $canUpdateLead,
+            'canViewLeads' => $canViewLeads,
             'canScheduleAppointment' => $canScheduleAppointment,
             'canViewCalendar' => $canViewAppointments,
             'canViewAppointment' => $canViewAppointment,

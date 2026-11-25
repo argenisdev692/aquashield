@@ -1,14 +1,18 @@
 /**
  * LeadKanban — the server-grouped pipeline board.
  *
- * One implementation for the Leads board page and the Dashboard pipeline tab.
+ * One implementation for the Leads board page and the Dashboard pipeline view.
  * Columns arrive already grouped and counted by the server; the browser never
  * re-slices a paginated response. A drag or the card selector posts the stage
  * change and the transition map is enforced on the server.
+ *
+ * The card is an operational summary, not a detail page: name, reachability,
+ * source, age and the one date that changes the next action. Everything else
+ * lives behind the lead itself, so the board stays scannable at a glance.
  */
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
-import { CalendarClock, Phone } from 'lucide-react';
+import { CalendarClock, MapPin, Phone } from 'lucide-react';
 import { Tag } from '@/Components/ui/tag';
 import { formatDateTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
@@ -113,7 +117,18 @@ export default function LeadKanban({
                 </p>
             )}
 
-            <div className="flex gap-3 overflow-x-auto pb-3">
+            {/*
+             * A scroll region must be focusable so a keyboard user can scroll
+             * the pipeline without a pointer (WCAG 2.1.1; axe
+             * `scrollable-region-focusable`). The matching lint exception lives
+             * in `.oxlintrc.json` with the same reason.
+             */}
+            <div
+                role="region"
+                aria-label="Lead pipeline board"
+                tabIndex={0}
+                className="aq-scroll-quiet flex gap-3 overflow-x-auto pb-3 transition-shadow duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none"
+            >
                 {columns.map((column) => {
                     const droppable = dragging !== null && canMove(dragging, column.status);
                     const isOver = droppable && overStatus === column.status;
@@ -150,14 +165,14 @@ export default function LeadKanban({
                                 }
                             }}
                             className={cn(
-                                'flex min-w-72 shrink-0 flex-col rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none',
-                                'border-surface-200 bg-surface-50 dark:border-surface-800 dark:bg-surface-800/40',
+                                'flex w-72 shrink-0 flex-col rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none',
+                                'border-surface-200/80 bg-surface-100/60 dark:border-surface-800 dark:bg-surface-900/40',
                                 isOver
-                                    ? 'border-aq-accent/60 bg-surface-100 ring-2 ring-aq-accent/40 dark:bg-surface-800/80'
+                                    ? 'border-aq-accent/60 bg-aq-accent/5 ring-2 ring-aq-accent/30 dark:bg-aq-accent/5'
                                     : '',
                             )}
                         >
-                            <header className="flex items-center justify-between gap-2 px-2 pb-2 pt-1">
+                            <header className="flex items-center justify-between gap-2 px-1.5 pt-1 pb-2.5">
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span
                                         aria-hidden="true"
@@ -166,149 +181,215 @@ export default function LeadKanban({
                                             columnAccent[column.status] ?? 'bg-surface-400',
                                         )}
                                     />
-                                    <h2 className="truncate text-sm font-semibold text-surface-900 dark:text-surface-0">
+                                    <h2 className="truncate text-[13px] font-semibold text-surface-900 dark:text-surface-0">
                                         {column.label}
                                     </h2>
                                 </div>
-                                <span className="rounded-full bg-surface-200 px-2 py-px text-[11px] font-semibold tabular-nums text-surface-600 dark:bg-surface-700 dark:text-surface-300">
+                                <span className="min-w-6 rounded-full bg-surface-200/80 px-1.5 py-px text-center text-[11px] font-semibold text-surface-600 tabular-nums dark:bg-surface-800 dark:text-surface-300">
                                     {column.total}
                                 </span>
                             </header>
 
-                            <ol className="flex min-h-28 flex-col gap-2">
-                                {column.leads.map((card) => (
-                                    <li key={card.uuid}>
-                                        <article
-                                            draggable={canUpdate}
-                                            onDragStart={(event) => {
-                                                setDragging(card);
-                                                event.dataTransfer.effectAllowed = 'move';
-                                                event.dataTransfer.setData('text/plain', card.uuid);
-                                            }}
-                                            onDragEnd={() => {
-                                                setDragging(null);
-                                                setOverStatus(null);
-                                            }}
-                                            className={cn(
-                                                'rounded-lg border bg-surface-0 p-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150 dark:bg-surface-900',
-                                                'border-surface-200 dark:border-surface-700',
-                                                canUpdate
-                                                    ? 'cursor-grab active:cursor-grabbing'
-                                                    : '',
-                                                dragging?.uuid === card.uuid ? 'opacity-40' : '',
-                                                card.is_emergency
-                                                    ? 'border-s-2 border-s-aq-danger'
-                                                    : '',
-                                                movingUuid === card.uuid ? 'opacity-60' : '',
-                                            )}
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                {onSelect === undefined ? (
-                                                    canView ? (
-                                                        <Link
-                                                            href={`/leads/${card.uuid}`}
-                                                            className="min-w-0 truncate text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline dark:text-surface-0"
-                                                        >
-                                                            {card.full_name}
-                                                        </Link>
+                            {column.leads.length > 0 && (
+                                <ol className="flex flex-col gap-2">
+                                    {column.leads.map((card) => (
+                                        <li key={card.uuid}>
+                                            <article
+                                                draggable={canUpdate}
+                                                onDragStart={(event) => {
+                                                    setDragging(card);
+                                                    event.dataTransfer.effectAllowed = 'move';
+                                                    event.dataTransfer.setData(
+                                                        'text/plain',
+                                                        card.uuid,
+                                                    );
+                                                }}
+                                                onDragEnd={() => {
+                                                    setDragging(null);
+                                                    setOverStatus(null);
+                                                }}
+                                                className={cn(
+                                                    'group/card rounded-lg border bg-surface-0 p-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150 dark:bg-surface-900',
+                                                    'border-surface-200 hover:border-aq-accent/40 dark:border-surface-700 dark:hover:border-aq-accent/35',
+                                                    canUpdate
+                                                        ? 'cursor-grab active:cursor-grabbing'
+                                                        : '',
+                                                    dragging?.uuid === card.uuid
+                                                        ? 'opacity-40'
+                                                        : '',
+                                                    card.is_emergency
+                                                        ? 'border-s-2 border-s-aq-danger'
+                                                        : '',
+                                                    movingUuid === card.uuid ? 'opacity-60' : '',
+                                                )}
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    {onSelect === undefined ? (
+                                                        canView ? (
+                                                            <Link
+                                                                href={`/leads/${card.uuid}`}
+                                                                className="min-w-0 truncate text-[13px] leading-snug font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-0 dark:hover:text-aq-accent-text"
+                                                            >
+                                                                {card.full_name}
+                                                            </Link>
+                                                        ) : (
+                                                            <span className="min-w-0 truncate text-[13px] leading-snug font-semibold text-surface-900 dark:text-surface-0">
+                                                                {card.full_name}
+                                                            </span>
+                                                        )
                                                     ) : (
-                                                        <span className="min-w-0 truncate text-sm font-semibold text-surface-900 dark:text-surface-0">
-                                                            {card.full_name}
-                                                        </span>
-                                                    )
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => onSelect(card)}
-                                                        className="min-w-0 truncate text-start text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-0"
-                                                    >
-                                                        {card.full_name}
-                                                    </button>
-                                                )}
-                                                {card.is_spam && <Tag variant="outline">Spam</Tag>}
-                                                {card.is_emergency && (
-                                                    <Tag variant="destructive">Emergency</Tag>
-                                                )}
-                                            </div>
-
-                                            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-300">
-                                                <span className="inline-flex items-center gap-1">
-                                                    <Phone className="size-3" aria-hidden="true" />
-                                                    <span className="tabular-nums">
-                                                        {card.phone ?? 'No phone'}
-                                                    </span>
-                                                </span>
-                                                <span aria-hidden="true">·</span>
-                                                <span className="truncate">
-                                                    {[card.city, card.state]
-                                                        .filter(Boolean)
-                                                        .join(', ') || humanize(card.region ?? '')}
-                                                </span>
-                                            </p>
-
-                                            <p className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-surface-500 dark:text-surface-300">
-                                                <span>{humanize(card.source)}</span>
-                                                <span className="tabular-nums">
-                                                    {ageInDays(card.created_at)}
-                                                </span>
-                                            </p>
-
-                                            {card.inspection_at !== null && (
-                                                <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-surface-100 px-1.5 py-0.5 text-xs tabular-nums text-surface-600 dark:bg-surface-800 dark:text-surface-300">
-                                                    <CalendarClock
-                                                        className="size-3"
-                                                        aria-hidden="true"
-                                                    />
-                                                    {formatDateTime(card.inspection_at, 'en-US', {
-                                                        dateStyle: 'medium',
-                                                        timeStyle: 'short',
-                                                    })}
-                                                </p>
-                                            )}
-
-                                            {canUpdate &&
-                                                (transitions[card.status] ?? []).length > 0 && (
-                                                    <label className="mt-2 flex flex-col gap-1">
-                                                        <span className="sr-only">
-                                                            Move {card.full_name} to another stage
-                                                        </span>
-                                                        <select
-                                                            value=""
-                                                            disabled={movingUuid !== null}
-                                                            onChange={(event) => {
-                                                                if (event.target.value !== '') {
-                                                                    move(card, event.target.value);
-                                                                }
-                                                            }}
-                                                            className="h-7 w-full rounded-md border border-surface-200 bg-surface-0 px-2 text-xs text-surface-700 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus disabled:opacity-60 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onSelect(card)}
+                                                            className="min-w-0 truncate text-start text-[13px] leading-snug font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-0 dark:hover:text-aq-accent-text"
                                                         >
-                                                            <option value="">Move to…</option>
-                                                            {(transitions[card.status] ?? []).map(
-                                                                (status) => (
+                                                            {card.full_name}
+                                                        </button>
+                                                    )}
+
+                                                    <span className="flex shrink-0 items-center gap-1">
+                                                        {card.is_spam && (
+                                                            <Tag
+                                                                variant="outline"
+                                                                className="px-1.5 py-px text-[10px]"
+                                                            >
+                                                                Spam
+                                                            </Tag>
+                                                        )}
+                                                        {card.is_emergency && (
+                                                            <Tag
+                                                                variant="destructive"
+                                                                className="px-1.5 py-px text-[10px]"
+                                                            >
+                                                                Emergency
+                                                            </Tag>
+                                                        )}
+                                                    </span>
+                                                </div>
+
+                                                <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-surface-600 dark:text-surface-300">
+                                                    <span className="inline-flex items-center gap-1">
+                                                        <Phone
+                                                            className="size-3"
+                                                            aria-hidden="true"
+                                                        />
+                                                        <span className="tabular-nums">
+                                                            {card.phone ?? 'No phone'}
+                                                        </span>
+                                                    </span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span className="inline-flex min-w-0 items-center gap-1">
+                                                        <MapPin
+                                                            className="size-3 shrink-0"
+                                                            aria-hidden="true"
+                                                        />
+                                                        <span className="truncate">
+                                                            {[card.city, card.state]
+                                                                .filter(Boolean)
+                                                                .join(', ') ||
+                                                                humanize(card.region ?? '')}
+                                                        </span>
+                                                    </span>
+                                                </p>
+
+                                                <div className="mt-2.5 flex items-center justify-between gap-2">
+                                                    <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-surface-100 px-1.5 py-0.5 text-[10px] font-medium text-surface-600 dark:bg-surface-800 dark:text-surface-300">
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className="size-1 shrink-0 rounded-full bg-aq-accent/70"
+                                                        />
+                                                        <span className="truncate">
+                                                            {humanize(card.source)}
+                                                        </span>
+                                                    </span>
+                                                    <span
+                                                        className="shrink-0 text-[10px] text-surface-600 tabular-nums dark:text-surface-300"
+                                                        title={`Created ${ageInDays(card.created_at)}`}
+                                                    >
+                                                        {ageInDays(card.created_at)}
+                                                    </span>
+                                                </div>
+
+                                                {card.inspection_at !== null && (
+                                                    <p className="mt-2.5 flex items-center gap-1.5 rounded-md border border-aq-accent/15 bg-aq-accent/[0.04] px-2 py-1 text-[11px] font-medium text-surface-700 tabular-nums dark:border-aq-accent/20 dark:bg-aq-accent/[0.06] dark:text-surface-200">
+                                                        <CalendarClock
+                                                            className="size-3 shrink-0 text-aq-accent"
+                                                            aria-hidden="true"
+                                                        />
+                                                        <span className="truncate">
+                                                            {formatDateTime(
+                                                                card.inspection_at,
+                                                                'en-US',
+                                                                {
+                                                                    dateStyle: 'medium',
+                                                                    timeStyle: 'short',
+                                                                },
+                                                            )}
+                                                        </span>
+                                                    </p>
+                                                )}
+
+                                                {canUpdate &&
+                                                    (transitions[card.status] ?? []).length > 0 && (
+                                                        <label className="mt-2.5 flex flex-col gap-1 border-t border-surface-100 pt-2 dark:border-surface-800">
+                                                            <span className="sr-only">
+                                                                Move {card.full_name} to another
+                                                                stage
+                                                            </span>
+                                                            <select
+                                                                value=""
+                                                                disabled={movingUuid !== null}
+                                                                onChange={(event) => {
+                                                                    if (event.target.value !== '') {
+                                                                        move(
+                                                                            card,
+                                                                            event.target.value,
+                                                                        );
+                                                                    }
+                                                                }}
+                                                                className="h-7 w-full rounded-md border border-transparent bg-surface-50 px-2 text-[11px] font-medium text-surface-600 transition-colors duration-150 hover:border-surface-200 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus disabled:opacity-60 dark:bg-surface-800/60 dark:text-surface-300 dark:hover:border-surface-700 dark:hover:bg-surface-800 motion-reduce:transition-none"
+                                                            >
+                                                                <option value="">Move to…</option>
+                                                                {(
+                                                                    transitions[card.status] ?? []
+                                                                ).map((status) => (
                                                                     <option
                                                                         key={status}
                                                                         value={status}
                                                                     >
                                                                         {humanize(status)}
                                                                     </option>
-                                                                ),
-                                                            )}
-                                                        </select>
-                                                    </label>
-                                                )}
-                                        </article>
-                                    </li>
-                                ))}
-                            </ol>
+                                                                ))}
+                                                            </select>
+                                                        </label>
+                                                    )}
+                                            </article>
+                                        </li>
+                                    ))}
+                                </ol>
+                            )}
 
                             {column.leads.length === 0 && (
-                                <p className="rounded-lg border border-dashed border-surface-200 py-6 text-center text-xs text-surface-500 dark:border-surface-800 dark:text-surface-300">
-                                    {droppable ? 'Drop a card here' : 'No leads in this stage'}
+                                <p className="rounded-lg border border-dashed border-surface-300/80 px-3 py-6 text-center text-[11px] leading-relaxed text-surface-600 dark:border-surface-700 dark:text-surface-300">
+                                    {droppable ? (
+                                        'Drop a card here'
+                                    ) : (
+                                        <>
+                                            <span className="block font-medium text-surface-600 dark:text-surface-200">
+                                                No leads in this stage
+                                            </span>
+                                            <span>
+                                                {canUpdate
+                                                    ? 'Drag a lead here when it moves forward.'
+                                                    : 'New leads will appear here.'}
+                                            </span>
+                                        </>
+                                    )}
                                 </p>
                             )}
 
                             {column.total > column.leads.length && (
-                                <p className="px-2 pt-2 text-center text-[11px] text-surface-500 dark:text-surface-300">
+                                <p className="px-2 pt-2 text-center text-[10px] text-surface-600 dark:text-surface-300">
                                     Showing the newest {column.leads.length} of {column.total}. Open
                                     the table view to filter the rest.
                                 </p>

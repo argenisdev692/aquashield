@@ -38,6 +38,10 @@ import { useTheme } from '@/lib/theme';
 
 interface AppLayoutProps {
     title: string;
+    /** One line under the page title; keeps the header compact on dense screens. */
+    subtitle?: string;
+    /** Page-level primary actions, aligned with the title on desktop. */
+    actions?: React.ReactNode;
     children: React.ReactNode;
 }
 
@@ -48,7 +52,7 @@ interface IdleSessionConfig {
     logoutEndpoint: string;
 }
 
-export default function AppLayout({ title, children }: AppLayoutProps) {
+export default function AppLayout({ title, subtitle, actions, children }: AppLayoutProps) {
     const page = usePage<{
         authPermissions?: string[];
         authIdle?: IdleSessionConfig | null;
@@ -238,9 +242,24 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                     id="main"
                     className="mx-auto w-full max-w-7xl min-w-0 flex-1 px-4 py-8 sm:px-6 lg:px-8"
                 >
-                    <h1 className="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0">
-                        {title}
-                    </h1>
+                    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 sm:items-center">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0">
+                                {title}
+                            </h1>
+                            {subtitle !== undefined && (
+                                <p className="mt-1 max-w-prose text-sm text-surface-600 dark:text-surface-300">
+                                    {subtitle}
+                                </p>
+                            )}
+                        </div>
+
+                        {actions !== undefined && (
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                {actions}
+                            </div>
+                        )}
+                    </div>
                     <FlashBanner className="mt-4" />
                     <div className="mt-6 min-w-0">{children}</div>
                 </main>

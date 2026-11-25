@@ -29,6 +29,13 @@ import {
 
 export const DASHBOARD_PATH = '/dashboard';
 
+/**
+ * The rail's information architecture. Every destination declares its section
+ * here, so a new module cannot land in the unlabelled void between groups and
+ * the palette keeps the same mental model as the rail.
+ */
+export type NavSection = 'workspace' | 'organization' | 'system' | 'account';
+
 export interface NavItem {
     readonly label: string;
     readonly href: string;
@@ -36,6 +43,8 @@ export interface NavItem {
     readonly icon: LucideIcon;
     /** Extra words the palette filter should match but the row should not show. */
     readonly keywords: string;
+    /** Section heading the rail renders above this destination. */
+    readonly section: NavSection;
     /** Permission required to see the destination; omitted for every-user rows. */
     readonly permission?: string;
     /** Non-permission capability (a Gate answer), e.g. staff management. */
@@ -56,12 +65,14 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: DASHBOARD_PATH,
         icon: LayoutDashboard,
         keywords: 'home overview start workspace pipeline crm',
+        section: 'workspace',
     },
     {
         label: 'Leads',
         href: '/leads',
         icon: KanbanSquare,
         keywords: 'leads pipeline kanban board prospects meta ads inspections crud contacts',
+        section: 'workspace',
         permission: 'VIEW_ANY_LEAD',
     },
     {
@@ -69,6 +80,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/appointments',
         icon: CalendarClock,
         keywords: 'appointments calendar inspections estimates visits schedule reschedule cancel',
+        section: 'workspace',
         permission: 'VIEW_ANY_APPOINTMENT',
     },
     {
@@ -77,6 +89,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: CalendarDays,
         keywords:
             'availability days off closures holidays crew schedule weekly hours exceptions blocks',
+        section: 'workspace',
         permission: 'VIEW_ANY_AVAILABILITY_EXCEPTION',
     },
     {
@@ -87,6 +100,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/company-data/edit',
         icon: Building2,
         keywords: 'company profile settings branding contact address billing bank socials',
+        section: 'organization',
         permission: 'VIEW_COMPANY_DATA',
     },
     {
@@ -94,6 +108,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/users',
         icon: Users,
         keywords: 'users team staff people accounts access roles permissions invitations',
+        section: 'organization',
         capability: 'manageStaff',
     },
     {
@@ -101,6 +116,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/roles',
         icon: ShieldCheck,
         keywords: 'roles rbac access control permission matrix catalogue grants',
+        section: 'system',
         capability: 'manageAccess',
         permission: 'VIEW_ANY_ROLE',
     },
@@ -109,6 +125,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/permissions',
         icon: LockKeyhole,
         keywords: 'permissions capabilities catalogue access control system custom groups',
+        section: 'system',
         capability: 'manageAccess',
         permission: 'VIEW_ANY_PERMISSION',
     },
@@ -117,6 +134,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/backups',
         icon: Database,
         keywords: 'backups database dumps archives restore download retention quarantine',
+        section: 'system',
         permission: 'VIEW_ANY_BACKUPS',
     },
     {
@@ -124,6 +142,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         href: '/activity',
         icon: History,
         keywords: 'audit activity log history events security trail',
+        section: 'system',
         permission: 'VIEW_ANY_ACTIVITY_LOGS',
     },
 ];
@@ -138,14 +157,24 @@ export const SETTINGS_NAV: NavItem = {
     href: '/settings/profile',
     icon: Settings,
     keywords: 'settings profile account security password passkey two-factor preferences',
+    section: 'account',
 };
 
 /**
  * The account utility group. It closes the list on every screen, so Settings
- * never lands between two work destinations and never changes position when
- * the dashboard's contextual group appears.
+ * never lands between two work destinations and never changes position.
  */
-const ACCOUNT_NAV: NavGroup = { items: [SETTINGS_NAV] };
+const ACCOUNT_NAV: NavGroup = { label: 'Account', items: [SETTINGS_NAV] };
+
+/**
+ * The rail's section order. Labels are rendered uppercase by the row component,
+ * so the source keeps normal sentence case.
+ */
+const NAV_SECTIONS: readonly { key: Exclude<NavSection, 'account'>; label: string }[] = [
+    { key: 'workspace', label: 'Workspace' },
+    { key: 'organization', label: 'Organization' },
+    { key: 'system', label: 'System' },
+];
 
 export interface NavCapabilities {
     readonly manageStaff: boolean;
@@ -181,6 +210,7 @@ export const DASHBOARD_SECTIONS: readonly NavItem[] = [
         href: '#kpis',
         icon: ChartColumn,
         keywords: 'kpi leads open pipeline value won response time',
+        section: 'workspace',
         anchor: true,
     },
     {
@@ -188,30 +218,37 @@ export const DASHBOARD_SECTIONS: readonly NavItem[] = [
         href: '#pipeline',
         icon: KanbanSquare,
         keywords: 'kanban stages deals board drag calendar month appointments',
+        section: 'workspace',
         anchor: true,
     },
 ];
 
 /**
- * Rail groups for the current route: the permission-filtered primary group,
- * the dashboard's "On this page" anchor group only while mounted, and the
- * account group last.
+ * The permitted destinations, split into the rail's real sections. A section
+ * with nothing visible is dropped rather than rendered as an empty heading.
  */
-export const dashboardGroups = (
-    currentPath: string,
+export const groupedPrimaryNav = (
     permissions: readonly string[],
     capabilities: NavCapabilities = { manageStaff: false, manageAccess: false },
 ): readonly NavGroup[] => {
-    const groups: NavGroup[] = [{ items: visiblePrimaryNav(permissions, capabilities) }];
+    const visible = visiblePrimaryNav(permissions, capabilities);
 
-    if (currentPath === DASHBOARD_PATH) {
-        groups.push({ label: 'On this page', items: DASHBOARD_SECTIONS });
-    }
-
-    groups.push(ACCOUNT_NAV);
-
-    return groups;
+    return NAV_SECTIONS.map(({ key, label }) => ({
+        label,
+        items: visible.filter((item) => item.section === key),
+    })).filter((group) => group.items.length > 0);
 };
+
+/**
+ * Rail groups for every screen: the permission-filtered work sections and the
+ * account group last. The dashboard's "On this page" documentation links are
+ * not repeated here — its own segmented view selector owns that job now.
+ */
+export const dashboardGroups = (
+    _currentPath: string,
+    permissions: readonly string[],
+    capabilities: NavCapabilities = { manageStaff: false, manageAccess: false },
+): readonly NavGroup[] => [...groupedPrimaryNav(permissions, capabilities), ACCOUNT_NAV];
 
 /** `/dashboard` and everything beneath it, never a prefix of another path. */
 export const isActivePath = (currentPath: string, href: string): boolean =>

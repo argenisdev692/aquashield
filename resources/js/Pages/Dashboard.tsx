@@ -5,6 +5,10 @@
  * used by `/leads/board`, and the calendar fetches the visible month through
  * `/appointments/calendar-events`. There is no mock row and no second pipeline
  * state in the browser.
+ *
+ * The page is ordered by operational priority: four real monthly metrics, then
+ * the pipeline itself. The shell owns the page title and primary action; the
+ * page owns the segmented view selector and the two content surfaces.
  */
 import { lazy, Suspense, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -16,6 +20,7 @@ import {
     Plus,
     Table2,
     Trophy,
+    UserPlus,
 } from 'lucide-react';
 import KpiCard from '@/Components/KpiCard';
 import PasskeyPrompt from '@/Pages/Dashboard/components/PasskeyPrompt';
@@ -28,7 +33,6 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/Components/ui/sheet';
-import { Tabs, TabsList, TabsPanel, TabsTab } from '@/Components/ui/tabs';
 import { Tag } from '@/Components/ui/tag';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePasskeyPrompt } from '@/Modules/Auth/hooks/usePasskeyPrompt';
@@ -43,6 +47,7 @@ import {
 import LeadCreateDialog from '@/Pages/Dashboard/components/LeadCreateDialog';
 import { formatDateTime } from '@/lib/date';
 import { useTheme } from '@/lib/theme';
+import { cn } from '@/lib/utils';
 
 const BoardCalendar = lazy(() => import('@/Pages/Dashboard/BoardCalendar'));
 
@@ -66,6 +71,7 @@ interface DashboardProps {
     };
     canCreate: boolean;
     canUpdate: boolean;
+    canViewLeads: boolean;
     canScheduleAppointment: boolean;
     canViewCalendar: boolean;
     canViewAppointment: boolean;
@@ -85,6 +91,8 @@ interface DashboardProps {
     errors: Record<string, string>;
 }
 
+type DashboardView = 'kanban' | 'calendar';
+
 const humanize = (value: string): string => {
     const label = value.replace(/_/g, ' ');
     return label.charAt(0).toUpperCase() + label.slice(1);
@@ -97,11 +105,18 @@ type DeltaDirection = 'up' | 'down' | 'flat';
  * asserts a direction. Percent only when there is a base to divide by;
  * otherwise the absolute change is the honest number. A rounded 0% with a real
  * difference falls back to the count, so "+1" never renders as "0%".
+ *
+ * Two zero counts produce a neutral state, not a comparison: "same as last
+ * month" on a fresh workspace is noise dressed as a delta.
  */
 const monthDelta = ({
     current,
     previous,
 }: StatComparison): { trend: DeltaDirection; label: string } => {
+    if (current === 0 && previous === 0) {
+        return { trend: 'flat', label: 'No activity this month' };
+    }
+
     if (current === previous) {
         return { trend: 'flat', label: 'same as last month' };
     }
@@ -123,6 +138,44 @@ const monthDelta = ({
         : { trend, label: `${percent > 0 ? '+' : ''}${percent}% vs. last month` };
 };
 
+const segmentClass = (active: boolean): string =>
+    cn(
+        'inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
+        active
+            ? 'bg-surface-0 text-surface-900 shadow-sm ring-1 ring-surface-200/80 dark:bg-surface-700 dark:text-surface-0 dark:ring-surface-600/80'
+            : 'text-surface-500 hover:bg-surface-0/70 hover:text-surface-900 dark:text-surface-300 dark:hover:bg-surface-800/60 dark:hover:text-surface-0',
+    );
+
+const segmentIconClass = (active: boolean): string =>
+    cn(
+        'size-3.5 shrink-0',
+        active ? 'text-aq-accent-text' : 'text-surface-400 dark:text-surface-400',
+    );
+
+function PipelineEmptyState({
+    icon,
+    title,
+    description,
+}: {
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+}) {
+    return (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-300/80 bg-surface-0/60 px-6 py-14 text-center dark:border-surface-700 dark:bg-surface-900/40">
+            <span className="grid size-11 place-items-center rounded-xl bg-surface-100 text-surface-500 dark:bg-surface-800 dark:text-surface-300">
+                {icon}
+            </span>
+            <p className="mt-3 text-sm font-semibold text-surface-900 dark:text-surface-0">
+                {title}
+            </p>
+            <p className="mt-1 max-w-sm text-sm text-surface-600 dark:text-surface-300">
+                {description}
+            </p>
+        </div>
+    );
+}
+
 export default function Dashboard() {
     const {
         columns,
@@ -130,6 +183,7 @@ export default function Dashboard() {
         stats,
         canCreate,
         canUpdate,
+        canViewLeads,
         canScheduleAppointment,
         canViewCalendar,
         canViewAppointment,
@@ -146,7 +200,7 @@ export default function Dashboard() {
     const { isDark } = useTheme();
     const invalidateCalendar = useCalendarEventsInvalidator();
 
-    const [view, setView] = useState<'kanban' | 'calendar'>('kanban');
+    const [view, setView] = useState<DashboardView>(canViewLeads ? 'kanban' : 'calendar');
     const [selectedLead, setSelectedLead] = useState<LeadCard | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [leadCreateOpen, setLeadCreateOpen] = useState(false);
@@ -189,40 +243,25 @@ export default function Dashboard() {
     const wonDelta = monthDelta(stats.won);
     const appointmentsDelta = monthDelta(stats.appointments);
 
+    const pipelineTotal = columns.reduce((total, column) => total + column.total, 0);
+    const hasAnyView = canViewLeads || canViewCalendar;
+
     return (
-        <AppLayout title="Dashboard">
+        <AppLayout
+            title="Dashboard"
+            subtitle="Your lead pipeline and scheduled inspections."
+            actions={
+                canCreate ? (
+                    <Button size="header" className="gap-2" onClick={() => setLeadCreateOpen(true)}>
+                        <Plus className="size-4" aria-hidden="true" />
+                        New lead
+                    </Button>
+                ) : undefined
+            }
+        >
             <Head title="Dashboard" />
 
-            <div className="flex flex-col gap-6">
-                {/*
-                 * The shell's <h1> already says "Dashboard", so this page owns
-                 * only the description and the actions — a second heading here
-                 * read as a second page title, not a section.
-                 */}
-                <header className="flex flex-wrap items-end justify-between gap-3">
-                    <p className="max-w-prose text-sm text-surface-500 dark:text-surface-300">
-                        Live lead pipeline and scheduled inspections.
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            render={<Link href="/leads" />}
-                            nativeButton={false}
-                            variant="outline"
-                            className="h-9 gap-2"
-                        >
-                            <Table2 className="size-4" aria-hidden="true" />
-                            Table view
-                        </Button>
-                        {canCreate && (
-                            <Button className="h-9 gap-2" onClick={() => setLeadCreateOpen(true)}>
-                                <Plus className="size-4" aria-hidden="true" />
-                                New lead
-                            </Button>
-                        )}
-                    </div>
-                </header>
-
+            <div className="flex flex-col gap-5">
                 {passkeyPrompt === true && prompt.visible ? (
                     <PasskeyPrompt
                         pending={prompt.pending}
@@ -241,7 +280,7 @@ export default function Dashboard() {
                 <section
                     id="kpis"
                     aria-label="Key metrics"
-                    className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+                    className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
                 >
                     <KpiCard
                         label="New leads"
@@ -249,14 +288,20 @@ export default function Dashboard() {
                         delta={leadsDelta.label}
                         trend={leadsDelta.trend}
                         index={0}
-                        icon={<KanbanSquare className="size-5" aria-hidden="true" />}
+                        href={canViewLeads ? '/leads' : undefined}
+                        icon={<UserPlus className="size-5" aria-hidden="true" />}
                     />
                     <KpiCard
-                        label="Inspection scheduled"
+                        label="Inspections"
                         value={stats.inspections.current}
                         delta={inspectionsDelta.label}
                         trend={inspectionsDelta.trend}
                         index={1}
+                        href={
+                            canViewCalendar
+                                ? '/appointments?filter%5Bkind%5D=inspection'
+                                : undefined
+                        }
                         icon={<CalendarCheck className="size-5" aria-hidden="true" />}
                     />
                     <KpiCard
@@ -265,6 +310,7 @@ export default function Dashboard() {
                         delta={wonDelta.label}
                         trend={wonDelta.trend}
                         index={2}
+                        href={canViewLeads ? '/leads?filter%5Bstatus%5D=won' : undefined}
                         icon={<Trophy className="size-5" aria-hidden="true" />}
                     />
                     <KpiCard
@@ -273,6 +319,7 @@ export default function Dashboard() {
                         delta={appointmentsDelta.label}
                         trend={appointmentsDelta.trend}
                         index={3}
+                        href={canViewCalendar ? '/appointments' : undefined}
                         icon={<CalendarClock className="size-5" aria-hidden="true" />}
                     />
                 </section>
@@ -280,104 +327,145 @@ export default function Dashboard() {
                 <section
                     id="pipeline"
                     aria-label="Lead pipeline and inspection calendar"
-                    className="scroll-mt-24 overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900"
+                    className="scroll-mt-24"
                 >
-                    <Tabs
-                        value={view}
-                        onValueChange={(value) => setView(value as 'kanban' | 'calendar')}
-                    >
-                        <TabsList>
-                            <TabsTab value="kanban">
-                                <span className="flex items-center gap-2">
-                                    <KanbanSquare className="size-3" aria-hidden="true" />
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div
+                            role="group"
+                            aria-label="Pipeline view"
+                            className="inline-flex items-center gap-0.5 rounded-lg border border-surface-200 bg-surface-100/70 p-1 dark:border-surface-800 dark:bg-surface-900/60"
+                        >
+                            {canViewLeads && (
+                                <button
+                                    type="button"
+                                    aria-pressed={view === 'kanban'}
+                                    onClick={() => setView('kanban')}
+                                    className={segmentClass(view === 'kanban')}
+                                >
+                                    <KanbanSquare
+                                        className={segmentIconClass(view === 'kanban')}
+                                        aria-hidden="true"
+                                    />
                                     Kanban
-                                </span>
-                            </TabsTab>
-                            <TabsTab value="calendar">
-                                <span className="flex items-center gap-2">
-                                    <CalendarClock className="size-3" aria-hidden="true" />
-                                    Calendar
-                                </span>
-                            </TabsTab>
-                        </TabsList>
-
-                        <TabsPanel value="kanban">
-                            <LeadKanban
-                                columns={columns}
-                                transitions={transitions}
-                                canUpdate={canUpdate}
-                                errors={errors}
-                                onSelect={(lead) => {
-                                    setSelectedLead(lead);
-                                    setSelectedEvent(null);
-                                }}
-                            />
-                        </TabsPanel>
-
-                        <TabsPanel value="calendar">
-                            {!canViewCalendar ? (
-                                <p className="px-[1.125rem] py-10 text-center text-sm text-surface-500 dark:text-surface-300">
-                                    You do not have permission to view appointments.
-                                </p>
-                            ) : (
-                                <>
-                                    {calendar.isError ? (
-                                        <div
-                                            role="alert"
-                                            className="mx-[1.125rem] mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
-                                        >
-                                            <span>The calendar could not be loaded.</span>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={calendar.retry}
-                                            >
-                                                Try again
-                                            </Button>
-                                        </div>
-                                    ) : null}
-
-                                    <Suspense
-                                        fallback={
-                                            <div className="p-4" aria-busy="true">
-                                                <Skeleton className="mb-3 h-8 w-56" />
-                                                <div className="grid grid-cols-7 gap-2">
-                                                    {Array.from({ length: 35 }, (_, index) => (
-                                                        <Skeleton
-                                                            key={index}
-                                                            className="h-20 rounded-lg"
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        }
-                                    >
-                                        <BoardCalendar
-                                            events={
-                                                calendar.isPlaceholderData ? [] : calendar.events
-                                            }
-                                            isFetching={calendar.isFetching}
-                                            colorScheme={isDark ? 'dark' : 'light'}
-                                            onSelect={openAppointment}
-                                            onDateClick={
-                                                canScheduleAppointment
-                                                    ? (date) => openSchedule(date, null)
-                                                    : undefined
-                                            }
-                                            onRangeChange={(from, to) =>
-                                                setCalendarRange((current) =>
-                                                    current?.from === from && current.to === to
-                                                        ? current
-                                                        : { from, to },
-                                                )
-                                            }
-                                        />
-                                    </Suspense>
-                                </>
+                                </button>
                             )}
-                        </TabsPanel>
-                    </Tabs>
+
+                            {canViewLeads && (
+                                <Link href="/leads" className={segmentClass(false)}>
+                                    <Table2
+                                        className={segmentIconClass(false)}
+                                        aria-hidden="true"
+                                    />
+                                    Table
+                                </Link>
+                            )}
+
+                            {canViewCalendar && (
+                                <button
+                                    type="button"
+                                    aria-pressed={view === 'calendar'}
+                                    onClick={() => setView('calendar')}
+                                    className={segmentClass(view === 'calendar')}
+                                >
+                                    <CalendarClock
+                                        className={segmentIconClass(view === 'calendar')}
+                                        aria-hidden="true"
+                                    />
+                                    Calendar
+                                </button>
+                            )}
+                        </div>
+
+                        {canViewLeads && columns.length > 0 && (
+                            <p className="text-xs text-surface-600 dark:text-surface-300">
+                                <span className="font-semibold text-surface-700 tabular-nums dark:text-surface-200">
+                                    {pipelineTotal}
+                                </span>{' '}
+                                {pipelineTotal === 1 ? 'lead' : 'leads'} across {columns.length}{' '}
+                                {columns.length === 1 ? 'stage' : 'stages'}
+                            </p>
+                        )}
+                    </div>
+
+                    {!hasAnyView ? (
+                        <PipelineEmptyState
+                            icon={<KanbanSquare className="size-5" aria-hidden="true" />}
+                            title="Pipeline unavailable"
+                            description="Your role does not include access to the lead pipeline or the appointment calendar."
+                        />
+                    ) : view === 'kanban' ? (
+                        canViewLeads ? (
+                            columns.length > 0 ? (
+                                <LeadKanban
+                                    columns={columns}
+                                    transitions={transitions}
+                                    canUpdate={canUpdate}
+                                    errors={errors}
+                                    onSelect={(lead) => {
+                                        setSelectedLead(lead);
+                                        setSelectedEvent(null);
+                                    }}
+                                />
+                            ) : (
+                                <PipelineEmptyState
+                                    icon={<KanbanSquare className="size-5" aria-hidden="true" />}
+                                    title="No leads yet"
+                                    description="Create your first lead to start the pipeline."
+                                />
+                            )
+                        ) : null
+                    ) : canViewCalendar ? (
+                        <div className="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900">
+                            {calendar.isError ? (
+                                <div
+                                    role="alert"
+                                    className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
+                                >
+                                    <span>The calendar could not be loaded.</span>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={calendar.retry}
+                                    >
+                                        Try again
+                                    </Button>
+                                </div>
+                            ) : null}
+
+                            <Suspense
+                                fallback={
+                                    <div className="p-4" aria-busy="true">
+                                        <Skeleton className="mb-3 h-8 w-56" />
+                                        <div className="grid grid-cols-7 gap-2">
+                                            {Array.from({ length: 35 }, (_, index) => (
+                                                <Skeleton key={index} className="h-20 rounded-lg" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                }
+                            >
+                                <BoardCalendar
+                                    events={calendar.isPlaceholderData ? [] : calendar.events}
+                                    isFetching={calendar.isFetching}
+                                    colorScheme={isDark ? 'dark' : 'light'}
+                                    onSelect={openAppointment}
+                                    onDateClick={
+                                        canScheduleAppointment
+                                            ? (date) => openSchedule(date, null)
+                                            : undefined
+                                    }
+                                    onRangeChange={(from, to) =>
+                                        setCalendarRange((current) =>
+                                            current?.from === from && current.to === to
+                                                ? current
+                                                : { from, to },
+                                        )
+                                    }
+                                />
+                            </Suspense>
+                        </div>
+                    ) : null}
                 </section>
             </div>
 
