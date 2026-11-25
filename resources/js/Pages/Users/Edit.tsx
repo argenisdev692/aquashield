@@ -25,13 +25,31 @@ interface EditUserPageProps {
 }
 
 export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps) {
-    const { form, errors, submit, touch, clearError } = useZodForm({
+    const { form, errors, submit, touch, setField, setFields } = useZodForm({
         initial: toUserProfileForm(user),
         schema: updateUserSchema,
     });
 
-    const emailAvailability = useUserAvailability('email', form.data.email, user.uuid);
-    const usernameAvailability = useUserAvailability('username', form.data.username, user.uuid);
+    /*
+     * Only probe a value the administrator actually changed. Probing on mount
+     * made an untouched edit wait on two round-trips before it could be saved
+     * and announced "Email is available." for a value nobody typed.
+     */
+    const emailChanged = form.data.email !== user.email;
+    const usernameChanged = (form.data.username ?? '') !== (user.username ?? '');
+
+    const emailAvailability = useUserAvailability(
+        'email',
+        form.data.email,
+        user.uuid,
+        emailChanged,
+    );
+    const usernameAvailability = useUserAvailability(
+        'username',
+        form.data.username,
+        user.uuid,
+        usernameChanged,
+    );
 
     const blockingCheck =
         emailAvailability.state === 'checking' ||
@@ -44,10 +62,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
     const summary = `Editing ${user.name} · ${user.email}`;
 
     const setProfile = <K extends keyof UpdateUserForm>(key: K, value: UpdateUserForm[K]): void => {
-        // Inertia's key/value overload cannot distribute over a union key; the
-        // object overload is the same write with the form type intact.
-        form.setData({ [key]: value } as Partial<UpdateUserForm>);
-        clearError(key);
+        setField(key, value);
     };
 
     return (
@@ -90,6 +105,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
                             data={form.data}
                             errors={errors}
                             onChange={setProfile}
+                            onPatch={(patch) => setFields(patch)}
                             onBlur={touch}
                             availability={{
                                 username: usernameAvailability,

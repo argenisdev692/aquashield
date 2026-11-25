@@ -1,8 +1,6 @@
 import { z } from 'zod';
-import { emailSchema } from '@/lib/email';
-import { phoneField } from '@/lib/phone';
-import { usernameSchema } from '@/lib/username';
 import { passwordSchema, PASSWORD_HINT } from '@/lib/auth';
+import { isGender, profileAddressShape, profileIdentityShape } from './profileFields';
 
 /**
  * Client mirror of StoreUserRequest / UpdateUserRequest.
@@ -12,60 +10,9 @@ import { passwordSchema, PASSWORD_HINT } from '@/lib/auth';
  * normalisation still happens server-side in App\Support\UserProfileInput.
  */
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Narrow the generated `string | null` onto the form's gender enum. */
-const isGender = (value: string | null): value is 'male' | 'female' | 'other' =>
-    value === 'male' || value === 'female' || value === 'other';
-
-const today = (): string => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return `${now.getFullYear()}-${month}-${day}`;
-};
-
-const dateOfBirthSchema = z
-    .string()
-    .max(10)
-    .refine(
-        (value) => value === '' || (ISO_DATE.test(value) && value < today()),
-        'Enter a date before today',
-    );
-
 const profileShape = {
-    first_name: z.string().trim().min(1, 'Enter a first name').max(255),
-    last_name: z.string().max(255),
-    username: usernameSchema,
-    email: emailSchema,
-    // The server accepts any string up to 32 chars; the client uses the same
-    // libphonenumber-js rule as PhoneField, so an incomplete draft cannot be
-    // saved as a "phone number". Any country is accepted: the value carries
-    // its own calling code.
-    phone: phoneField({ max: 32 }),
-    date_of_birth: dateOfBirthSchema,
-    address: z.string().max(255),
-    address_2: z.string().max(255),
-    zip_code: z.string().max(32),
-    city: z.string().max(120),
-    state: z.string().max(120),
-    country: z.string().max(120),
-    gender: z.enum(['male', 'female', 'other']).nullable(),
-    latitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -90 && value <= 90),
-            'Latitude must be between -90 and 90',
-        ),
-    longitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -180 && value <= 180),
-            'Longitude must be between -180 and 180',
-        ),
+    ...profileIdentityShape,
+    ...profileAddressShape,
 };
 
 export const updateUserSchema = z.object(profileShape);
@@ -132,13 +79,6 @@ export type UserProfileField =
 export function toUserProfileForm(
     user: Modules.Users.Data.ManagedUserData | null = null,
 ): UpdateUserForm {
-    /*
-     * New accounts start on a valid default; an out-of-contract value already
-     * in the database becomes "Not specified" instead of being asserted onto
-     * the enum and submitted back to the server.
-     */
-    const gender = user === null ? 'male' : isGender(user.gender) ? user.gender : null;
-
     return {
         first_name: user?.first_name ?? '',
         last_name: user?.last_name ?? '',
@@ -152,7 +92,12 @@ export function toUserProfileForm(
         city: user?.city ?? '',
         state: user?.state ?? '',
         country: user?.country ?? '',
-        gender,
+        /*
+         * A new account starts unset: the server accepts a nullable gender and
+         * a silent "male" default invented personal data the administrator
+         * never entered. An out-of-contract stored value also reads as unset.
+         */
+        gender: user === null ? null : isGender(user.gender) ? user.gender : null,
         latitude: user?.latitude ?? null,
         longitude: user?.longitude ?? null,
     };

@@ -170,7 +170,12 @@ export default function CompanyAddressPanel({
 
     const onAddressInput = (next: string): void => {
         // A manually edited street line no longer matches the stored point.
-        form.setData({ address: next, latitude: '', longitude: '' });
+        form.setData((previous) => ({
+            ...previous,
+            address: next,
+            latitude: '',
+            longitude: '',
+        }));
         setAutofilled(false);
     };
 
@@ -182,13 +187,18 @@ export default function CompanyAddressPanel({
             country: selection.country === '' ? 'United States' : selection.country,
         };
 
-        form.setData({
+        /*
+         * One merge, not a replacement. Inertia v3 replaces the whole payload
+         * for an object `setData`, which discarded every other company field.
+         */
+        form.setData((previous) => ({
+            ...previous,
             address: selection.address,
             ...derived,
             country_code: 'US',
             latitude: coordinate(selection.latitude),
             longitude: coordinate(selection.longitude),
-        });
+        }));
 
         setLocked(
             new Set(
@@ -291,7 +301,11 @@ export default function CompanyAddressPanel({
                                 value={form.data[field]}
                                 onChange={(value) =>
                                     field === 'country'
-                                        ? form.setData({ country: value, country_code: '' })
+                                        ? form.setData((previous) => ({
+                                              ...previous,
+                                              country: value,
+                                              country_code: '',
+                                          }))
                                         : form.setData(field, value)
                                 }
                                 onBlur={() => onBlur(field)}

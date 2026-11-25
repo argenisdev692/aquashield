@@ -1,72 +1,19 @@
 import { z } from 'zod';
 import { passwordSchema } from '@/lib/auth';
-import { emailSchema } from '@/lib/email';
-import { phoneField } from '@/lib/phone';
-import { usernameSchema } from '@/lib/username';
+import { isGender, profileAddressShape, profileIdentityShape } from './profileFields';
 
 /**
  * Client mirrors for the three forms on `/settings/profile`.
  *
  * The server remains authoritative: profile and address writes go through
  * Fortify's `UpdateUserProfileInformation`, and the password write through
- * `UpdateUserPassword`. These schemas exist so the kit can fail fast with the
- * same contract the server enforces.
+ * `UpdateUserPassword`. These schemas reuse the Users module's profile shape so
+ * the admin and self-service screens cannot drift apart.
  */
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const profileDetailsSchema = z.object(profileIdentityShape);
 
-const today = (): string => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-
-    return `${now.getFullYear()}-${month}-${day}`;
-};
-
-const dateOfBirthSchema = z
-    .string()
-    .max(10)
-    .refine(
-        (value) => value === '' || (ISO_DATE.test(value) && value < today()),
-        'Enter a date before today',
-    );
-
-const genderSchema = z.enum(['male', 'female', 'other']).nullable();
-
-export const profileDetailsSchema = z.object({
-    first_name: z.string().trim().min(1, 'Enter your first name').max(255),
-    last_name: z.string().max(255),
-    username: usernameSchema,
-    email: emailSchema,
-    // Accepts any country: the field stores an international value, so the
-    // rule reads the calling code instead of assuming the US.
-    phone: phoneField({ max: 32 }),
-    date_of_birth: dateOfBirthSchema,
-    gender: genderSchema,
-});
-
-export const profileAddressSchema = z.object({
-    address: z.string().max(255),
-    address_2: z.string().max(255),
-    zip_code: z.string().max(32),
-    city: z.string().max(120),
-    state: z.string().max(120),
-    country: z.string().max(120),
-    latitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -90 && value <= 90),
-            'Latitude must be between -90 and 90',
-        ),
-    longitude: z
-        .number()
-        .nullable()
-        .refine(
-            (value) => value === null || (value >= -180 && value <= 180),
-            'Longitude must be between -180 and 180',
-        ),
-});
+export const profileAddressSchema = z.object(profileAddressShape);
 
 export const updatePasswordSchema = z
     .object({
@@ -93,7 +40,7 @@ export type AddressField = Exclude<
 >;
 
 const genderFrom = (value: string | null): ProfileDetailsForm['gender'] =>
-    value === 'male' || value === 'female' || value === 'other' ? value : null;
+    isGender(value) ? value : null;
 
 /** Map the generated DTO onto the string-only field contract. */
 export function toProfileDetailsForm(

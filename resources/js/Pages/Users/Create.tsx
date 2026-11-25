@@ -41,7 +41,7 @@ const initialValues = (): CreateUserForm => ({
 });
 
 export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPageProps) {
-    const { form, errors, submit, touch, clearError } = useZodForm({
+    const { form, errors, submit, touch, clearError, setFields } = useZodForm({
         initial: initialValues(),
         schema: createUserSchema,
     });
@@ -50,11 +50,13 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
     const usernameAvailability = useUserAvailability('username', form.data.username);
 
     const setProfile = <K extends keyof UpdateUserForm>(key: K, value: UpdateUserForm[K]): void => {
-        // Inertia's `setData` key/value overload does not distribute over a
-        // union key; the object overload is the same write and keeps the form
-        // typed. Zod validates the resulting values before submit.
-        form.setData({ [key]: value } as Partial<CreateUserForm>);
-        clearError(key);
+        /*
+         * The merge lives in `useZodForm.setFields`. Inertia v3 replaces the
+         * entire payload for an object `setData`, which collapsed the form to
+         * one key and crashed the availability probe on the next render. The
+         * cast is the union-key boundary only; the runtime write is a merge.
+         */
+        setFields({ [key]: value } as Partial<CreateUserForm>);
     };
 
     const blockingCheck =
@@ -104,6 +106,7 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
                             data={form.data}
                             errors={errors}
                             onChange={setProfile}
+                            onPatch={(patch) => setFields(patch)}
                             onBlur={touch}
                             availability={{
                                 username: usernameAvailability,

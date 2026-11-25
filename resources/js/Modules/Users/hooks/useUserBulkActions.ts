@@ -10,7 +10,7 @@
  * bulk bar: a successful action reloads `rows`, the kit clears the selection,
  * and the bar (with any message inside it) unmounts before the user can read it.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { HttpRequestError, requestJson } from '@/lib/http';
 
@@ -128,8 +128,13 @@ const skipSuffix = (result: BulkResult): string => {
     }
 
     const first = result.skipped[0];
+    const remaining = result.skipped.length - 1;
 
-    return ` ${result.skipped.length} skipped — ${first.reason}`;
+    // Say there are more. Reporting only the first reason implied every skip
+    // shared it.
+    return ` ${result.skipped.length} skipped — ${first.reason}${
+        remaining > 0 ? ` (+${remaining} more)` : ''
+    }`;
 };
 
 const feedbackFor = (result: BulkResult, action: BulkAction): BulkFeedback => {
@@ -164,6 +169,29 @@ export function useUserBulkActions({
     onFeedback,
 }: UseUserBulkActionsOptions = {}): UseUserBulkActions {
     const [processing, setProcessing] = useState(false);
+    /*
+     * A state flag only disables the button after the next render. A double
+     * click in the same tick could dispatch the request twice (two batches of
+     * invitation e-mails), so the guard is a ref.
+     */
+    const inFlight = useRef(false);
+
+    const done = (): void => {
+        inFlight.current = false;
+        setProcessing(false);
+    };
+
+    /*
+     * Clear `processing` when the reload finishes, not when the JSON response
+     * lands. Clearing earlier re-enabled the bar against the old selection for
+     * the whole reload round-trip.
+     */
+    const reloadTable = (): void => {
+        router.reload({
+            only: RELOAD_PROPS,
+            onFinish: done,
+        });
+    };
 
     const run = async (
         url: string,
@@ -171,10 +199,11 @@ export function useUserBulkActions({
         action: BulkAction,
         extra: Record<string, string> = {},
     ): Promise<void> => {
-        if (rows.length === 0) {
+        if (inFlight.current || rows.length === 0) {
             return;
         }
 
+        inFlight.current = true;
         setProcessing(true);
 
         try {
@@ -200,9 +229,7 @@ export function useUserBulkActions({
                     message: `${action.failure} The server did not confirm the result. The table was refreshed — check the rows before retrying.`,
                 });
 
-                router.reload({
-                    only: RELOAD_PROPS,
-                });
+                reloadTable();
 
                 return;
             }
@@ -211,13 +238,10 @@ export function useUserBulkActions({
 
             // Reload the props the table renders; the URL (and therefore the
             // active filters) stays exactly where the user left it.
-            router.reload({
-                only: RELOAD_PROPS,
-            });
+            reloadTable();
         } catch (cause) {
             onFeedback?.({ tone: 'error', message: errorMessage(cause, action) });
-        } finally {
-            setProcessing(false);
+            done();
         }
     };
 

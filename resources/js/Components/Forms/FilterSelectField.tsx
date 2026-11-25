@@ -20,6 +20,7 @@ import {
     CommandList,
 } from '@/Components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/Components/ui/popover';
+import { OPTION_PREVIEW_LIMIT, previewOptions } from '@/lib/options';
 import { cn } from '@/lib/utils';
 import type { SelectOption } from './types';
 
@@ -232,6 +233,13 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
     const hiddenCount = selectedValues.length - visibleChips.length;
     const hasSelection = selectedValues.length > 0;
     const waitingForQuery = hasFetcher && search.length < minQueryLength;
+    /*
+     * The permission catalogue is ~505 options. Preview an unsearched static
+     * list and let typing reach the rest; selected values stay visible.
+     */
+    const preview = hasFetcher
+        ? { options: resolvedOptions, truncated: false }
+        : previewOptions(resolvedOptions, selectedValues, search);
 
     return (
         <FieldShell label={label} name={name} error={error} hint={hint} required={required}>
@@ -249,6 +257,8 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
 
                             if (!next) {
                                 setLoading(false);
+                                setSearch('');
+                                setDebounced('');
                                 onBlur?.();
                             }
                         }}
@@ -317,8 +327,8 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                             <Command shouldFilter={!hasFetcher}>
                                 <CommandInput
                                     placeholder={searchPlaceholder}
-                                    value={hasFetcher ? search : undefined}
-                                    onValueChange={hasFetcher ? setSearch : undefined}
+                                    value={search}
+                                    onValueChange={setSearch}
                                 />
 
                                 <CommandList>
@@ -339,7 +349,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                                             <CommandEmpty>{emptyText}</CommandEmpty>
 
                                             <CommandGroup>
-                                                {resolvedOptions.map((option) => {
+                                                {preview.options.map((option) => {
                                                     const selected = selectedValues.some(
                                                         (value) =>
                                                             keyOf(value) === keyOf(option.value),
@@ -360,6 +370,14 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                                                     );
                                                 })}
                                             </CommandGroup>
+
+                                            {preview.truncated ? (
+                                                <p className="px-3 py-2 text-center text-xs text-surface-500 dark:text-surface-300">
+                                                    Showing {OPTION_PREVIEW_LIMIT} of{' '}
+                                                    {resolvedOptions.length}. Type to search them
+                                                    all.
+                                                </p>
+                                            ) : null}
                                         </>
                                     )}
                                 </CommandList>

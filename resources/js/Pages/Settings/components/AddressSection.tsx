@@ -126,12 +126,22 @@ export default function AddressSection({ apiKey, form, errors, onBlur }: Address
 
     const onAddressInput = (next: string): void => {
         // A manually edited street line no longer matches the stored point.
-        form.setData({ address: next, latitude: null, longitude: null });
+        form.setData((previous) => ({
+            ...previous,
+            address: next,
+            latitude: null,
+            longitude: null,
+        }));
         setAutofilled(false);
     };
 
     const onAddressSelect = (selection: AddressSelection): void => {
-        form.setData({
+        /*
+         * One merge, not a replacement. Inertia v3 replaces the whole payload
+         * for an object `setData`, which discarded the rest of the form.
+         */
+        form.setData((previous) => ({
+            ...previous,
             address: selection.address,
             zip_code: selection.zip_code,
             city: selection.city,
@@ -139,7 +149,7 @@ export default function AddressSection({ apiKey, form, errors, onBlur }: Address
             country: selection.country,
             latitude: selection.latitude,
             longitude: selection.longitude,
-        });
+        }));
         setUnlocked(new Set());
         setLastUnlocked(null);
         setAutofilled(true);

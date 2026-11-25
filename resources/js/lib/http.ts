@@ -178,6 +178,9 @@ const filenameFrom = (header: string | null): string | null => {
     return /filename="?([^";]+)"?/i.exec(header)?.[1] ?? null;
 };
 
+/** A streamed export that never answers must not leave the toolbar spinning. */
+const DOWNLOAD_TIMEOUT_MS = 60_000;
+
 /**
  * Download a streamed file without leaving the SPA.
  *
@@ -191,6 +194,7 @@ export async function downloadFile(path: string): Promise<DownloadedFile> {
         method: 'GET',
         credentials: 'same-origin',
         headers: { Accept: 'application/json, application/octet-stream' },
+        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
     });
 
     if (response.redirected) {

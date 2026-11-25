@@ -116,7 +116,7 @@ export interface SavedViewsController {
         error: string | null;
     };
     remove: {
-        mutate: (uuid: string) => void;
+        mutate: (uuid: string, options?: { onSuccess?: () => void }) => void;
         isPending: boolean;
         error: string | null;
     };
@@ -170,8 +170,8 @@ export function useSavedViews(resource: string): SavedViewsController {
             error: saveMutation.error?.message ?? null,
         },
         remove: {
-            mutate: (uuid) => {
-                removeMutation.mutate(uuid);
+            mutate: (uuid, options) => {
+                removeMutation.mutate(uuid, options);
             },
             isPending: removeMutation.isPending,
             error: removeMutation.error?.message ?? null,

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 
 /**
  * The bulk endpoints answer with a summary, and that summary is the result.
@@ -9,7 +9,7 @@ import { cleanup, renderHook, waitFor } from '@testing-library/react';
  * "no control pretends a protected row was changed".
  */
 const { reload, requestJson } = vi.hoisted(() => ({
-    reload: vi.fn<() => void>(),
+    reload: vi.fn<(options?: { onFinish?: () => void }) => void>(),
     requestJson: vi.fn<() => Promise<unknown>>(),
 }));
 
@@ -98,5 +98,29 @@ describe('useUserBulkActions', () => {
 
         expect(requestJson).not.toHaveBeenCalled();
         expect(onFeedback).not.toHaveBeenCalled();
+    });
+
+    it('keeps processing until the table reload finishes and ignores a double dispatch', async () => {
+        requestJson.mockResolvedValueOnce({ updated: 1, skipped: [] });
+
+        const onFeedback = vi.fn<(feedback: Feedback) => void>();
+
+        const { result } = renderHook(() => useUserBulkActions({ onFeedback }));
+
+        act(() => {
+            result.current.deleteRows([{ uuid: 'a' }]);
+            result.current.deleteRows([{ uuid: 'a' }]);
+        });
+
+        await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+
+        expect(requestJson).toHaveBeenCalledTimes(1);
+        expect(result.current.processing).toBe(true);
+
+        act(() => {
+            reload.mock.calls[0][0]?.onFinish?.();
+        });
+
+        expect(result.current.processing).toBe(false);
     });
 });

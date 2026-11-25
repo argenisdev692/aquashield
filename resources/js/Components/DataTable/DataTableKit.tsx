@@ -482,6 +482,14 @@ export default function DataTableKit<TData extends RowData>({
     const headerHeight = density === 'compact' ? 'h-9' : 'h-11';
     const emptyPadding = density === 'compact' ? 'py-12' : 'py-16';
 
+    /*
+     * Mirror the height of what is on screen. The previous fixed six rows
+     * collapsed a 100-row page into a six-row card on every visit, jumping the
+     * scroll position when the real rows landed.
+     */
+    const skeletonRowCount =
+        data.length > 0 ? Math.min(data.length, perPage) : Math.min(perPage, 10);
+
     const handleClearFilters = (): void => {
         table.resetRowSelection();
         onResetFilters?.();
@@ -583,6 +591,16 @@ export default function DataTableKit<TData extends RowData>({
                                 </button>
                             ) : null}
                         </div>
+
+                        {draftSearch.trim().length > 0 &&
+                        draftSearch.trim().length < SEARCH_MIN_LENGTH ? (
+                            <span
+                                aria-live="polite"
+                                className="text-xs font-medium text-surface-500 dark:text-surface-300"
+                            >
+                                Type at least {SEARCH_MIN_LENGTH} characters
+                            </span>
+                        ) : null}
 
                         {views}
                     </div>
@@ -787,6 +805,7 @@ export default function DataTableKit<TData extends RowData>({
                                                 <button
                                                     type="button"
                                                     onClick={header.column.getToggleSortingHandler()}
+                                                    disabled={loading}
                                                     className={cn(
                                                         /*
                                                          * `w-full` + flex: the label starts
@@ -798,7 +817,7 @@ export default function DataTableKit<TData extends RowData>({
                                                          */
                                                         'group/head -my-1 flex w-full items-center gap-1.5 rounded-sm py-1 transition-colors duration-150 motion-reduce:transition-none',
                                                         headerType,
-                                                        'hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:hover:text-surface-100',
+                                                        'hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus disabled:cursor-not-allowed disabled:opacity-60 dark:hover:text-surface-100',
                                                         justifyClass(column?.align),
                                                         sorted !== false &&
                                                             'text-surface-900 dark:text-surface-0',
@@ -845,7 +864,7 @@ export default function DataTableKit<TData extends RowData>({
                     </thead>
                     <tbody>
                         {loading ? (
-                            Array.from({ length: 6 }, (_, rowIndex) => (
+                            Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
                                 <tr
                                     key={`skeleton-${rowIndex}`}
                                     className="border-b border-aq-shell-line/70 last:border-b-0"

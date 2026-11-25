@@ -29,40 +29,46 @@ export default function FlashBanner({ className }: FlashBannerProps) {
     const [dismissed, setDismissed] = useState<string | null>(null);
 
     const message = error ?? status;
-
-    if (message === null || message === '' || dismissed === message) {
-        return null;
-    }
-
+    const visible = message !== null && message !== '' && dismissed !== message;
     const isError = error !== null;
 
+    /*
+     * Always mounted, only its children change. A live region created at the
+     * same time as its text is not announced by every screen reader.
+     */
     return (
         <div
             role={isError ? 'alert' : 'status'}
+            aria-live={isError ? 'assertive' : 'polite'}
             className={cn(
                 'flex items-start gap-3 rounded-xl border px-4 py-3 text-sm',
+                !visible && 'hidden',
                 isError
                     ? 'border-aq-danger/30 bg-aq-danger/5 text-aq-danger-strong'
                     : 'border-aq-success/30 bg-aq-success/5 text-aq-success-strong',
                 className,
             )}
         >
-            {isError ? (
-                <XCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            ) : (
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            )}
+            {visible ? (
+                <>
+                    {isError ? (
+                        <XCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    ) : (
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    )}
 
-            <p className="min-w-0 flex-1 font-medium">{message}</p>
+                    <p className="min-w-0 flex-1 font-medium">{message}</p>
 
-            <button
-                type="button"
-                onClick={() => setDismissed(message)}
-                aria-label="Dismiss message"
-                className="grid size-6 shrink-0 place-items-center rounded-md text-current opacity-70 transition-opacity duration-150 hover:opacity-100 motion-reduce:transition-none"
-            >
-                <X className="size-3.5" aria-hidden="true" />
-            </button>
+                    <button
+                        type="button"
+                        onClick={() => setDismissed(message)}
+                        aria-label="Dismiss message"
+                        className="grid size-6 shrink-0 place-items-center rounded-md text-current opacity-70 transition-opacity duration-150 hover:opacity-100 motion-reduce:transition-none"
+                    >
+                        <X className="size-3.5" aria-hidden="true" />
+                    </button>
+                </>
+            ) : null}
         </div>
     );
 }

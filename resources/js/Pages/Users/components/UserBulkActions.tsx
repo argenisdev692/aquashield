@@ -160,6 +160,13 @@ export default function UserBulkActions({
                 </Button>
             ) : null}
 
+            {selectionIncludesProtected ? (
+                <p className="basis-full text-xs font-medium text-surface-600 dark:text-surface-300">
+                    Your own account and the last active super administrator cannot be suspended or
+                    deleted. Deselect them to continue.
+                </p>
+            ) : null}
+
             <CrudDialog
                 open={confirmSuspend}
                 onOpenChange={setConfirmSuspend}

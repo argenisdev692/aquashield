@@ -105,14 +105,17 @@ JavaScript API.
   onAddressSelect={(selection) => {
     // selection.address is the street line only.
     // address_2 is deliberately absent: keep the apartment/suite manual.
-    form.setData({
+    // Inertia v3 REPLACES the payload for an object `setData`; the functional
+    // updater merges. useZodForm exposes `setFields` for the same write.
+    form.setData((previous) => ({
+      ...previous,
       zip_code: selection.zip_code,
       city: selection.city,
       state: selection.state,
       country: selection.country,
       latitude: selection.latitude,
       longitude: selection.longitude,
-    });
+    }));
   }}
   apiKey={googleMapsApiKey}
   error={errors.address}

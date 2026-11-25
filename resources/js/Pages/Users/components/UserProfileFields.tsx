@@ -12,6 +12,7 @@ import SelectField from '@/Components/Forms/SelectField';
 import TextField from '@/Components/Forms/TextField';
 import type { AddressSelection } from '@/lib/google-maps';
 import type { FormErrorMap } from '@/lib/forms';
+import { todayLocalIso } from '@/lib/date';
 import type { UpdateUserForm } from '@/Modules/Users/schemas/userProfile';
 import type { FieldAvailability } from '@/Modules/Users/hooks/useUserAvailability';
 import AvailabilityField from './AvailabilityField';
@@ -20,6 +21,8 @@ interface UserProfileFieldsProps {
     data: UpdateUserForm;
     errors: FormErrorMap;
     onChange: <K extends keyof UpdateUserForm>(key: K, value: UpdateUserForm[K]) => void;
+    /** One atomic write for a multi-field source (address autocomplete). */
+    onPatch: (patch: Partial<UpdateUserForm>) => void;
     onBlur: (key: keyof UpdateUserForm) => void;
     availability: {
         username: FieldAvailability;
@@ -32,9 +35,11 @@ interface UserProfileFieldsProps {
 /*
  * `max` for the date-of-birth input. Module scope keeps `new Date()` out of
  * render (an impure call React Compiler flags); a page session cannot outlive
- * the day in any way that matters.
+ * the day in any way that matters. The zone is the viewer's, matching the
+ * schema's `todayLocalIso()` — `toISOString()` was UTC and could accept a date
+ * the schema then rejected.
  */
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
+const TODAY_ISO = todayLocalIso();
 
 const GENDER_OPTIONS = [
     { value: 'male', label: 'Male' },
@@ -46,19 +51,27 @@ export default function UserProfileFields({
     data,
     errors,
     onChange,
+    onPatch,
     onBlur,
     availability,
     googleMapsApiKey = '',
     disabled = false,
 }: UserProfileFieldsProps) {
     const onAddressSelect = (selection: AddressSelection): void => {
-        onChange('address', selection.address);
-        onChange('zip_code', selection.zip_code);
-        onChange('city', selection.city);
-        onChange('state', selection.state);
-        onChange('country', selection.country);
-        onChange('latitude', selection.latitude);
-        onChange('longitude', selection.longitude);
+        /*
+         * One patch, not seven writes. Inertia v3 replaces the payload for an
+         * object `setData`, so a burst of single-key writes left only the last
+         * field in the form.
+         */
+        onPatch({
+            address: selection.address,
+            zip_code: selection.zip_code,
+            city: selection.city,
+            state: selection.state,
+            country: selection.country,
+            latitude: selection.latitude,
+            longitude: selection.longitude,
+        });
     };
 
     return (

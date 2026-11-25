@@ -155,7 +155,7 @@ const userColumns: SimpleColumn<ManagedUser>[] = [
         width: 'w-38',
         className: 'whitespace-nowrap tabular-nums text-surface-600 dark:text-surface-300',
         hideBelow: 'xl',
-        cell: ({ row }): React.ReactNode => formatDateTime(row.created_at),
+        cell: ({ row }): React.ReactNode => formatDateTime(row.created_at) || '—',
     },
 ];
 
@@ -182,6 +182,18 @@ export default function UsersIndex() {
     const visitsPending = useVisitPending();
     const [pending, setPending] = useState<PendingAction | null>(null);
     const [feedback, setFeedback] = useState<BulkFeedback | null>(null);
+
+    /*
+     * A single-row write is an Inertia visit, not a form post: a 422 (stale
+     * row, protected target) only reaches `onError`. Without this the dialog
+     * closed and the screen said nothing at all.
+     */
+    const reportFailure = (errors: Record<string, string>): void => {
+        setFeedback({
+            tone: 'error',
+            message: Object.values(errors)[0] ?? 'The action could not be completed. Try again.',
+        });
+    };
 
     /*
      * The hook seeds the page size from the server's echoed `perPage`, so the
@@ -263,7 +275,10 @@ export default function UsersIndex() {
         }
 
         if (pending.type === 'delete') {
-            router.delete(`/users/${pending.user.uuid}`, { preserveScroll: true });
+            router.delete(`/users/${pending.user.uuid}`, {
+                preserveScroll: true,
+                onError: reportFailure,
+            });
         } else {
             router.post(
                 '/users/bulk-status',
@@ -271,7 +286,7 @@ export default function UsersIndex() {
                     uuids: [pending.user.uuid],
                     status: pending.type === 'suspend' ? 'suspended' : 'active',
                 },
-                { preserveScroll: true },
+                { preserveScroll: true, onError: reportFailure },
             );
         }
 
@@ -332,7 +347,10 @@ export default function UsersIndex() {
                                                   router.post(
                                                       `/users/${row.uuid}/invitation`,
                                                       {},
-                                                      { preserveScroll: true },
+                                                      {
+                                                          preserveScroll: true,
+                                                          onError: reportFailure,
+                                                      },
                                                   ),
                                           },
                                       ]
@@ -386,7 +404,10 @@ export default function UsersIndex() {
                                                   router.patch(
                                                       `/users/${row.uuid}/restore`,
                                                       {},
-                                                      { preserveScroll: true },
+                                                      {
+                                                          preserveScroll: true,
+                                                          onError: reportFailure,
+                                                      },
                                                   ),
                                           },
                                       ]

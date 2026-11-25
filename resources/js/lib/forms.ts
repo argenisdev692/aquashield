@@ -130,22 +130,29 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
 
     const validateField = (field: Extract<keyof T, string>) => {
         const result = schema.safeParse(inertiaForm.data);
+        const message = result.success
+            ? undefined
+            : result.error.issues.find((issue) => String(issue.path[0]) === field)?.message;
 
-        if (result.success) {
-            setClientErrors({});
-            return true;
-        }
+        setClientErrors((current) => {
+            if (message === undefined) {
+                if (!(field in current)) {
+                    return current;
+                }
 
-        const message = result.error.issues.find((i) => String(i.path[0]) === field)?.message;
-        const next: FormErrorMap = { ...clientErrors };
+                const next: FormErrorMap = { ...current };
+                delete next[field];
 
-        if (message === undefined) {
-            delete next[field];
-        } else {
-            next[field] = message;
-        }
+                return next;
+            }
 
-        setClientErrors(next);
+            if (current[field] === message) {
+                return current;
+            }
+
+            return { ...current, [field]: message };
+        });
+
         return message === undefined;
     };
 
@@ -154,9 +161,21 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
     };
 
     const clearError = (field: Extract<keyof T, string>) => {
-        const next: FormErrorMap = { ...clientErrors };
-        delete next[field];
-        setClientErrors(next);
+        /*
+         * A functional update, not a copy of the render-time map: clearing two
+         * fields in one event (the address autofill) must not make the second
+         * call resurrect the first key from a stale snapshot.
+         */
+        setClientErrors((current) => {
+            if (!(field in current)) {
+                return current;
+            }
+
+            const next: FormErrorMap = { ...current };
+            delete next[field];
+
+            return next;
+        });
 
         /*
          * Scope the server-error clear to this field. Clearing the whole bag
@@ -175,6 +194,61 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         }
 
         inertiaForm.clearErrors(field as FormDataKeys<T>);
+    };
+
+    /** The same contract for an atomic multi-field write (address autofill). */
+    const clearErrors = (fields: readonly string[]) => {
+        if (fields.length === 0) {
+            return;
+        }
+
+        setClientErrors((current) => {
+            let changed = false;
+            const next: FormErrorMap = { ...current };
+
+            for (const field of fields) {
+                if (field in next) {
+                    delete next[field];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : current;
+        });
+
+        for (const [bag, raw] of Object.entries(inertiaForm.errors ?? {})) {
+            if (isErrorBag(raw) && fields.some((field) => Object.hasOwn(raw, field))) {
+                inertiaForm.clearErrors(bag as FormDataKeys<T>);
+            }
+        }
+
+        for (const field of fields) {
+            inertiaForm.clearErrors(field as FormDataKeys<T>);
+        }
+    };
+
+    /*
+     * `setData({ ... })` replaced the whole payload in Inertia v3.11: one
+     * keystroke in a profile form collapsed `data` to a single key, and the
+     * next render crashed an availability probe reading `email.trim()`. The
+     * functional updater merges against `dataRef.current`, which is exactly
+     * the contract these screens need.
+     */
+    const setField = <K extends Extract<keyof T, string>>(field: K, value: T[K]): void => {
+        inertiaForm.setData((previous) => ({ ...previous, [field]: value }) as T);
+        clearError(field);
+    };
+
+    /** One atomic write for an address selection (seven fields, one render). */
+    const setFields = (patch: Partial<T>): void => {
+        const fields = Object.keys(patch);
+
+        if (fields.length === 0) {
+            return;
+        }
+
+        inertiaForm.setData((previous) => ({ ...previous, ...patch }) as T);
+        clearErrors(fields);
     };
 
     /*
@@ -202,6 +276,9 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         validateField,
         touch,
         clearError,
+        clearErrors,
+        setField,
+        setFields,
         submit,
     };
 }

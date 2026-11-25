@@ -18,6 +18,8 @@ import {
     ShieldOff,
     Trash2,
     UserRound,
+    X,
+    XCircle,
 } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -85,6 +87,18 @@ export default function UsersShow({
     const [confirmSuspend, setConfirmSuspend] = useState(false);
     const [confirmAccessLink, setConfirmAccessLink] = useState(false);
     const [sendingAccessLink, setSendingAccessLink] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    /*
+     * Lifecycle writes are Inertia visits: a 422 (the account changed under
+     * us, the invitation was already consumed) only reaches `onError`. The
+     * dialog used to close and say nothing.
+     */
+    const reportFailure = (errors: Record<string, string>): void => {
+        setActionError(Object.values(errors)[0] ?? 'The action could not be completed. Try again.');
+    };
+
+    const clearFailure = (): void => setActionError(null);
 
     const deleted = user.deleted_at !== null;
     const suspended = user.status === 'suspended';
@@ -133,7 +147,10 @@ export default function UsersShow({
                             <Button
                                 variant="outline"
                                 size="lg"
-                                onClick={() => setConfirmAccessLink(true)}
+                                onClick={() => {
+                                    clearFailure();
+                                    setConfirmAccessLink(true);
+                                }}
                                 disabled={sendingAccessLink}
                             >
                                 {canResendInvitation ? (
@@ -151,7 +168,10 @@ export default function UsersShow({
                             <Button
                                 variant="warning"
                                 size="lg"
-                                onClick={() => setConfirmSuspend(true)}
+                                onClick={() => {
+                                    clearFailure();
+                                    setConfirmSuspend(true);
+                                }}
                                 disabled={isLastActiveAdmin}
                                 title={
                                     isLastActiveAdmin
@@ -168,13 +188,17 @@ export default function UsersShow({
                             <Button
                                 variant="outline"
                                 size="lg"
-                                onClick={() =>
+                                onClick={() => {
+                                    clearFailure();
                                     router.post(
                                         '/users/bulk-status',
                                         { uuids: [user.uuid], status: 'active' },
-                                        { preserveScroll: true },
-                                    )
-                                }
+                                        {
+                                            preserveScroll: true,
+                                            onError: reportFailure,
+                                        },
+                                    );
+                                }}
                             >
                                 <Shield className="size-4" aria-hidden="true" />
                                 Activate
@@ -185,13 +209,17 @@ export default function UsersShow({
                             <Button
                                 variant="outline"
                                 size="lg"
-                                onClick={() =>
+                                onClick={() => {
+                                    clearFailure();
                                     router.patch(
                                         `/users/${user.uuid}/restore`,
                                         {},
-                                        { preserveScroll: true },
-                                    )
-                                }
+                                        {
+                                            preserveScroll: true,
+                                            onError: reportFailure,
+                                        },
+                                    );
+                                }}
                             >
                                 <RotateCcw className="size-4" aria-hidden="true" />
                                 Restore
@@ -202,7 +230,10 @@ export default function UsersShow({
                             <Button
                                 variant="destructive"
                                 size="lg"
-                                onClick={() => setConfirmDelete(true)}
+                                onClick={() => {
+                                    clearFailure();
+                                    setConfirmDelete(true);
+                                }}
                                 disabled={isLastActiveAdmin}
                                 title={
                                     isLastActiveAdmin
@@ -216,6 +247,24 @@ export default function UsersShow({
                         ) : null}
                     </div>
                 </div>
+
+                {actionError !== null ? (
+                    <div
+                        role="alert"
+                        className="flex items-start gap-3 rounded-xl border border-aq-danger/30 bg-aq-danger/5 px-4 py-3 text-sm text-aq-danger-strong"
+                    >
+                        <XCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        <p className="min-w-0 flex-1 font-medium">{actionError}</p>
+                        <button
+                            type="button"
+                            onClick={clearFailure}
+                            aria-label="Dismiss message"
+                            className="grid size-6 shrink-0 place-items-center rounded-md text-current opacity-70 transition-opacity duration-150 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none"
+                        >
+                            <X className="size-3.5" aria-hidden="true" />
+                        </button>
+                    </div>
+                ) : null}
 
                 <Card>
                     <CardHeader>
@@ -301,7 +350,10 @@ export default function UsersShow({
                 confirmVariant="destructive"
                 onConfirm={() => {
                     setConfirmDelete(false);
-                    router.delete(`/users/${user.uuid}`, { preserveScroll: true });
+                    router.delete(`/users/${user.uuid}`, {
+                        preserveScroll: true,
+                        onError: reportFailure,
+                    });
                 }}
             >
                 <p className="text-sm text-surface-600 dark:text-surface-300">{user.email}</p>
@@ -319,7 +371,10 @@ export default function UsersShow({
                     router.post(
                         '/users/bulk-status',
                         { uuids: [user.uuid], status: 'suspended' },
-                        { preserveScroll: true },
+                        {
+                            preserveScroll: true,
+                            onError: reportFailure,
+                        },
                     );
                 }}
             >
@@ -352,6 +407,7 @@ export default function UsersShow({
                 loading={sendingAccessLink}
                 onConfirm={() => {
                     setSendingAccessLink(true);
+                    clearFailure();
                     router.post(
                         canResendInvitation
                             ? `/users/${user.uuid}/invitation`
@@ -360,6 +416,10 @@ export default function UsersShow({
                         {
                             preserveScroll: true,
                             onSuccess: () => setConfirmAccessLink(false),
+                            onError: (errors) => {
+                                reportFailure(errors);
+                                setConfirmAccessLink(false);
+                            },
                             onFinish: () => setSendingAccessLink(false),
                         },
                     );

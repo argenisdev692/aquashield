@@ -37,6 +37,7 @@ import {
     SelectValue,
 } from '@/Components/ui/select';
 import { formatIsoDate, toIsoDate } from '@/lib/date';
+import { OPTION_PREVIEW_LIMIT, previewOptions } from '@/lib/options';
 import type { TableFilters, TableFilterValue, TableState } from '@/lib/table';
 import { cn } from '@/lib/utils';
 
@@ -378,6 +379,8 @@ function SearchableSelectFilter({
 }) {
     const selected = def.options.find((option) => option.value === value);
     const allLabel = def.placeholder ?? 'All';
+    const [query, setQuery] = useState('');
+    const preview = previewOptions(def.options, value === '' ? [] : [value], query);
 
     return (
         <div className="flex flex-col gap-1.5">
@@ -417,6 +420,8 @@ function SearchableSelectFilter({
                 <CommandInput
                     placeholder={`Search ${def.label.toLowerCase()}…`}
                     aria-label={`Search ${def.label}`}
+                    value={query}
+                    onValueChange={setQuery}
                     disabled={disabled}
                 />
                 <CommandList className="max-h-40">
@@ -429,7 +434,7 @@ function SearchableSelectFilter({
                         >
                             {allLabel}
                         </CommandItem>
-                        {def.options.map((option) => (
+                        {preview.options.map((option) => (
                             <CommandItem
                                 key={option.value}
                                 value={option.value}
@@ -440,6 +445,12 @@ function SearchableSelectFilter({
                             </CommandItem>
                         ))}
                     </CommandGroup>
+                    {preview.truncated ? (
+                        <p className="px-2 py-1.5 text-xs text-surface-500 dark:text-surface-300">
+                            Showing {OPTION_PREVIEW_LIMIT} of {def.options.length}. Search to
+                            narrow.
+                        </p>
+                    ) : null}
                 </CommandList>
             </Command>
         </div>

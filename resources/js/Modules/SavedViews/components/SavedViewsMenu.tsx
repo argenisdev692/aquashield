@@ -274,15 +274,20 @@ export default function SavedViewsMenu({ resource, state, onApply }: SavedViewsM
                 loading={controller.remove.isPending}
                 onConfirm={() => {
                     if (deleteTarget !== null) {
-                        controller.remove.mutate(deleteTarget.uuid);
+                        controller.remove.mutate(deleteTarget.uuid, {
+                            onSuccess: () => setDeleteTarget(null),
+                        });
                     }
-
-                    setDeleteTarget(null);
                 }}
             >
                 <p className="text-sm text-surface-600 dark:text-surface-300">
                     “{deleteTarget?.name ?? ''}” can be saved again at any time.
                 </p>
+                {controller.remove.error ? (
+                    <p role="alert" className="mt-2 text-xs font-medium text-destructive">
+                        {controller.remove.error}
+                    </p>
+                ) : null}
             </CrudDialog>
         </>
     );

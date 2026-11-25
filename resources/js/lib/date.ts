@@ -10,6 +10,38 @@
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/**
+ * One `Intl` instance per locale+options pair.
+ *
+ * A formatter is built once per column cell today (`formatDateTime` runs for
+ * every row on every render). The option sets in this app are a handful, so a
+ * module-level cache removes the allocation without an unbounded map.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+const formatterKey = (locale: string, options: Intl.DateTimeFormatOptions): string =>
+    `${locale}|${Object.entries(options)
+        .map(([key, value]) => `${key}:${String(value)}`)
+        .sort()
+        .join(',')}`;
+
+const dateTimeFormatter = (
+    locale: string,
+    options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat => {
+    const key = formatterKey(locale, options);
+    const cached = formatters.get(key);
+
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    const formatter = new Intl.DateTimeFormat(locale, options);
+    formatters.set(key, formatter);
+
+    return formatter;
+};
+
 /** Parse ISO `YYYY-MM-DD` into a local noon `Date`, or `undefined` if invalid. */
 export function parseIsoDate(value: string | null | undefined): Date | undefined {
     if (!value) {
@@ -61,7 +93,7 @@ export function formatIsoDate(
 ): string {
     const date = parseIsoDate(value);
 
-    return date ? new Intl.DateTimeFormat(locale, options).format(date) : '';
+    return date ? dateTimeFormatter(locale, options).format(date) : '';
 }
 
 /**
@@ -83,9 +115,18 @@ export function formatDateTime(
 
     const date = new Date(value);
 
-    return Number.isNaN(date.getTime())
-        ? value
-        : new Intl.DateTimeFormat(locale, options).format(date);
+    return Number.isNaN(date.getTime()) ? value : dateTimeFormatter(locale, options).format(date);
+}
+
+/**
+ * Today's calendar date in the viewer's local zone as `YYYY-MM-DD`.
+ *
+ * `toISOString().slice(0, 10)` is the UTC day: at 20:00 in UTC-5 it already
+ * returns tomorrow, which made a date picker accept a birthday the schema then
+ * rejected. Calendar inputs and Zod refinements must share this one answer.
+ */
+export function todayLocalIso(): string {
+    return toIsoDate(new Date());
 }
 
 /**
