@@ -51,3 +51,15 @@ it('rejects an unknown filter key and an unknown sort field', function (): void 
         'sort' => 'guard_name',
     ])))->toThrow(ValidationException::class);
 });
+
+it('rejects a non-array filter instead of returning an unfiltered list', function (): void {
+    expect(fn () => PermissionFilterData::fromRequest(Request::create('/permissions', 'GET', [
+        'filter' => 'type=system',
+    ])))->toThrow(ValidationException::class);
+});
+
+it('ignores an empty filter parameter', function (): void {
+    $filters = PermissionFilterData::fromRequest(Request::create('/permissions', 'GET', ['filter' => '']));
+
+    expect($filters->type)->toBeNull();
+});

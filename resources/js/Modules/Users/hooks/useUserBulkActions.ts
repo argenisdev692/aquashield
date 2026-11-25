@@ -186,9 +186,28 @@ export function useUserBulkActions({
                 },
             });
 
-            const result = isBulkResult(payload) ? payload : { updated: rows.length, skipped: [] };
+            /*
+             * The five endpoints answer `{ updated, skipped }`, and that summary
+             * IS the result. Falling back to `updated: rows.length` for an
+             * unrecognised body reported success for work the server never
+             * confirmed (a 204, a proxy's empty reply, a future shape change).
+             * Report the uncertainty and reload: the refreshed rows are the
+             * only honest source of what actually happened.
+             */
+            if (!isBulkResult(payload)) {
+                onFeedback?.({
+                    tone: 'error',
+                    message: `${action.failure} The server did not confirm the result. The table was refreshed — check the rows before retrying.`,
+                });
 
-            onFeedback?.(feedbackFor(result, action));
+                router.reload({
+                    only: RELOAD_PROPS,
+                });
+
+                return;
+            }
+
+            onFeedback?.(feedbackFor(payload, action));
 
             // Reload the props the table renders; the URL (and therefore the
             // active filters) stays exactly where the user left it.

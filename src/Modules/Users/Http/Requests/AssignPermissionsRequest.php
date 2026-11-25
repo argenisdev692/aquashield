@@ -6,6 +6,7 @@ namespace Modules\Users\Http\Requests;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Shared\Application\Rules\ExistingPermissionNames;
 
 final class AssignPermissionsRequest extends FormRequest
 {
@@ -23,10 +24,12 @@ final class AssignPermissionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Bounded: each item runs an `exists` query (OWASP API4). The
-            // permission registry seeds 505 names today; 600 leaves headroom.
-            'permissions' => ['present', 'array', 'max:600'],
-            'permissions.*' => ['string', 'distinct', 'exists:permissions,name'],
+            // Bounded AND resolved in one `whereIn`: an `exists` per item is an
+            // N-query request when the UI submits the whole selection
+            // (OWASP API4). The registry seeds 505 names today; 600 leaves
+            // headroom.
+            'permissions' => ['present', 'array', 'max:600', new ExistingPermissionNames],
+            'permissions.*' => ['string', 'distinct'],
         ];
     }
 }

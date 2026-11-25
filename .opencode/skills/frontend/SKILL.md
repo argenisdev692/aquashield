@@ -587,4 +587,4 @@ flashes.
 - [ ] Uploads use the dropzone kit; object URLs are revoked; reorder is keyboard reachable
 - [ ] No hardcoded colours and no raw Tailwind palette classes
 - [ ] Keyboard reachable, labelled, focus ring intact
-- [ ] `npm run types:check` and `npm run format:check` clean
+- [ ] `npm run lint`, `npm run types:check` and `npm run format:check` clean

@@ -1986,6 +1986,48 @@
                 }
             }
         },
+        "/v1/appointments/calendar-events": {
+            "get": {
+                "operationId": "v1.appointments.calendar-events",
+                "tags": [
+                    "CalendarEvents"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CalendarEventsData`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CalendarEventsData"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/company-data": {
             "get": {
                 "operationId": "company-data.show",
@@ -3647,6 +3689,61 @@
                     "appointments"
                 ],
                 "title": "CalendarDayData"
+            },
+            "CalendarEventData": {
+                "type": "object",
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "lead_uuid": {
+                        "type": "string"
+                    },
+                    "customer_name": {
+                        "type": "string"
+                    },
+                    "starts_at_local": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "uuid",
+                    "lead_uuid",
+                    "customer_name",
+                    "starts_at_local",
+                    "timezone",
+                    "status",
+                    "kind",
+                    "region"
+                ],
+                "title": "CalendarEventData"
+            },
+            "CalendarEventsData": {
+                "type": "object",
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CalendarEventData"
+                        }
+                    }
+                },
+                "required": [
+                    "data"
+                ],
+                "title": "CalendarEventsData"
             },
             "CalendarFeedData": {
                 "type": "object",

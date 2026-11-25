@@ -86,6 +86,9 @@
        same `text-aq-danger-strong` clears 5.7:1 on the navy card. */
     --color-aq-danger-strong: #fb7185;
     --color-aq-success-strong: #34d399;
+    --color-aq-warning-strong: #fbbf24;
+    --color-aq-accent-text: #33c4e8;
+    --color-aq-focus: #33c4e8;
 
     --p-content-border-color: var(--p-surface-400);
     --p-content-hover-background: var(--p-surface-800);
@@ -99,13 +102,17 @@
     --p-text-color: var(--p-surface-50);
     --p-text-hover-color: var(--p-surface-0);
     /* -400 reads at 4.25:1 on a card (surface-900), under the 4.5:1 floor for
-       body text. -300 clears it and still sits well below the -50 body colour. */
+       body text. -300 clears it and still sits well below the -50 body colour.
+       The same rule applies to Tailwind call sites: muted text is
+       `text-surface-500 dark:text-surface-300`. -400/-500 in dark are kept for
+       non-text only (borders, decorative icons), and the contrast test in
+       resources/js/test/contrast.test.ts pins the numbers. */
     --p-text-muted-color: var(--p-surface-300);
     --p-text-hover-muted-color: var(--p-surface-200);
 }
 
 /*
- * Inter ships tabular figures behind the `tnum` OpenType feature.
+ * Geist ships tabular figures behind the `tnum` OpenType feature.
  * Enable on data-dense surfaces (DataTable cells, currency, counters)
  * so digits align vertically across rows.
  */
@@ -156,11 +163,22 @@
        12px text. The dark theme flips it to emerald-400. */
     --color-aq-success-strong: #065f46;
 
+    /* Warning text has the same problem: amber-500 on the 10% tag tint is
+       ~2:1. Amber-800 clears the 4.5:1 floor on a light surface. */
+    --color-aq-warning-strong: #92400e;
+
     /* Destructive text needs a rung the icon colour cannot provide: #f43f5e
        measures 3.7:1 on a light card — fine for a 16px glyph (3:1), a fail for
        a button label (4.5:1). -strong is the text/action pair; .dark swaps it
        for rose-400 because #be123c falls to ~2.4:1 on the navy card. */
     --color-aq-danger-strong: #be123c;
+
+    /* Text/indicator aqua. The brand accent (#00b5e2) is 2.4:1 on white; it
+       remains the fill/decorative colour, while this darker pair carries
+       links, selected tabs and focus rings. `.dark` flips it to the lighter
+       accent. */
+    --color-aq-accent-text: #00708f;
+    --color-aq-focus: #00708f;
 
     /* Specular sweep for a light-on-fill hover. Named so a `bg-white/45`
        cannot creep back in at a call site — a sheen is a brand decision, and

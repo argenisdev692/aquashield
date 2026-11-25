@@ -58,7 +58,7 @@ const TREND_PATHS: Record<Trend, readonly string[]> = {
 const TREND_TONE: Record<Trend, string> = {
     up: 'text-aq-success-strong',
     down: 'text-aq-danger-strong',
-    flat: 'text-surface-500 dark:text-surface-400',
+    flat: 'text-surface-500 dark:text-surface-300',
 };
 
 const staggerDelay = (position: number): string => `${Math.min(position * 70, 280)}ms`;

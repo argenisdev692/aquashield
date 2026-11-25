@@ -41,8 +41,9 @@ duplicate them, and the filters/exports/audit/cache policy would exist twice.
   `PermissionOptionData`, `PermissionCatalogData`, `FilterOptionsData`. No `JsonResource`.
 - **Read contract:** index and export share `RoleListQuery` / `PermissionListQuery`, so a filter
   cannot exist on screen and be missing from a file.
-- **Validation:** `Rules\ExistingPermissionNames` resolves the whole permission array in one
-  `whereIn`; the `max:600` cap stays as the resource bound (no per-item `exists`).
+- **Validation:** `Shared\Application\Rules\ExistingPermissionNames` resolves the whole permission array in one
+  `whereIn`; the `max:1000` cap stays as the resource bound (no per-item `exists`), and each item carries a
+  `max:64` bound matching the name contract.
 - **Exports:** `ExportPort` + `{Role,Permission}ExportTransformer` + Blade views under
   `resources/views/exports/`. `ExportLimit` caps CSV/XLSX at 10,000 and PDF at 2,000; audited before
   streaming.
@@ -50,9 +51,10 @@ duplicate them, and the filters/exports/audit/cache policy would exist twice.
   `role.deleted`, `role.exported`, `permission.created`, `permission.updated`, `permission.deleted`,
   `permission.exported`, `access.cache_reset`. No `LogsActivity` on vendor models: explicit events
   match the Users module and never log a permission matrix or PII.
-- **Cache:** Spatie owns the registry. Each write calls
-  `PermissionRegistrar::forgetCachedPermissions()`; `POST /access-control/cache-reset` is the
-  operator path for out-of-band changes. No second cache.
+- **Cache:** Spatie owns the registry. Its model events and `syncPermissions()` already flush; each write
+  additionally registers `DB::afterCommit()` so a concurrent read cannot repopulate the cache from the
+  pre-commit snapshot and keep it for the 24 h TTL. `POST /access-control/cache-reset` is the operator path
+  for out-of-band changes. No second cache.
 - **Transactions:** every write (role create/update/delete, permission create/update/delete) wraps
   the mutation, the sync and the audit row in `DB::transaction`. Update/delete re-read with
   `lockForUpdate()` so two admins cannot race a guard.
@@ -89,30 +91,46 @@ internal so Spatie's pivot tables are untouched; routes use `->whereUuid()`.
   change Spatie's authorization queries. The UI exposes no row selection, so the "bulk delete +
   bulk restore" rule is not triggered. `RESTORE_ROLE`/`BULK_RESTORE_ROLE` stay in the seeded matrix
   unused.
-- The `group` filter uses `substr(name, -N)`, which is portable across SQLite and MySQL. A dedicated
-  group column was rejected: the name is the catalogue's source of truth.
+- The `group` filter compares the suffix with `substr(name, length(name) - N + 1)`, which is portable
+  across PostgreSQL (the deployed engine), SQLite and MySQL. A negative start (`substr(name, -N)`) is
+  **not** portable: PostgreSQL treats it as "from character 1" and silently returns no rows. A
+  dedicated group column was rejected: the name is the catalogue's source of truth.
 - Inertia pages are part of this module. The JSON list contract (`rows` + `total`,
   `filter[...]`, `sort`, `per_page`) remains available to table clients.
 - Exports are synchronous and capped per format: CSV/XLSX stream up to 10,000 rows, PDF renders
-  up to 2,000 (dompdf runs in-request). A queued export is the follow-up that removes the ceiling.
+  up to 2,000 (dompdf runs in-request). The transformer also applies `limit($cap)` as a race guard, so
+  a row inserted between the count and the stream cannot exceed the ceiling. The audit row is written
+  after the rows are produced, not before the stream starts. A queued export is the follow-up that
+  removes the ceiling.
 - `is_system` is an additive column on a vendor table. Custom Spatie models were rejected because
   the flag does not change authorization semantics, only the admin write guards.
 - `UPDATE_ROLE` also replaces the role's permission matrix; there is no separate
   `ASSIGN_PERMISSIONS_ROLE`. That is safe while `can:manage-access` admits only an active
   SUPER_ADMIN. If the Gate ever widens, split the capability before widening it.
+- **Provisioning is first-install only.** `RolePermissionSeeder` creates the catalogue and grants the
+  initial matrix on a fresh database; re-seeding an existing installation does not restore a permission
+  an operator deliberately removed. `UserSeeder` is `local`/`testing` only, requires
+  `SEED_USER_PASSWORD`, and never resets an existing account's password or roles. Production admins are
+  provisioned explicitly with a secret-managed credential.
+- The JSON list contract (`rows` + `total`, `filter[...]`, `sort`, `per_page`) is internal to the table
+  client. Scramble documents only `api/*`, so these web endpoints are deliberately **not** part of the
+  OpenAPI surface; session-authenticated endpoints must not be advertised as public API.
 
 ## Tests holding the module down
 
-- `Tests/Feature/RoleCrudTest.php` — 401/403, index/filters/sort, create/sync/audit, duplicate,
-  update, system-role name guard, delete guards, cache reset.
-- `Tests/Feature/PermissionCrudTest.php` — index/group/role filters, custom create/rename/delete,
-  system read-only, assigned delete guard, cache.
-- `Tests/Feature/AccessControlExportTest.php` — CSV/XLSX/PDF, same filters, permission pairs, audit.
+- `Tests/Feature/RoleCrudTest.php` — 401/403, index/filters/sort, case-insensitive search, create/sync/audit,
+  duplicate, update, system-role name guard (HTTP and action boundary), delete guards (including a
+  soft-deleted assignee), cache reset.
+- `Tests/Feature/PermissionCrudTest.php` — index/group/role filters, case-insensitive search, literal
+  wildcard search, custom create/rename/delete, system read-only, assigned delete guard (including a
+  soft-deleted assignee), cache.
+- `Tests/Feature/AccessControlExportTest.php` — CSV/XLSX/PDF, same filters, permission pairs, audit,
+  per-format cap rejection.
 - `Tests/Feature/AccessControlGateTest.php` — guest, delegated user, inactive super admin, stripped
-  super admin.
+  super admin, and a stripped-permission 403 for every mutating route and the cache reset.
 - `Tests/Feature/AccessControlPagesTest.php` — Inertia components and payloads.
 - `Tests/Unit/RoleFilterDataTest.php`, `PermissionFilterDataTest.php`, `PermissionNameTest.php`,
-  `ExportLimitTest.php`.
+  `ExportLimitTest.php`, `SearchPatternTest.php`.
 
 ## Mode review
 

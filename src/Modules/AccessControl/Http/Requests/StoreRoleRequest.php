@@ -7,8 +7,8 @@ namespace Modules\AccessControl\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\AccessControl\Data\RoleData;
-use Modules\AccessControl\Rules\ExistingPermissionNames;
 use Modules\AccessControl\Support\PermissionName;
+use Shared\Application\Rules\ExistingPermissionNames;
 use Shared\Domain\Enums\Permission as PermissionEnum;
 
 final class StoreRoleRequest extends FormRequest
@@ -33,8 +33,9 @@ final class StoreRoleRequest extends FormRequest
                 Rule::unique('roles', 'name')->where('guard_name', 'web'),
             ],
             // One `whereIn` for the whole array, not one `exists` per item (OWASP API4).
-            'permissions' => ['nullable', 'array', 'max:600', new ExistingPermissionNames],
-            'permissions.*' => ['string', 'distinct'],
+            // The array cap is a resource bound; the catalogue currently holds ~507 names.
+            'permissions' => ['nullable', 'array', 'max:1000', new ExistingPermissionNames],
+            'permissions.*' => ['string', 'max:64', 'distinct'],
         ];
     }
 

@@ -10,7 +10,7 @@ import { requestJson } from '@/lib/http';
 
 export type LeadOption = Pick<
     Modules.LeadAppointment.Application.Dtos.LeadListItemData,
-    'uuid' | 'full_name' | 'phone' | 'city' | 'state'
+    'uuid' | 'full_name' | 'phone' | 'city' | 'state' | 'region'
 >;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -22,7 +22,8 @@ const isLeadOption = (value: unknown): value is LeadOption =>
     typeof value.full_name === 'string' &&
     (value.phone === null || typeof value.phone === 'string') &&
     (value.city === null || typeof value.city === 'string') &&
-    (value.state === null || typeof value.state === 'string');
+    (value.state === null || typeof value.state === 'string') &&
+    (value.region === null || typeof value.region === 'string');
 
 export const leadOptionsQuery = (search: string, enabled = true) =>
     queryOptions({
@@ -37,9 +38,21 @@ export const leadOptionsQuery = (search: string, enabled = true) =>
 
             const payload = await requestJson(`/leads?${params.toString()}`, { signal });
 
-            return isRecord(payload) && Array.isArray(payload.rows)
-                ? payload.rows.filter(isLeadOption)
-                : [];
+            if (!isRecord(payload) || !Array.isArray(payload.rows)) {
+                throw new Error('The lead search returned an unexpected payload.');
+            }
+
+            const leads: LeadOption[] = [];
+
+            for (const row of payload.rows) {
+                if (!isLeadOption(row)) {
+                    throw new Error('The lead search returned a row this client cannot read.');
+                }
+
+                leads.push(row);
+            }
+
+            return leads;
         },
         staleTime: 30_000,
         gcTime: 300_000,

@@ -53,7 +53,7 @@ const activityOptions = [
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div className="flex flex-col gap-0.5">
-            <dt className="text-xs font-medium tracking-wide text-surface-500 uppercase dark:text-surface-400">
+            <dt className="text-xs font-medium tracking-wide text-surface-500 uppercase dark:text-surface-300">
                 {label}
             </dt>
             <dd className="text-sm break-words text-surface-900 dark:text-surface-100">
@@ -117,12 +117,12 @@ export default function LeadsShow({
                         <div className="flex flex-wrap items-center gap-2">
                             <Link
                                 href="/leads"
-                                className="inline-flex items-center gap-1 text-sm text-surface-500 transition-colors duration-150 hover:text-aq-accent dark:text-surface-400"
+                                className="inline-flex items-center gap-1 text-sm text-surface-500 transition-colors duration-150 hover:text-aq-accent dark:text-surface-300"
                             >
                                 <ArrowLeft className="size-4" aria-hidden="true" />
                                 Leads
                             </Link>
-                            <span className="text-surface-300 dark:text-surface-600">/</span>
+                            <span className="text-surface-500 dark:text-surface-300">/</span>
                             <h2 className="truncate text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                                 {lead.full_name}
                             </h2>
@@ -132,7 +132,7 @@ export default function LeadsShow({
                             )}
                             {deleted && <Tag variant="destructive">Deleted</Tag>}
                         </div>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             {humanize(lead.status)} · {humanize(lead.source)}
                             {lead.source_detail === null ? '' : ` (${lead.source_detail})`}
                             {lead.owner_name === null ? '' : ` · Owner ${lead.owner_name}`}
@@ -324,7 +324,7 @@ export default function LeadsShow({
 
                         {lead.attribution !== null && (
                             <div className="mt-4">
-                                <h3 className="text-xs font-medium tracking-wide text-surface-500 uppercase dark:text-surface-400">
+                                <h3 className="text-xs font-medium tracking-wide text-surface-500 uppercase dark:text-surface-300">
                                     Attribution
                                 </h3>
                                 <dl className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -351,7 +351,7 @@ export default function LeadsShow({
                         </h2>
 
                         {activities.length === 0 ? (
-                            <p className="py-4 text-sm text-surface-500 dark:text-surface-400">
+                            <p className="py-4 text-sm text-surface-500 dark:text-surface-300">
                                 No activity logged yet.
                             </p>
                         ) : (
@@ -374,7 +374,7 @@ export default function LeadsShow({
                                                     {activity.notes}
                                                 </p>
                                             )}
-                                            <p className="mt-0.5 text-xs text-surface-400 dark:text-surface-500">
+                                            <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-300">
                                                 {formatDateTime(activity.occurred_at)}
                                                 {activity.actor_name === null
                                                     ? ''
@@ -462,7 +462,7 @@ export default function LeadsShow({
                     </section>
                 )}
 
-                <p className="text-xs text-surface-400 dark:text-surface-500">
+                <p className="text-xs text-surface-500 dark:text-surface-300">
                     Created {formatDateTime(lead.created_at)}
                     {lead.last_contacted_at === null
                         ? ''

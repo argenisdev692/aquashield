@@ -1,0 +1,123 @@
+/**
+ * Oxlint — the lint layer the repo was missing.
+ *
+ * oxlint parses TypeScript in Rust, so it does not need the TypeScript
+ * programmatic API that TS 7.0 removed (and that would have forced the
+ * `npm:@typescript/typescript6` alias on typescript-eslint). It covers the
+ * rules the gate actually needs: hooks correctness, the ARIA subset that is
+ * decidable from source, and the dead code `tsc` cannot see (`noUnusedLocals`
+ * stays off because the generated tree is full of intentional aliases).
+ *
+ * Policy: **errors only for rules with no false positives on this codebase.**
+ * A gate that prints 80 permanent warnings trains people to ignore output, so
+ * the rules below are either fixed at the call site or disabled with a reason.
+ *
+ * What the architecture suite already enforces and is NOT repeated here:
+ * zero `any`, token-only colour, network I/O in module hooks, server-first
+ * tables, generated types (tests/Architecture/FrontendBoundariesTest.php).
+ */
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "jsx-a11y", "vitest", "typescript", "unicorn", "oxc"],
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+
+    "typescript/no-explicit-any": "error",
+
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-role": "error",
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/no-redundant-roles": "error",
+    "jsx-a11y/role-has-required-aria-props": "error",
+
+    "vitest/require-mock-type-parameters": "error",
+
+    /*
+     * `role="status"` on a `<p>` is a legitimate live region; the rule
+     * wants `<output>`, which is a preference, not a conformance rule.
+     */
+    "jsx-a11y/prefer-tag-over-role": "off",
+
+    /*
+     * Autofocus is a deliberate UX decision on the auth screens (first
+     * field of the only form on the page) and in dialogs opened by an
+     * explicit user action. WCAG does not prohibit it.
+     */
+    "jsx-a11y/no-autofocus": "off",
+
+    /*
+     * The kit fields wrap the control in `<label>` (FieldShell), but the
+     * control is a wrapper component (`Input`, `Select`), which the rule
+     * cannot see through. Labels are wired with `htmlFor` + `aria-*` and
+     * covered by the form-kit review.
+     */
+    "jsx-a11y/label-has-associated-control": "off",
+
+    /*
+     * False positives on this stack: Base UI composes the control through
+     * its `render` prop (`Button render={<a/>}`), and the rule reads a
+     * `<td>` as a control. Real label defects are caught by the form kit
+     * contract and the review.
+     */
+    "jsx-a11y/control-has-associated-label": "off",
+
+    /*
+     * Pointer affordances on a labelled group (`InputGroupAddon`, the
+     * TagsField chip box) and the drag-and-drop surfaces (ImagesDropzone,
+     * LeadKanban). Every one of these has a keyboard path — Tab to the
+     * input, the per-image move buttons, the Kanban stage `<select>` — so
+     * the "click" is an enhancement, not the only way in.
+     */
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+
+    /*
+     * ARIA 1.2 combobox with `aria-activedescendant`: focus stays in the
+     * input and options are never focusable by design. The rule asks for
+     * `tabIndex` on each option, which would break the pattern.
+     */
+    "jsx-a11y/interactive-supports-focus": "off",
+
+    /*
+     * Legitimate external-system sync: `matchMedia` initial read, a
+     * controlled input's draft, a post-focus reset, an object-URL cache.
+     * The derived-state cases the audit flagged were fixed by hand; the
+     * rest are effects whose whole purpose is to write state.
+     */
+    "react/set-state-in-effect": "off",
+
+    /* Test style in an existing suite; not a correctness signal. */
+    "vitest/no-conditional-expect": "off"
+  },
+  "overrides": [
+    {
+      /*
+       * Imperative three.js scene: geometry and uniforms must be mutated
+       * for the particle cloud to animate, and `ref.current` is the
+       * object the renderer owns. The React Compiler rules describe a
+       * component the compiler skips by design — see the file headers.
+       */
+      "files": [
+        "resources/js/Components/BrandMarkParticles.tsx",
+        "resources/js/Components/BrandMarkScene.tsx"
+      ],
+      "rules": {
+        "react/purity": "off",
+        "react/immutability": "off",
+        "react/refs": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["public/**", "vendor/**", "node_modules/**", "resources/js/generated/**"]
+}

@@ -110,7 +110,6 @@ export default function ScheduleAppointmentDialog({
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel="Schedule appointment"
-            guardDirty={false}
         >
             {serverError !== null && (
                 <p

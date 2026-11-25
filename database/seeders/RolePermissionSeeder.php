@@ -228,18 +228,31 @@ class RolePermissionSeeder extends Seeder
 
     /**
      * Seed foundation roles and permissions (web guard).
+     *
+     * Grants are **first-install only**. Re-seeding an existing installation
+     * must not silently restore a permission an operator deliberately removed
+     * from ADMIN or SUPER_ADMIN, and must not overwrite a role matrix that was
+     * edited through the AccessControl UI. New permissions added to the matrix
+     * are created here (with `is_system = true`) and are granted through the
+     * admin UI or an explicit provisioning command.
      */
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        $isFreshInstall = Permission::query()->doesntExist()
+            && Role::query()->doesntExist();
+
         $this->ensureRoles();
         $this->ensurePermissions($this->permissionNames());
         $this->pruneObsoleteCompanyDataPermissions();
-        $this->grantAllToSuperAdmin();
-        $this->grantModulesToAdmin();
-        $this->grantLeadAppointmentMatrix();
-        $this->grantSelfServiceModules();
+
+        if ($isFreshInstall) {
+            $this->grantAllToSuperAdmin();
+            $this->grantModulesToAdmin();
+            $this->grantLeadAppointmentMatrix();
+            $this->grantSelfServiceModules();
+        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

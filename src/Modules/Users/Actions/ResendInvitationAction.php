@@ -50,7 +50,7 @@ final readonly class ResendInvitationAction
             $this->audit->log('user.invitation_resent', $locked, [], $actor, 'users');
 
             return $locked;
-        });
+        }, attempts: 3);
 
         SendUserInvitationJob::dispatch(
             $updated,

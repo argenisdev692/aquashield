@@ -18,13 +18,12 @@ import AppButton from '@/Components/Forms/AppButton';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/Components/ui/tabs';
-import { useZodForm } from '@/lib/forms';
+import { useZodForm, focusFieldByName } from '@/lib/forms';
 import { cn } from '@/lib/utils';
 import {
     companyProfileSchema,
     toCompanyProfileForm,
 } from '@/Modules/CompanyData/schemas/companyProfile';
-import type { CompanyProfileForm } from '@/Modules/CompanyData/schemas/companyProfile';
 import { useCompanyAssets } from '@/Modules/CompanyData/hooks/useCompanyAssets';
 import CompanyAddressPanel from './components/CompanyAddressPanel';
 import CompanyBillingPanel from './components/CompanyBillingPanel';
@@ -155,7 +154,7 @@ export default function CompanyDataEdit({
             return;
         }
 
-        document.querySelector<HTMLElement>(`[name="${focusTarget}"]`)?.focus();
+        focusFieldByName(focusTarget);
         setFocusTarget(null);
     }, [focusTarget]);
 

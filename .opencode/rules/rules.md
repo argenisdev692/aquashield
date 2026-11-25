@@ -30,7 +30,7 @@ If a skill covers the task, read it first. No exceptions.
 
 **What exists today:** `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and
 `Users` (FLAT), plus `Backups` and `LeadAppointment` (PROGRESSIVE) — each with its own `ARCHITECTURE.md` and tests. The architecture suite in
-`tests/Architecture/` runs against them (43 tests green on 2026-11-25), and
+`tests/Architecture/` runs against them (47 tests green on 2026-11-25), and
 `resources/js/generated/generated.d.ts` is populated. `src/Shared/` is populated. Never claim a
 module, screen or DTO exists because a rule above names it — check the disk.
 
@@ -274,10 +274,32 @@ npm run module:done
 | 1   | `npm run format`           | Prettier applied                                               |
 | 2   | `npm run syn`              | `.claude/` and `.cursor/` regenerated from `.opencode/`        |
 | 3   | `npm run types:check`      | `tsc --noEmit` — zero type errors                              |
+| 3b  | `npm run lint`             | oxlint — hooks rules, ARIA subset, dead code (zero findings)   |
 | 4   | `npm run build`            | Vite production build succeeds                                 |
 | 5   | `composer analyse`         | PHPStan + Larastan level 5 — zero errors                       |
 | 6   | `composer pint:test`       | Pint style **including `--blade`** — zero pending fixes        |
 | 7   | `php artisan test`         | Pest suite green                                               |
+
+**Lint is `oxlint`, not ESLint.** TS 7.0 dropped the programmatic API, so typescript-eslint
+would need the `npm:@typescript/typescript6` alias and a second compiler in the tree; oxlint
+parses TypeScript in Rust and covers the rules the gate needs (`react-hooks`, the decidable
+`jsx-a11y` subset, `no-explicit-any`, unused code). `.oxlintrc.json` enables **errors only for
+rules with no false positives here** and records why each exclusion exists — a gate that prints
+80 permanent warnings teaches people to ignore its output. Do not add a rule as `warn`; fix it,
+or document the exclusion in the config.
+
+**Generated-type drift is a CI step, not part of `module:done`.** `module:done` deliberately does
+not regenerate `generated.d.ts`: a developer's tree is often dirty and the command mutates files.
+CI (or a pre-merge run on a clean tree) must execute:
+
+```bash
+npm run ci   # verify (syn/format/lint/tsc) + codegen:check + unit + build + composer gate
+```
+
+`composer codegen:check` fails when a `Data` class changed without regenerating the
+declaration file — the one contract in this repo that `tsc` cannot see drifting, because the
+stale file still compiles. `npm run ci` is the whole pipeline in one command; wiring it to a
+runner is a one-line step, and until a runner exists it is the pre-merge check.
 
 **Reading the output.** `laravel/pao` (dev dep, first-party) swaps the output of `pest`, `phpstan`,
 `rector` and `artisan` for compact JSON **when it detects an agent**, and leaves it alone for humans.
@@ -287,7 +309,7 @@ error" as evidence — **the exit code is the verdict.** See `owasp/STACK.md` §
 
 `laravel/pao` also means a "skipped" Pest test prints as skipped rather than vanishing. A suite that
 is entirely skipped has passed _vacuously_ — check the skip count before reporting green.
-`tests/Architecture/` runs 43 tests in four suites against the six modules today; a run that reports
+`tests/Architecture/` runs 47 tests in four suites against the six modules today; a run that reports
 them all skipped has a broken glob, not a green suite.
 
 ### `laravel/doctor` — the agent sanity check
@@ -401,7 +423,7 @@ deleting any symbol, route, or `implements` always does.
 | `build`                                      | green — Vite 8.3.8; the `Welcome` chunk (1.09 MB) triggers the >500 kB warning                                                                     |
 | `analyse` (PHPStan L5)                       | green — **0 errors**                                                                                                                               |
 | `pint:test`                                  | green                                                                                                                                              |
-| `php artisan test`                           | green — **743 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
+| `php artisan test`                           | green — **761 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
 | `doctor`                                     | green — 25 diagnostics, 0 failed, 1 skipped, 3 notices; `composer audit` is clean                                                                  |
 
 What that means for you:
@@ -428,7 +450,7 @@ What that means for you:
   never change the project to satisfy it.
 - A new module must be clean **on its own files**. `phpstan analyse src/Modules/{Module}` and
   `pint --test src/Modules/{Module}` prove that.
-- `tests/Architecture/` is a real suite and currently runs **43 tests in four suites** against the
+- `tests/Architecture/` is a real suite and currently runs **47 tests in four suites** against the
   six modules. If it disappears from the count, check `phpunit.xml` before assuming green.
 
 # Working on the skills themselves

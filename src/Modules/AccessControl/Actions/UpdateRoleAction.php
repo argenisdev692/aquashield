@@ -65,7 +65,10 @@ final readonly class UpdateRoleAction
                 ]);
             }
 
-            $this->registrar->forgetCachedPermissions();
+            // Spatie's own flush runs before this transaction commits; repair
+            // the registry after the commit so a concurrent read cannot keep a
+            // pre-commit snapshot for the cache TTL.
+            DB::afterCommit(fn () => $this->registrar->forgetCachedPermissions());
 
             /*
              * Log the delta, not the count: "who removed EXPORT_ROLE from this

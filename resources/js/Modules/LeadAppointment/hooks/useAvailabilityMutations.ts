@@ -6,7 +6,11 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { requestJson } from '@/lib/http';
-import type { AvailabilityRuleFormValues, BulkClosureFormValues } from '../schemas/availability';
+import {
+    availabilityRulePayload,
+    type AvailabilityRuleFormValues,
+    type BulkClosureFormValues,
+} from '../schemas/availability';
 
 const CALENDAR_PREFIX = ['lead-appointment', 'availability-calendar'] as const;
 
@@ -33,12 +37,7 @@ const isHolidayResyncResult = (
 ): value is Modules.LeadAppointment.Application.Dtos.HolidayResyncResultData =>
     isRecord(value) && typeof value.purged === 'number' && typeof value.created === 'number';
 
-const rulePayload = (values: AvailabilityRuleFormValues) => ({
-    day_of_week: Number(values.day_of_week),
-    start_time: values.start_time,
-    end_time: values.end_time,
-    is_available: true,
-});
+const rulePayload = (values: AvailabilityRuleFormValues) => availabilityRulePayload(values);
 
 export function useAvailabilityMutations() {
     const queryClient = useQueryClient();

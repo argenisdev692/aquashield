@@ -6,6 +6,7 @@ namespace Modules\Users\Http\Requests;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Shared\Application\Rules\ExistingRoleNames;
 
 final class AssignRolesRequest extends FormRequest
 {
@@ -23,10 +24,11 @@ final class AssignRolesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Bounded: each item runs an `exists` query (OWASP API4). The
-            // 26 seeded roles fit inside this cap.
-            'roles' => ['present', 'array', 'max:50'],
-            'roles.*' => ['string', 'distinct', 'exists:roles,name'],
+            // Bounded AND resolved in one `whereIn`: an `exists` per item is an
+            // N-query request when the UI submits the whole selection
+            // (OWASP API4). The 26 seeded roles fit inside this cap.
+            'roles' => ['present', 'array', 'max:50', new ExistingRoleNames],
+            'roles.*' => ['string', 'distinct'],
         ];
     }
 }

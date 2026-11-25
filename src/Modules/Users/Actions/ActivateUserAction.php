@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Modules\Users\Enums\UserStatus;
+use Modules\Users\Support\AccessRevocation;
 use Shared\Domain\Ports\AuditPort;
 
 /**
@@ -21,7 +22,10 @@ use Shared\Domain\Ports\AuditPort;
  */
 final readonly class ActivateUserAction
 {
-    public function __construct(private AuditPort $audit) {}
+    public function __construct(
+        private AuditPort $audit,
+        private AccessRevocation $revocation,
+    ) {}
 
     public function execute(User $target, string $password, int $invitationTimestamp): User
     {
@@ -57,17 +61,11 @@ final readonly class ActivateUserAction
             // A fresh account should not inherit a token or session from a
             // previous lifecycle; both are revoked before the new session is
             // established by the controller.
-            $locked->tokens()->delete();
-
-            if (config('session.driver') === 'database') {
-                DB::table((string) config('session.table', 'sessions'))
-                    ->where('user_id', $locked->getKey())
-                    ->delete();
-            }
+            $this->revocation->revoke($locked);
 
             $this->audit->log('user.activated', $locked, [], $locked, 'users');
 
             return $locked;
-        });
+        }, attempts: 3);
     }
 }

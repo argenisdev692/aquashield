@@ -17,7 +17,8 @@ interface LeadPickerProps {
     label?: string;
     name?: string;
     value: string;
-    onChange: (uuid: string) => void;
+    /** Receives the whole selected option, or null when the selection clears. */
+    onSelect: (lead: LeadOption | null) => void;
     onBlur?: () => void;
     error?: string;
     hint?: string;
@@ -32,7 +33,7 @@ export default function LeadPicker({
     label = 'Lead',
     name = 'lead_uuid',
     value,
-    onChange,
+    onSelect,
     onBlur,
     error,
     hint,
@@ -71,7 +72,7 @@ export default function LeadPicker({
 
     const select = (lead: LeadOption): void => {
         setSelected(lead);
-        onChange(lead.uuid);
+        onSelect(lead);
         setSearch('');
         setDebounced('');
         setActiveIndex(-1);
@@ -81,7 +82,7 @@ export default function LeadPicker({
 
     const clear = (): void => {
         setSelected(null);
-        onChange('');
+        onSelect(null);
         setSearch('');
         setDebounced('');
         setOpen(false);
@@ -205,7 +206,7 @@ export default function LeadPicker({
                         )}
                         {!leads.isFetching && (
                             <Search
-                                className="size-4 text-surface-500 dark:text-surface-400"
+                                className="size-4 text-surface-500 dark:text-surface-300"
                                 aria-hidden="true"
                             />
                         )}
@@ -216,7 +217,7 @@ export default function LeadPicker({
                             type="button"
                             aria-label="Clear selected lead"
                             onClick={clear}
-                            className="absolute inset-y-1.5 end-8 flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:hover:text-surface-0"
+                            className="absolute inset-y-1.5 end-8 flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:hover:text-surface-0"
                         >
                             <X className="size-4" aria-hidden="true" />
                         </button>
@@ -266,7 +267,7 @@ export default function LeadPicker({
                                                 onMouseEnter={() => setActiveIndex(index)}
                                                 onClick={() => select(lead)}
                                                 className={cn(
-                                                    'flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none',
+                                                    'flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
                                                     index === activeIndex
                                                         ? 'bg-surface-100 dark:bg-surface-800'
                                                         : 'hover:bg-surface-100 dark:hover:bg-surface-800',
@@ -275,7 +276,7 @@ export default function LeadPicker({
                                                 <span className="truncate text-sm font-medium text-surface-800 dark:text-surface-100">
                                                     {lead.full_name}
                                                 </span>
-                                                <span className="truncate text-xs text-surface-500 dark:text-surface-400">
+                                                <span className="truncate text-xs text-surface-500 dark:text-surface-300">
                                                     {[lead.phone, lead.city, lead.state]
                                                         .filter(Boolean)
                                                         .join(' · ') || 'No contact details'}

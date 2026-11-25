@@ -135,5 +135,22 @@ export const regionLabel = (region: string): string => {
     }
 };
 
+/**
+ * The server resolves a lead's region to this timezone when it parses the
+ * wall-clock start. Mirror it so the form hint names the zone that is actually
+ * used instead of the configured fallback.
+ */
+export const regionTimezone = (region: string | null | undefined): string | null => {
+    switch (region) {
+        case 'houston':
+        case 'dallas':
+            return 'America/Chicago';
+        case 'florida':
+            return 'America/New_York';
+        default:
+            return null;
+    }
+};
+
 export const isServiceRegion = (value: string | null | undefined): value is ServiceRegion =>
     value === '' || value === 'houston' || value === 'dallas' || value === 'florida';

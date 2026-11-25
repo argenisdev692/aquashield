@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    PostgreSQL test lane. The default `phpunit.xml` runs SQLite for speed; this
+    file runs the same suites against a dedicated PostgreSQL database so SQL that
+    only works on SQLite (substr with a negative start, case-sensitive LIKE,
+    collation differences) fails here instead of in production.
+
+    Create the database once (never point this at the development database —
+    RefreshDatabase migrates and rolls back it):
+
+        createdb -U <user> aquashield_test
+
+    Then run:
+
+        composer test:pgsql
+
+    Credentials come from the normal .env (`DB_USERNAME` / `DB_PASSWORD`); only
+    the connection and database name are overridden below.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Architecture">
+            <directory>tests/Architecture</directory>
+        </testsuite>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Modules">
+            <directory>src/Modules</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+            <directory>src/Modules</directory>
+            <directory>src/Shared</directory>
+        </include>
+    </source>
+    <php>
+        <ini name="memory_limit" value="1G"/>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="aquashield_test"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

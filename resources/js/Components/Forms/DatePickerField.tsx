@@ -94,7 +94,7 @@ export default function DatePickerField({
                                 'hover:border-surface-400 focus-visible:border-primary focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-primary',
                                 'disabled:cursor-not-allowed disabled:bg-surface-200 disabled:text-surface-500',
                                 'dark:border-surface-700 dark:bg-surface-950 dark:text-surface-0 dark:disabled:bg-surface-700',
-                                !value && 'text-surface-500 dark:text-surface-400',
+                                !value && 'text-surface-500 dark:text-surface-300',
                                 error && 'border-aq-danger',
                                 clearable && value && !disabled && 'pr-9',
                             )}
@@ -132,7 +132,7 @@ export default function DatePickerField({
                         <button
                             type="button"
                             aria-label="Clear date"
-                            className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-400 dark:hover:text-surface-0"
+                            className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-300 dark:hover:text-surface-0"
                             onClick={() => {
                                 onChange(null);
                                 onBlur?.();

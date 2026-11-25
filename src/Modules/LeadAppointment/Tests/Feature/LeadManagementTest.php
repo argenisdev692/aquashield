@@ -234,17 +234,32 @@ it('rejects a self-merge and a trashed duplicate with 422', function (): void {
 });
 
 it('exports the filtered list as CSV and PDF', function (): void {
+    /*
+     * Every column the search matches (first/last name, company, email, phone,
+     * address, city) is pinned. The factory fills the rest with faker data, and
+     * a random "Canada Rd" / "Adamstown" makes `search=Ada` match the wrong
+     * lead — the suite passed twice and failed on the third run for exactly
+     * that reason.
+     */
     Lead::factory()->create([
         'first_name' => 'Ada',
         'last_name' => 'Lovelace',
+        'company_name' => 'Lovelace Analytics',
         'email' => 'ada@example.com',
+        'phone' => '7135550100',
+        'address' => '1 Main St',
+        'city' => 'Houston',
         'region' => 'houston',
         'state' => 'TX',
     ]);
     Lead::factory()->create([
         'first_name' => 'Bob',
         'last_name' => 'Barker',
+        'company_name' => 'Barker Field Services',
         'email' => 'bob@example.com',
+        'phone' => '7135550101',
+        'address' => '2 Main St',
+        'city' => 'Houston',
         'region' => 'houston',
         'state' => 'TX',
     ]);

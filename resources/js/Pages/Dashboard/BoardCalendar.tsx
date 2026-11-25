@@ -1,8 +1,13 @@
 /**
- * Dashboard/BoardCalendar — field calendar for the pipeline section.
- * React port of the Vue/FullCalendar component.
+ * Dashboard/BoardCalendar — the month grid for the pipeline section.
+ *
+ * The page owns the visible range and the event query; this component owns
+ * FullCalendar's view state and reports every range change back. Events are
+ * mapped from the slim calendar projection (customer, local start, status), so
+ * the grid never needs notes, addresses or contact details.
  */
 import { useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/react/daygrid';
 import interactionPlugin from '@fullcalendar/react/interaction';
@@ -10,66 +15,46 @@ import formaTheme from '@fullcalendar/react/themes/forma';
 import type {
     CalendarOptions,
     DateClickInfo,
+    DatesSetInfo,
     EventClickInfo,
     EventInput,
 } from '@fullcalendar/react';
+import type { CalendarEvent } from '@/Modules/LeadAppointment/hooks/useCalendarEvents';
 import { toIsoDate } from '@/lib/date';
+import { toCalendarEvent } from './calendarEvents';
 
 import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/forma/theme.css';
 import '@fullcalendar/react/themes/forma/palettes/blue.css';
 import './calendar-palette.css';
 
-export type AppointmentTone = 'normal' | 'high' | 'emergency';
-
-export interface CalendarAppointment {
-    id: string;
-    title: string;
-    start: Date;
-    tone: AppointmentTone;
-}
-
 interface BoardCalendarProps {
-    appointments: CalendarAppointment[];
+    events: CalendarEvent[];
     colorScheme: 'light' | 'dark';
+    /** True while the visible range is being fetched. */
+    isFetching?: boolean;
     /** Appointment id — the calendar is a projection of the board. */
     onSelect?: (id: string) => void;
     /** A day click when the viewer may schedule a visit. */
     onDateClick?: (date: string) => void;
+    /** Reports the visible grid range as inclusive ISO dates. */
+    onRangeChange?: (from: string, to: string) => void;
 }
 
-/**
- * Fill and the text that sits on it, both read from the token layer — the
- * event colour *is* the priority vocabulary, so it comes from the same tokens
- * the Kanban card border uses.
- */
-const TONE_STYLE: Record<AppointmentTone, { color: string; contrastColor: string }> = {
-    normal: { color: 'var(--p-primary-500)', contrastColor: 'var(--p-primary-contrast-color)' },
-    high: { color: 'var(--color-aq-warning)', contrastColor: 'var(--p-primary-contrast-color)' },
-    emergency: { color: 'var(--color-aq-danger)', contrastColor: 'var(--p-surface-0)' },
-};
-
 export default function BoardCalendar({
-    appointments,
+    events,
     colorScheme,
+    isFetching = false,
     onSelect,
     onDateClick,
+    onRangeChange,
 }: BoardCalendarProps) {
     /*
      * FullCalendar treats `events` as an external input and reconciles the
      * event source when the reference changes. This memo is an identity
      * contract for a third-party API, not a render-performance habit.
      */
-    const events = useMemo<EventInput[]>(
-        () =>
-            appointments.map((appointment) => ({
-                id: appointment.id,
-                title: appointment.title,
-                start: appointment.start,
-                ...TONE_STYLE[appointment.tone],
-            })),
-        [appointments],
-    );
+    const calendarEvents = useMemo<EventInput[]>(() => events.map(toCalendarEvent), [events]);
 
     const handleEventClick = (info: EventClickInfo): void => {
         info.jsEvent.preventDefault();
@@ -81,6 +66,12 @@ export default function BoardCalendar({
         onDateClick?.(toIsoDate(info.date));
     };
 
+    const handleDatesSet = (info: DatesSetInfo): void => {
+        // FullCalendar's end is exclusive; the API expects an inclusive date.
+        const end = new Date(info.end.getTime() - 86_400_000);
+        onRangeChange?.(toIsoDate(info.start), toIsoDate(end));
+    };
+
     const calendarOptions: CalendarOptions = {
         plugins: [dayGridPlugin, interactionPlugin, formaTheme],
         initialView: 'dayGridMonth',
@@ -90,10 +81,33 @@ export default function BoardCalendar({
         height: 'auto',
         dayMaxEvents: 3,
         firstDay: 0,
-        events,
+        events: calendarEvents,
+        datesSet: handleDatesSet,
         eventClick: handleEventClick,
-        ...(onDateClick === undefined ? {} : { dateClick: handleDateClick, selectable: true }),
+        ...(onDateClick === undefined ? {} : { dateClick: handleDateClick }),
     };
 
-    return <FullCalendar {...calendarOptions} />;
+    return (
+        <div className="relative">
+            <p className="px-[1.125rem] pt-3 text-xs text-surface-500 dark:text-surface-300">
+                Times are shown in each appointment&apos;s local time. Completed and cancelled
+                visits carry their state on the event.
+            </p>
+
+            <FullCalendar {...calendarOptions} />
+
+            {isFetching ? (
+                <span
+                    role="status"
+                    className="pointer-events-none absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-surface-0/90 px-2.5 py-1 text-xs font-medium text-surface-600 shadow-sm dark:bg-surface-800/90 dark:text-surface-200"
+                >
+                    <Loader2
+                        className="size-3 animate-spin motion-reduce:animate-none"
+                        aria-hidden="true"
+                    />
+                    Loading
+                </span>
+            ) : null}
+        </div>
+    );
 }

@@ -3,6 +3,7 @@
  * The lead is a picker on a fresh booking and a read-only summary when the
  * dialog was opened from a lead card.
  */
+import { useState } from 'react';
 import CheckboxField from '@/Components/Forms/CheckboxField';
 import DateField from '@/Components/Forms/DateField';
 import NumberField from '@/Components/Forms/NumberField';
@@ -12,8 +13,10 @@ import TextareaField from '@/Components/Forms/TextareaField';
 import TimeField from '@/Components/Forms/TimeField';
 import LeadPicker from './LeadPicker';
 import AvailabilityNotice from './AvailabilityNotice';
+import { todayIso } from '@/lib/date';
 import type { FormErrorMap } from '@/lib/forms';
-import { regionLabel } from '@/lib/regions';
+import { regionLabel, regionTimezone, isServiceRegion } from '@/lib/regions';
+import type { LeadOption } from '../hooks/useLeadOptions';
 import type { AppointmentFormValues } from '../schemas/appointment';
 
 type Option = { value: string; label: string };
@@ -46,16 +49,35 @@ export default function AppointmentFormFields({
     timezone,
     fixedLead = null,
 }: AppointmentFormFieldsProps) {
+    const [selectedLead, setSelectedLead] = useState<LeadOption | null>(null);
+
     const update = (patch: Partial<AppointmentFormValues>): void => {
         onChange({ ...values, ...patch });
     };
+
+    /*
+     * The server resolves a lead's region before the request region, so the UI
+     * must show that resolved value instead of offering a select whose choice
+     * would be ignored. A lead without a region keeps the select: there the
+     * submitted region is the one the server uses.
+     */
+    const leadRegion = fixedLead?.region ?? selectedLead?.region ?? null;
+    const resolvedRegion = leadRegion ?? (values.region === '' ? null : values.region);
+    const effectiveTimezone = regionTimezone(resolvedRegion) ?? timezone;
+    const minDate = todayIso(effectiveTimezone);
 
     return (
         <div className="flex flex-col gap-4">
             {fixedLead === null ? (
                 <LeadPicker
                     value={values.lead_uuid}
-                    onChange={(uuid) => update({ lead_uuid: uuid })}
+                    onSelect={(lead) => {
+                        setSelectedLead(lead);
+                        update({
+                            lead_uuid: lead?.uuid ?? '',
+                            region: isServiceRegion(lead?.region) ? lead.region : '',
+                        });
+                    }}
                     onBlur={() => onBlur('lead_uuid')}
                     error={errors.lead_uuid}
                     required
@@ -64,14 +86,14 @@ export default function AppointmentFormFields({
                 />
             ) : (
                 <div className="rounded-lg border border-surface-200 bg-surface-50 px-3 py-2 dark:border-surface-700 dark:bg-surface-800/40">
-                    <p className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                    <p className="text-xs font-medium text-surface-500 dark:text-surface-300">
                         Lead
                     </p>
                     <p className="mt-0.5 text-sm font-semibold text-surface-900 dark:text-surface-0">
                         {fixedLead.name}
                     </p>
                     {fixedLead.phone !== null && (
-                        <p className="text-xs tabular-nums text-surface-500 dark:text-surface-400">
+                        <p className="text-xs tabular-nums text-surface-500 dark:text-surface-300">
                             {fixedLead.phone}
                         </p>
                     )}
@@ -101,11 +123,11 @@ export default function AppointmentFormFields({
                     disabled={disabled}
                 />
 
-                {fixedLead?.region ? (
+                {leadRegion ? (
                     <TextField
                         label="Region"
                         name="region_display"
-                        value={regionLabel(fixedLead.region)}
+                        value={regionLabel(leadRegion)}
                         onChange={() => {}}
                         readOnly
                         disabled={disabled}
@@ -141,12 +163,13 @@ export default function AppointmentFormFields({
                         onBlur={() => onBlur('date')}
                         error={errors.date ?? errors.starts_at}
                         required
+                        min={minDate}
                         disabled={disabled}
                     />
 
                     <AvailabilityNotice
                         date={values.date}
-                        region={fixedLead?.region ?? (values.region === '' ? null : values.region)}
+                        region={resolvedRegion}
                         onPickDate={(date) => update({ date })}
                     />
                 </div>
@@ -159,9 +182,9 @@ export default function AppointmentFormFields({
                     onBlur={() => onBlur('time')}
                     error={errors.time ?? errors.starts_at}
                     hint={
-                        timezone === undefined
+                        effectiveTimezone === undefined
                             ? 'Read in the appointment region timezone.'
-                            : `Read in the appointment region timezone (default ${timezone}).`
+                            : `Read in ${effectiveTimezone}.`
                     }
                     required
                     disabled={disabled}

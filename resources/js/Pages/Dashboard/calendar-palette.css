@@ -16,6 +16,13 @@
  */
 
 :root {
+    --aq-calendar-normal-bg: var(--p-primary-500);
+    --aq-calendar-normal-ink: var(--p-primary-contrast-color);
+    --aq-calendar-completed-bg: var(--color-aq-success-strong);
+    --aq-calendar-completed-ink: #ffffff;
+    --aq-calendar-cancelled-bg: var(--color-aq-danger-strong);
+    --aq-calendar-cancelled-ink: #ffffff;
+
     --fc-forma-primary: var(--p-primary-500);
     --fc-forma-primary-over: var(--p-primary-400);
     --fc-forma-primary-down: var(--p-primary-600);
@@ -37,6 +44,13 @@
 }
 
 [data-color-scheme='dark'] {
+    --aq-calendar-normal-bg: var(--p-primary-400);
+    --aq-calendar-normal-ink: var(--p-primary-contrast-color);
+    --aq-calendar-completed-bg: var(--color-aq-success-strong);
+    --aq-calendar-completed-ink: #0c2340;
+    --aq-calendar-cancelled-bg: var(--color-aq-danger-strong);
+    --aq-calendar-cancelled-ink: #0c2340;
+
     --fc-forma-primary: var(--p-primary-400);
     --fc-forma-primary-over: var(--p-primary-300);
     --fc-forma-primary-down: var(--p-primary-200);

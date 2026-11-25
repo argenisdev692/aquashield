@@ -38,6 +38,7 @@ type AppointmentsIndexProps = {
         regions: Option[];
     };
     canCreate: boolean;
+    canView: boolean;
     canUpdate: boolean;
     canDelete: boolean;
     canRestore: boolean;
@@ -67,7 +68,7 @@ const appointmentColumns: SimpleColumn<AppointmentRow>[] = [
                     </span>
                     {row.deleted_at !== null && <Tag variant="destructive">Deleted</Tag>}
                 </span>
-                <span className="truncate text-xs text-surface-500 dark:text-surface-400">
+                <span className="truncate text-xs text-surface-500 dark:text-surface-300">
                     {row.customer_phone ?? row.customer_email ?? 'No contact details'}
                 </span>
             </span>
@@ -81,7 +82,7 @@ const appointmentColumns: SimpleColumn<AppointmentRow>[] = [
         cell: ({ row }): React.ReactNode => (
             <span className="flex flex-col">
                 <span className="text-surface-700 dark:text-surface-200">{whenLabel(row)}</span>
-                <span className="text-xs text-surface-500 dark:text-surface-400">
+                <span className="text-xs text-surface-500 dark:text-surface-300">
                     {row.timezone}
                 </span>
             </span>
@@ -147,6 +148,7 @@ export default function AppointmentsIndex() {
         total,
         options,
         canCreate,
+        canView,
         canUpdate,
         canDelete,
         canRestore,
@@ -158,7 +160,9 @@ export default function AppointmentsIndex() {
     const visitsPending = useVisitPending();
     const table = useCrudTable({
         endpoint: '/appointments',
-        defaults: { sort: { field: 'starts_at', order: -1 } },
+        // Match the server's no-query default (`starts_at`, ascending). The
+        // header, rows and export must agree on the first load.
+        defaults: { sort: { field: 'starts_at', order: 1 } },
     });
     const bulk = useBulkActions({
         deleteUrl: canBulkDelete ? '/appointments/bulk-delete' : undefined,
@@ -254,11 +258,16 @@ export default function AppointmentsIndex() {
                         <DataTableRowActions
                             label={`Actions for ${row.customer_name}`}
                             actions={[
-                                {
-                                    label: 'View',
-                                    icon: <Eye className="size-4" aria-hidden="true" />,
-                                    onClick: () => router.visit(`/appointments/${row.uuid}`),
-                                },
+                                ...(canView
+                                    ? [
+                                          {
+                                              label: 'View',
+                                              icon: <Eye className="size-4" aria-hidden="true" />,
+                                              onClick: () =>
+                                                  router.visit(`/appointments/${row.uuid}`),
+                                          },
+                                      ]
+                                    : []),
                                 ...(canUpdate && canReschedule(row.status)
                                     ? [
                                           {

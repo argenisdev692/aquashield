@@ -93,7 +93,7 @@ export default function LeadsEdit({
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Edit {lead.full_name}
                         </h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             Source: {lead.source_detail ?? lead.source}. Stage changes are audited
                             separately.
                         </p>

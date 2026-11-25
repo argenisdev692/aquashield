@@ -41,8 +41,14 @@ export function useIdleSession(
     const [keeping, setKeeping] = useState(false);
 
     const visibleRef = useRef(false);
-    const lastActivityRef = useRef(Date.now());
-    const lastHeartbeatRef = useRef(Date.now());
+    /*
+     * Initialised in the mount effect, not here: `Date.now()` during render is
+     * an impure call (React Compiler skips a component that reads the clock
+     * while rendering), and the clock only has to be correct before the first
+     * one-second tick.
+     */
+    const lastActivityRef = useRef(0);
+    const lastHeartbeatRef = useRef(0);
     const deadlineRef = useRef(0);
     const logoutStartedRef = useRef(false);
     const performLogout = useLogout(logoutEndpoint);
@@ -144,6 +150,10 @@ export function useIdleSession(
     });
 
     useEffect(() => {
+        const mountedAt = Date.now();
+        lastActivityRef.current = mountedAt;
+        lastHeartbeatRef.current = mountedAt;
+
         const handleActivity = (): void => {
             // Activity while the warning is visible is not consent; only the
             // explicit "Keep me signed in" button resets the deadline.

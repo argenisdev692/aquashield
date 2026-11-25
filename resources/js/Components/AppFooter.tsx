@@ -27,13 +27,18 @@ const LEGAL_LINKS: readonly FooterLink[] = [
     },
 ];
 
-export default function AppFooter({ className, social = true }: AppFooterProps) {
-    const year = new Date().getFullYear();
+/*
+ * Module scope, not render: a calendar year read during render is an impure
+ * call React Compiler (and the lint rule) flags. It is also the correct
+ * lifetime — the value cannot change without a page load.
+ */
+const FOOTER_YEAR = new Date().getFullYear();
 
+export default function AppFooter({ className, social = true }: AppFooterProps) {
     return (
         <footer className={className}>
-            <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-surface-500 sm:flex-row sm:px-6 lg:px-8 dark:text-surface-400">
-                <p>© {year} AquaShield Restoration USA · All rights reserved</p>
+            <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-xs text-surface-500 sm:flex-row sm:px-6 lg:px-8 dark:text-surface-300">
+                <p>© {FOOTER_YEAR} AquaShield Restoration USA · All rights reserved</p>
 
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
                     <nav aria-label="Legal" className="flex items-center gap-4">
@@ -44,7 +49,7 @@ export default function AppFooter({ className, social = true }: AppFooterProps) 
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={`${link.label} (opens in a new tab)`}
-                                className="rounded-md font-medium transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none dark:hover:text-surface-200"
+                                className="rounded-md font-medium transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:hover:text-surface-200"
                             >
                                 {link.label}
                             </a>

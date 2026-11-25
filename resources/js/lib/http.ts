@@ -126,8 +126,17 @@ export async function requestJson(
     if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
 
+        /*
+         * Laravel puts the exception message in `message` when APP_DEBUG is on.
+         * A 5xx is never a message the user can act on, and printing it would
+         * leak internals into an alert region (OWASP A10 / frontend SKILL §14).
+         * Every 4xx here is app-authored copy (validation, throttle, password
+         * confirmation), so those keep the server's wording.
+         */
+        const serverMessage = response.status >= 500 ? null : messageFrom(payload);
+
         throw new HttpRequestError(
-            messageFrom(payload) ?? 'The request could not be completed. Try again.',
+            serverMessage ?? 'The request could not be completed. Try again.',
             response.status,
             fieldErrorsFrom(payload),
         );
@@ -190,9 +199,11 @@ export async function downloadFile(path: string): Promise<DownloadedFile> {
 
     if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null);
+        // Same rule as `requestJson`: never surface a 5xx exception message.
+        const serverMessage = response.status >= 500 ? null : messageFrom(payload);
 
         throw new HttpRequestError(
-            messageFrom(payload) ??
+            serverMessage ??
                 (response.status === 429
                     ? 'Too many downloads. Wait a minute and try again.'
                     : 'The file could not be generated. Try again.'),

@@ -91,10 +91,30 @@ export const availabilityRuleSchema = z
         day_of_week: z.enum(['0', '1', '2', '3', '4', '5', '6']),
         start_time: z.string(),
         end_time: z.string(),
+        is_available: z.boolean(),
     })
     .superRefine((value, ctx) => windowFields(value, ctx));
 
 export type AvailabilityRuleFormValues = z.infer<typeof availabilityRuleSchema>;
+
+/**
+ * The wire payload for a weekly rule. Exported so the closed-state contract can
+ * be tested without mounting the dialog: editing a closed rule must not turn it
+ * into an open one.
+ */
+export const availabilityRulePayload = (
+    values: AvailabilityRuleFormValues,
+): {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    is_available: boolean;
+} => ({
+    day_of_week: Number(values.day_of_week),
+    start_time: values.start_time,
+    end_time: values.end_time,
+    is_available: values.is_available,
+});
 
 /** `HH:MM` for the wire, or null when the day is fully closed. */
 export const wireWindow = (

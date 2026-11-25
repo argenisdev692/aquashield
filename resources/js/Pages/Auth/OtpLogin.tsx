@@ -58,10 +58,6 @@ export default function OtpLogin() {
     const { email, status } = usePage<OtpLoginPageProps>().props;
     const onCodeStep = typeof email === 'string' && email !== '';
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     const emailForm = useZodForm({
         initial: { email: '' },
         schema: emailSchema,
@@ -121,11 +117,7 @@ export default function OtpLogin() {
                     className="flex flex-col gap-4"
                     noValidate
                 >
-                    <FormErrorSummary
-                        errors={codeForm.errors}
-                        labels={fieldLabels}
-                        onFieldFocus={focusField}
-                    />
+                    <FormErrorSummary errors={codeForm.errors} labels={fieldLabels} />
 
                     <OtpField
                         label="Sign-in code"
@@ -169,11 +161,7 @@ export default function OtpLogin() {
                     className="flex flex-col gap-4"
                     noValidate
                 >
-                    <FormErrorSummary
-                        errors={emailForm.errors}
-                        labels={fieldLabels}
-                        onFieldFocus={focusField}
-                    />
+                    <FormErrorSummary errors={emailForm.errors} labels={fieldLabels} />
 
                     <TextField
                         label="Email"

@@ -2,7 +2,7 @@
  * Password field with an explicit show/hide control.
  * Controlled via value/onChange. Toggle is a real button with aria-pressed.
  */
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import FieldShell from './FieldShell';
 import { Input } from '@/Components/ui/input';
 import { Eye, EyeOff } from 'lucide-react';
@@ -77,7 +77,7 @@ export default function PasswordField({
                     />
                     <button
                         type="button"
-                        className="absolute inset-y-0 end-0 flex items-center rounded-e-md px-3 text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:text-surface-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary-500 disabled:pointer-events-none disabled:opacity-50 dark:text-surface-400 dark:hover:text-surface-200 dark:focus-visible:text-surface-200 motion-reduce:transition-none"
+                        className="absolute inset-y-0 end-0 flex items-center rounded-e-md px-3 text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:text-surface-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-aq-focus disabled:pointer-events-none disabled:opacity-50 dark:text-surface-300 dark:hover:text-surface-200 dark:focus-visible:text-surface-200 motion-reduce:transition-none"
                         disabled={disabled}
                         aria-label={masked ? 'Show password' : 'Hide password'}
                         aria-pressed={!masked}

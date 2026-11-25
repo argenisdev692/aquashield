@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     availabilityExceptionSchema,
+    availabilityRulePayload,
     availabilityRuleSchema,
     bulkClosureSchema,
     wireWindow,
@@ -90,6 +91,7 @@ describe('availabilityRuleSchema', () => {
             day_of_week: '1',
             start_time: '17:00',
             end_time: '09:00',
+            is_available: true,
         });
 
         expect(result.success).toBe(false);
@@ -101,8 +103,25 @@ describe('availabilityRuleSchema', () => {
                 day_of_week: '7',
                 start_time: '08:00',
                 end_time: '17:00',
+                is_available: true,
             }).success,
         ).toBe(false);
+    });
+
+    it('preserves a closed rule when building the wire payload', () => {
+        expect(
+            availabilityRulePayload({
+                day_of_week: '1',
+                start_time: '08:00',
+                end_time: '17:00',
+                is_available: false,
+            }),
+        ).toEqual({
+            day_of_week: 1,
+            start_time: '08:00',
+            end_time: '17:00',
+            is_available: false,
+        });
     });
 });
 

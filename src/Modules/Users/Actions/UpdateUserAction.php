@@ -92,7 +92,7 @@ final readonly class UpdateUserAction
             ], $actor, 'users');
 
             return [$locked->load(['roles:id,name', 'permissions:id,name']), $previousEmail];
-        });
+        }, attempts: 3);
 
         if ($oldEmail !== $updated->email) {
             if ($updated->isInvited()) {

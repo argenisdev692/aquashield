@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Modules\Users\Support\AccessRevocation;
 use Shared\Domain\Ports\AuditPort;
 
 /**
@@ -20,7 +21,10 @@ use Shared\Domain\Ports\AuditPort;
  */
 final readonly class DeleteUsersAction
 {
-    public function __construct(private AuditPort $audit) {}
+    public function __construct(
+        private AuditPort $audit,
+        private AccessRevocation $revocation,
+    ) {}
 
     /**
      * @param list<string> $uuids
@@ -50,16 +54,10 @@ final readonly class DeleteUsersAction
                 $user->delete();
 
                 // A deleted account must not keep a live session or API token.
-                $user->tokens()->delete();
-
-                if (config('session.driver') === 'database') {
-                    DB::table((string) config('session.table', 'sessions'))
-                        ->where('user_id', $user->getKey())
-                        ->delete();
-                }
+                $this->revocation->revoke($user);
 
                 $this->audit->log('user.deleted', $user, [], $actor, 'users');
             }
-        });
+        }, attempts: 3);
     }
 }

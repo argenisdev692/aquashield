@@ -38,7 +38,7 @@ export default function BrandLockup({
             onClick={onClick}
             aria-label="AquaShield Restoration LLC dashboard"
             className={cn(
-                'group flex min-w-0 items-center gap-2.5 rounded-lg transition-opacity duration-150 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none',
+                'group flex min-w-0 items-center gap-2.5 rounded-lg transition-opacity duration-150 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
                 className,
             )}
         >
@@ -49,7 +49,7 @@ export default function BrandLockup({
                     <span className="truncate text-[0.8125rem] font-bold tracking-tight text-surface-900 dark:text-surface-0">
                         AquaShield
                     </span>
-                    <span className="mt-0.5 truncate text-[0.625rem] font-medium tracking-[0.14em] text-surface-500 uppercase dark:text-surface-400">
+                    <span className="mt-0.5 truncate text-[0.625rem] font-medium tracking-[0.14em] text-surface-500 uppercase dark:text-surface-300">
                         Restoration LLC
                     </span>
                 </span>

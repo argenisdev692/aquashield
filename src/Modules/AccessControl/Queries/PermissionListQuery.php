@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Modules\AccessControl\Data\PermissionFilterData;
+use Shared\Support\SearchPattern;
 
 /**
  * The single permission list/export query.
@@ -24,15 +25,17 @@ final class PermissionListQuery
      */
     public function builder(PermissionFilterData $filters): Builder
     {
+        $search = (string) $filters->search;
+
         $query = Permission::query()
             ->withCount(['roles', 'users'])
             ->when(
-                $filters->search !== null && $filters->search !== '',
-                static fn (Builder $query): Builder => $query->where(
-                    'name',
-                    'like',
-                    '%'.$filters->search.'%',
-                ),
+                $search !== '',
+                static function (Builder $query) use ($search): Builder {
+                    SearchPattern::apply($query, 'name', $search);
+
+                    return $query;
+                },
             )
             ->when(
                 $filters->type === 'system',
@@ -44,10 +47,20 @@ final class PermissionListQuery
             )
             ->when(
                 $filters->group !== null,
-                static fn (Builder $query): Builder => $query->whereRaw(
-                    'substr(name, ?) = ?',
-                    [-strlen((string) $filters->group), $filters->group],
-                ),
+                static function (Builder $query) use ($filters): Builder {
+                    $group = (string) $filters->group;
+
+                    /*
+                     * PostgreSQL's substr() treats a negative start as "from
+                     * character 1", not "from the end" (MySQL/SQLite do the
+                     * latter). Compute the positive start instead, so the same
+                     * predicate returns the suffix on every supported engine.
+                     */
+                    return $query->whereRaw(
+                        'substr(name, length(name) - ? + 1) = ?',
+                        [strlen($group), $group],
+                    );
+                },
             )
             ->when(
                 $filters->role !== null,

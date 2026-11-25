@@ -80,6 +80,20 @@ it('rejects a permission list above the bounded maximum with 422', function (): 
         ->assertJsonValidationErrors(['permissions']);
 });
 
+it('rejects an unknown role or permission name in one batched check', function (): void {
+    $target = User::factory()->create();
+
+    $this->actingAs($this->admin)
+        ->putJson('/users/'.$target->uuid.'/roles', ['roles' => ['NOT_A_ROLE']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['roles']);
+
+    $this->actingAs($this->admin)
+        ->putJson('/users/'.$target->uuid.'/permissions', ['permissions' => ['NOT_A_PERMISSION']])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['permissions']);
+});
+
 it('assigns direct permissions without dropping the role-derived ones', function (): void {
     UserTestFixtures::role('MANAGER', ['VIEW_USER']);
     $target = UserTestFixtures::userWithRole('MANAGER');

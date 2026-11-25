@@ -172,7 +172,7 @@ export default function BackupsShow() {
                         </h2>
                         <dl className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Filename
                                 </dt>
                                 <dd className="mt-0.5 truncate font-mono text-sm text-surface-900 dark:text-surface-0">
@@ -180,7 +180,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Destination
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-900 dark:text-surface-0">
@@ -188,7 +188,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Taken
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-900 tabular-nums dark:text-surface-0">
@@ -198,7 +198,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Size
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-900 tabular-nums dark:text-surface-0">
@@ -206,7 +206,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Age
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-900 tabular-nums dark:text-surface-0">
@@ -214,7 +214,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                                <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                                     Archive ID
                                 </dt>
                                 <dd className="mt-0.5 truncate font-mono text-xs text-surface-700 dark:text-surface-200">
@@ -259,7 +259,7 @@ export default function BackupsShow() {
                                                 {entry.description}
                                             </span>
                                             <time
-                                                className="ml-auto text-xs text-surface-600 tabular-nums dark:text-surface-400"
+                                                className="ml-auto text-xs text-surface-600 tabular-nums dark:text-surface-300"
                                                 dateTime={entry.created_at}
                                             >
                                                 {formatDateTime(entry.created_at)}
@@ -284,7 +284,7 @@ export default function BackupsShow() {
                         </h2>
                         <dl className="mt-3 space-y-2.5 text-sm">
                             <div className="flex items-center justify-between gap-3">
-                                <dt className="text-surface-600 dark:text-surface-400">
+                                <dt className="text-surface-600 dark:text-surface-300">
                                     Quarantine window
                                 </dt>
                                 <dd className="text-end text-surface-900 tabular-nums dark:text-surface-0">
@@ -292,7 +292,7 @@ export default function BackupsShow() {
                                 </dd>
                             </div>
                             <div className="flex items-center justify-between gap-3">
-                                <dt className="text-surface-600 dark:text-surface-400">
+                                <dt className="text-surface-600 dark:text-surface-300">
                                     Newest protected
                                 </dt>
                                 <dd className="text-end text-surface-900 tabular-nums dark:text-surface-0">

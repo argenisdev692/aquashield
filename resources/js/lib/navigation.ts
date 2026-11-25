@@ -13,12 +13,9 @@
  */
 import type { LucideIcon } from 'lucide-react';
 import {
-    Activity,
     Building2,
-    Calendar,
     CalendarClock,
     CalendarDays,
-    ChartLine,
     ChartColumn,
     Database,
     History,
@@ -189,20 +186,6 @@ export const DASHBOARD_SECTIONS: readonly NavItem[] = [
         href: '#pipeline',
         icon: KanbanSquare,
         keywords: 'kanban stages deals board drag calendar month appointments',
-        anchor: true,
-    },
-    {
-        label: 'Revenue',
-        href: '#revenue',
-        icon: ChartLine,
-        keywords: 'won money months signed jobs chart',
-        anchor: true,
-    },
-    {
-        label: 'Schedule',
-        href: '#schedule',
-        icon: Calendar,
-        keywords: 'today inspections estimates appointments field',
         anchor: true,
     },
 ];

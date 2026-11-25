@@ -293,7 +293,7 @@ export default function AddressAutocompleteField({
                         />
                     ) : (
                         <MapPin
-                            className="pointer-events-none absolute inset-y-0 end-3 my-auto size-4 text-surface-500 dark:text-surface-400"
+                            className="pointer-events-none absolute inset-y-0 end-3 my-auto size-4 text-surface-500 dark:text-surface-300"
                             aria-hidden="true"
                         />
                     )}
@@ -347,7 +347,7 @@ export default function AddressAutocompleteField({
                                         onMouseEnter={() => setActiveIndex(index)}
                                         onClick={() => void selectSuggestion(suggestion)}
                                         className={cn(
-                                            'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none',
+                                            'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
                                             index === activeIndex
                                                 ? 'bg-surface-100 dark:bg-surface-800'
                                                 : 'hover:bg-surface-100 dark:hover:bg-surface-800',
@@ -370,7 +370,7 @@ export default function AddressAutocompleteField({
                                     </button>
                                 ))}
 
-                            <div className="border-t border-aq-shell-line px-3 py-1.5 text-end text-[10px] font-medium tracking-wide text-surface-500 dark:text-surface-400">
+                            <div className="border-t border-aq-shell-line px-3 py-1.5 text-end text-[10px] font-medium tracking-wide text-surface-500 dark:text-surface-300">
                                 Powered by Google
                             </div>
                         </div>

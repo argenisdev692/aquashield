@@ -52,7 +52,7 @@ function SelectTrigger({
             {children}
             <SelectPrimitive.Icon
                 render={
-                    <ChevronDownIcon className="pointer-events-none size-4 text-surface-500 dark:text-surface-400" />
+                    <ChevronDownIcon className="pointer-events-none size-4 text-surface-500 dark:text-surface-300" />
                 }
             />
         </SelectPrimitive.Trigger>
@@ -105,7 +105,7 @@ function SelectLabel({ className, ...props }: SelectPrimitive.GroupLabel.Props) 
     return (
         <SelectPrimitive.GroupLabel
             data-slot="select-label"
-            className={cn('px-1.5 py-1 text-xs text-surface-500 dark:text-surface-400', className)}
+            className={cn('px-1.5 py-1 text-xs text-surface-500 dark:text-surface-300', className)}
             {...props}
         />
     );

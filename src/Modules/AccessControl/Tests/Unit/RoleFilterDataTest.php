@@ -63,3 +63,15 @@ it('caps the page size at 100', function (): void {
         'per_page' => '101',
     ])))->toThrow(ValidationException::class);
 });
+
+it('rejects a non-array filter instead of returning an unfiltered list', function (): void {
+    expect(fn () => RoleFilterData::fromRequest(Request::create('/roles', 'GET', [
+        'filter' => 'type=system',
+    ])))->toThrow(ValidationException::class);
+});
+
+it('ignores an empty filter parameter', function (): void {
+    $filters = RoleFilterData::fromRequest(Request::create('/roles', 'GET', ['filter' => '']));
+
+    expect($filters->type)->toBeNull();
+});

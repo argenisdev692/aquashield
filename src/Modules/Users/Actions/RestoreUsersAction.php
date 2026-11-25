@@ -55,6 +55,6 @@ final readonly class RestoreUsersAction
             // permissions were eager-loaded above — refreshing each row would be
             // three extra queries per restored account for no new state.
             return $users;
-        });
+        }, attempts: 3);
     }
 }

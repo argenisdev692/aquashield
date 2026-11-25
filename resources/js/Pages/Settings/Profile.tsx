@@ -92,10 +92,6 @@ const initialsOf = (name: string): string =>
         .map((part) => part.charAt(0).toUpperCase())
         .join('') || 'AS';
 
-const focusField = (field: string): void => {
-    document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-};
-
 export default function Profile() {
     const page = usePage<SettingsProfileProps>();
     const user = page.props.user;
@@ -281,7 +277,7 @@ export default function Profile() {
                             <p className="mt-1 truncate text-sm text-surface-600 dark:text-surface-300">
                                 {user.email}
                                 {user.username !== null && (
-                                    <span className="ml-2 text-surface-500 dark:text-surface-400">
+                                    <span className="ml-2 text-surface-500 dark:text-surface-300">
                                         @{user.username}
                                     </span>
                                 )}
@@ -311,7 +307,7 @@ export default function Profile() {
                                     />
                                 </div>
 
-                                <p className="mt-1.5 text-xs text-surface-500 dark:text-surface-400">
+                                <p className="mt-1.5 text-xs text-surface-500 dark:text-surface-300">
                                     A complete profile makes it easier for the team to reach you.
                                 </p>
                             </div>
@@ -415,7 +411,6 @@ export default function Profile() {
                                             date_of_birth: 'Date of birth',
                                             gender: 'Gender',
                                         }}
-                                        onFieldFocus={focusField}
                                     />
 
                                     <div className="grid gap-4 sm:grid-cols-2">
@@ -560,7 +555,6 @@ export default function Profile() {
                                         state: 'State',
                                         country: 'Country',
                                     }}
-                                    onFieldFocus={focusField}
                                 />
 
                                 <AddressSection
@@ -594,6 +588,7 @@ export default function Profile() {
                                     form={passwordForm.form}
                                     errors={passwordForm.errors}
                                     onBlur={(field) => passwordForm.touch(field)}
+                                    onClearError={(field) => passwordForm.clearError(field)}
                                 />
 
                                 <FormActions

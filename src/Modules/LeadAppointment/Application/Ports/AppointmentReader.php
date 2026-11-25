@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
+use Modules\LeadAppointment\Application\Dtos\CalendarEventData;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeInterval;
 
@@ -46,6 +47,18 @@ interface AppointmentReader
         CarbonImmutable $from,
         CarbonImmutable $to,
         ?string $region,
+    ): array;
+
+    /**
+     * Slim projection for the dashboard month grid. It intentionally omits
+     * notes, contact details and addresses; the drawer reads the file on
+     * demand through `find()`.
+     *
+     * @return list<CalendarEventData>
+     */
+    public function calendarEventsBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
     ): array;
 
     /**

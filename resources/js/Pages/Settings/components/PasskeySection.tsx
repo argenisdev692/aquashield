@@ -201,7 +201,7 @@ export default function PasskeySection({
                                                     <p className="truncate text-sm font-medium text-surface-900 dark:text-surface-0">
                                                         {passkey.name}
                                                     </p>
-                                                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+                                                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-300">
                                                         {passkey.authenticator ?? 'Passkey'}
                                                         {created !== null
                                                             ? ` · Added ${created}`
@@ -279,9 +279,6 @@ export default function PasskeySection({
                         <FormErrorSummary
                             errors={nameForm.errors}
                             labels={{ name: 'Passkey name' }}
-                            onFieldFocus={(field) =>
-                                document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus()
-                            }
                         />
 
                         <TextField

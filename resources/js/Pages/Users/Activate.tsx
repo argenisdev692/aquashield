@@ -69,7 +69,7 @@ const Rule = ({ met, children }: { met: boolean; children: React.ReactNode }) =>
     <li
         className={cn(
             'flex items-center gap-1.5 text-xs',
-            met ? 'text-aq-success' : 'text-surface-500 dark:text-surface-400',
+            met ? 'text-aq-success' : 'text-surface-500 dark:text-surface-300',
         )}
     >
         {met ? (
@@ -99,10 +99,6 @@ export default function Activate({
     const longEnough =
         form.data.password.length >= PASSWORD_MIN_LENGTH &&
         form.data.password.length <= PASSWORD_MAX_LENGTH;
-
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
 
     if (state !== 'ready' || actionUrl === null || user === null) {
         return (
@@ -167,7 +163,6 @@ export default function Activate({
                         password_confirmation: 'Confirm password',
                         invitation: 'Invitation',
                     }}
-                    onFieldFocus={focusField}
                 />
 
                 <PasswordField
@@ -205,7 +200,7 @@ export default function Activate({
                             />
                         ))}
                     </div>
-                    <span className="text-xs text-surface-500 dark:text-surface-400">
+                    <span className="text-xs text-surface-500 dark:text-surface-300">
                         Strength: {strength.label}
                     </span>
 

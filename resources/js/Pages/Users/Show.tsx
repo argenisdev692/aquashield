@@ -59,7 +59,7 @@ const DetailRow = ({
             {icon}
         </span>
         <div className="min-w-0">
-            <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">{label}</dt>
+            <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">{label}</dt>
             <dd className="truncate text-sm text-surface-900 dark:text-surface-0">{children}</dd>
         </div>
     </div>

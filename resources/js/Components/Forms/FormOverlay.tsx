@@ -70,7 +70,7 @@ function FormBody({
                     {title}
                 </DialogTitle>
                 {description && (
-                    <DialogDescription className="text-sm leading-relaxed text-surface-500 dark:text-surface-400">
+                    <DialogDescription className="text-sm leading-relaxed text-surface-500 dark:text-surface-300">
                         {description}
                     </DialogDescription>
                 )}

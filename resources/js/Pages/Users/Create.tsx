@@ -73,10 +73,6 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
         permissionCount === 1 ? 'permission' : 'permissions'
     }`;
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     const onSubmit = (event: React.FormEvent): void => {
         event.preventDefault();
 
@@ -94,7 +90,7 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
             <Head title="Create user" />
 
             <form onSubmit={onSubmit} className="mx-auto flex max-w-4xl flex-col gap-6" noValidate>
-                <FormErrorSummary errors={errors} onFieldFocus={focusField} />
+                <FormErrorSummary errors={errors} />
 
                 <Card>
                     <CardHeader>

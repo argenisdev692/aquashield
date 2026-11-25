@@ -61,12 +61,45 @@ it('renders the appointment list with the filter catalog and capabilities', func
             ->where('rows.0.uuid', $appointment->uuid)
             ->where('total', 1)
             ->where('canCreate', true)
+            ->where('canView', true)
             ->where('canUpdate', true)
             ->where('canDelete', true)
             ->where('canExport', true)
             ->has('options.statuses', 8)
             ->has('options.kinds', 5)
             ->has('options.regions', 3)
+        );
+});
+
+it('lists appointments ascending by start date by default', function (): void {
+    $later = appointmentPageRecord($this->start->addDay());
+    $earlier = appointmentPageRecord($this->start);
+
+    $this->actingAs($this->admin)
+        ->get('/appointments')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Appointments/Index')
+            ->where('rows.0.uuid', $earlier->uuid)
+            ->where('rows.1.uuid', $later->uuid)
+        );
+});
+
+it('filters a visit by its own region-local date', function (): void {
+    $florida = appointmentPageRecord(
+        CarbonImmutable::parse('2026-11-24 00:30', 'America/New_York')->utc(),
+        ['timezone' => 'America/New_York', 'region' => 'florida'],
+    );
+
+    $this->actingAs($this->admin)
+        ->get('/appointments?'.http_build_query([
+            'filter' => ['date_from' => '2026-11-24', 'date_to' => '2026-11-24'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Appointments/Index')
+            ->has('rows', 1)
+            ->where('rows.0.uuid', $florida->uuid)
         );
 });
 
@@ -104,6 +137,7 @@ it('renders the appointment file with its lifecycle capabilities', function (): 
             ->where('canUpdate', true)
             ->where('canDelete', true)
             ->where('canRestore', true)
+            ->where('canViewLead', true)
         );
 });
 

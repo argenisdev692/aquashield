@@ -8,6 +8,7 @@
  */
 import { useState } from 'react';
 import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import CheckboxField from '@/Components/Forms/CheckboxField';
 import SelectField from '@/Components/Forms/SelectField';
 import TimeField from '@/Components/Forms/TimeField';
 import { FormDialog } from '@/Components/Forms/FormOverlay';
@@ -43,6 +44,7 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
         day_of_week: rule === null ? '1' : dayOptionFor(rule.day_of_week),
         start_time: rule?.start_time ?? '08:00',
         end_time: rule?.end_time ?? '17:00',
+        is_available: rule?.is_available ?? true,
     };
 
     const { form, errors, submit, touch } = useZodForm({ initial, schema: availabilityRuleSchema });
@@ -106,6 +108,16 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
                 }))}
                 required
                 disabled={saveRule.isPending}
+            />
+
+            <CheckboxField
+                label="This weekday is open"
+                name="is_available"
+                checked={form.data.is_available}
+                onChange={(checked) => form.setData('is_available', checked)}
+                onBlur={() => touch('is_available')}
+                disabled={saveRule.isPending}
+                hint="Uncheck to keep the weekday closed. The stored window is preserved."
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -221,7 +233,7 @@ export default function RulesPanel({
                     >
                         Weekly opening hours
                     </h2>
-                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-300">
                         The fallback for every day with no exception.
                     </p>
                 </div>
@@ -235,7 +247,7 @@ export default function RulesPanel({
             </div>
 
             {rules.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-surface-500 dark:text-surface-400">
+                <p className="px-4 py-6 text-sm text-surface-500 dark:text-surface-300">
                     No weekly window is configured, so every day starts closed until an exception
                     opens it.
                 </p>
@@ -244,7 +256,7 @@ export default function RulesPanel({
                     <table className="w-full text-sm">
                         <caption className="sr-only">Weekly availability windows</caption>
                         <thead>
-                            <tr className="text-left text-xs font-semibold text-surface-500 dark:text-surface-400">
+                            <tr className="text-left text-xs font-semibold text-surface-500 dark:text-surface-300">
                                 <th scope="col" className="px-4 py-2">
                                     Day
                                 </th>
@@ -317,7 +329,7 @@ export default function RulesPanel({
                     <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-0">
                         Deleted weekly windows
                     </h3>
-                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-300">
                         These weekdays stay closed until a window is restored.
                     </p>
 
@@ -362,13 +374,15 @@ export default function RulesPanel({
                 </div>
             )}
 
-            <RuleDialog
-                key={editing?.uuid ?? 'new'}
-                open={dialogOpen}
-                onOpenChange={setDialogOpen}
-                rule={editing}
-                onSaved={onChanged}
-            />
+            {dialogOpen && (
+                <RuleDialog
+                    key={editing?.uuid ?? 'new'}
+                    open={dialogOpen}
+                    onOpenChange={setDialogOpen}
+                    rule={editing}
+                    onSaved={onChanged}
+                />
+            )}
 
             <CrudDialog
                 open={pendingDelete !== null}

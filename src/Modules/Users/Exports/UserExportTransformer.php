@@ -23,8 +23,18 @@ final readonly class UserExportTransformer
      * A filtered export larger than this is a report, not a table download.
      * The controller refuses before streaming so the user can narrow the
      * filters instead of receiving a truncated file that looks complete.
+     *
+     * Applies to the streamed formats (CSV/XLSX). PDF has its own, lower cap:
+     * dompdf renders the entire table in the request.
      */
     public const int MAX_ROWS = 10_000;
+
+    /**
+     * PDF is rendered in-request by dompdf, which materialises the whole table
+     * plus its object graph. 500 rows keeps the render inside a normal
+     * `memory_limit`; a larger report is a CSV/XLSX download or a queued export.
+     */
+    public const int MAX_PDF_ROWS = 500;
 
     public function __construct(
         private UserFilterData $filters,

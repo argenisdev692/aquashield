@@ -92,6 +92,9 @@
       "@lint",
       "@php artisan test"
     ],
+    "test:pgsql": [
+      "@php vendor/bin/pest --configuration=phpunit.pgsql.xml"
+    ],
     "analyse": [
       "@php vendor/bin/phpstan analyse --memory-limit=1G"
     ],
@@ -126,6 +129,10 @@
       "@php artisan scramble:clear",
       "@php artisan scramble:export",
       "@php artisan scramble:cache"
+    ],
+    "codegen:check": [
+      "@php artisan typescript:transform",
+      "git diff --exit-code -- resources/js/generated"
     ],
     "gate": [
       "@php artisan config:clear --ansi @no_additional_args",

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Shared\Support;
 
+use Symfony\Component\HttpKernel\Exception\HttpException;
+
 /**
  * Per-format export ceilings.
  *
@@ -20,5 +22,24 @@ final class ExportLimit
     public static function for(string $format): int
     {
         return $format === 'pdf' ? self::PDF : self::TABULAR;
+    }
+
+    /**
+     * Return the format ceiling or abort with a 422 before any row is streamed.
+     * Keeping the decision here makes the cap testable without a ten-thousand
+     * row fixture.
+     */
+    public static function ensureWithin(int $rows, string $format): int
+    {
+        $limit = self::for($format);
+
+        if ($rows > $limit) {
+            throw new HttpException(
+                422,
+                'The '.$format.' export is limited to '.$limit.' rows. Narrow the filters.',
+            );
+        }
+
+        return $limit;
     }
 }

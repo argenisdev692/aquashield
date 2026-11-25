@@ -163,7 +163,7 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
             perPage: Math.min(MAX_PER_PAGE, Math.max(1, next.perPage ?? defaultPerPage)),
             search: (next.search ?? '').trim(),
             sort: next.sort ?? null,
-            filters: { ...(next.filters ?? {}) },
+            filters: { ...next.filters },
         });
     };
 

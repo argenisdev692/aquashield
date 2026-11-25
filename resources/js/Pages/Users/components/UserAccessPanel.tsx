@@ -20,10 +20,6 @@ interface UserAccessPanelProps {
     canAssignPermissions: boolean;
 }
 
-const focusField = (field: string): void => {
-    document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-};
-
 export default function UserAccessPanel({
     user,
     catalog,
@@ -68,7 +64,7 @@ export default function UserAccessPanel({
                             className="flex flex-col gap-4"
                             noValidate
                         >
-                            <FormErrorSummary errors={rolesForm.errors} onFieldFocus={focusField} />
+                            <FormErrorSummary errors={rolesForm.errors} />
 
                             <MultiSelectField
                                 label="Assigned roles"
@@ -124,10 +120,7 @@ export default function UserAccessPanel({
                             className="flex flex-col gap-4"
                             noValidate
                         >
-                            <FormErrorSummary
-                                errors={permissionsForm.errors}
-                                onFieldFocus={focusField}
-                            />
+                            <FormErrorSummary errors={permissionsForm.errors} />
 
                             <MultiSelectField
                                 label="Overrides"

@@ -70,6 +70,7 @@ final readonly class LeadController
             'perPage' => $page->perPage(),
             'options' => $this->options(),
             'canCreate' => $this->can($request, Permission::CreateLead->value),
+            'canView' => $this->can($request, Permission::ViewLead->value),
             'canUpdate' => $this->can($request, Permission::UpdateLead->value),
             'canDelete' => $this->can($request, Permission::DeleteLead->value),
             'canRestore' => $this->can($request, Permission::RestoreLead->value),
@@ -96,6 +97,7 @@ final readonly class LeadController
             'transitions' => $this->transitions(),
             'canUpdate' => $this->can($request, Permission::UpdateLead->value),
             'canCreate' => $this->can($request, Permission::CreateLead->value),
+            'canView' => $this->can($request, Permission::ViewLead->value),
         ]);
     }
 

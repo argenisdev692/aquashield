@@ -20,6 +20,7 @@ interface LeadKanbanProps {
     columns: LeadBoardColumn[];
     transitions: Record<string, string[]>;
     canUpdate: boolean;
+    canView?: boolean;
     errors?: Record<string, string>;
     /** When provided, the card title opens a drawer instead of navigating. */
     onSelect?: (lead: LeadCard) => void;
@@ -61,6 +62,7 @@ export default function LeadKanban({
     columns,
     transitions,
     canUpdate,
+    canView = true,
     errors,
     onSelect,
 }: LeadKanbanProps) {
@@ -202,27 +204,34 @@ export default function LeadKanban({
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 {onSelect === undefined ? (
-                                                    <Link
-                                                        href={`/leads/${card.uuid}`}
-                                                        className="min-w-0 truncate text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline dark:text-surface-0"
-                                                    >
-                                                        {card.full_name}
-                                                    </Link>
+                                                    canView ? (
+                                                        <Link
+                                                            href={`/leads/${card.uuid}`}
+                                                            className="min-w-0 truncate text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline dark:text-surface-0"
+                                                        >
+                                                            {card.full_name}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="min-w-0 truncate text-sm font-semibold text-surface-900 dark:text-surface-0">
+                                                            {card.full_name}
+                                                        </span>
+                                                    )
                                                 ) : (
                                                     <button
                                                         type="button"
                                                         onClick={() => onSelect(card)}
-                                                        className="min-w-0 truncate text-start text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-0"
+                                                        className="min-w-0 truncate text-start text-sm font-semibold text-surface-900 transition-colors duration-150 hover:text-aq-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-0"
                                                     >
                                                         {card.full_name}
                                                     </button>
                                                 )}
+                                                {card.is_spam && <Tag variant="outline">Spam</Tag>}
                                                 {card.is_emergency && (
                                                     <Tag variant="destructive">Emergency</Tag>
                                                 )}
                                             </div>
 
-                                            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-400">
+                                            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-surface-500 dark:text-surface-300">
                                                 <span className="inline-flex items-center gap-1">
                                                     <Phone className="size-3" aria-hidden="true" />
                                                     <span className="tabular-nums">
@@ -237,7 +246,7 @@ export default function LeadKanban({
                                                 </span>
                                             </p>
 
-                                            <p className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-surface-500 dark:text-surface-400">
+                                            <p className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-surface-500 dark:text-surface-300">
                                                 <span>{humanize(card.source)}</span>
                                                 <span className="tabular-nums">
                                                     {ageInDays(card.created_at)}
@@ -271,7 +280,7 @@ export default function LeadKanban({
                                                                     move(card, event.target.value);
                                                                 }
                                                             }}
-                                                            className="h-7 w-full rounded-md border border-surface-200 bg-surface-0 px-2 text-xs text-surface-700 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent disabled:opacity-60 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
+                                                            className="h-7 w-full rounded-md border border-surface-200 bg-surface-0 px-2 text-xs text-surface-700 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus disabled:opacity-60 dark:border-surface-700 dark:bg-surface-900 dark:text-surface-200"
                                                         >
                                                             <option value="">Move to…</option>
                                                             {(transitions[card.status] ?? []).map(
@@ -293,13 +302,13 @@ export default function LeadKanban({
                             </ol>
 
                             {column.leads.length === 0 && (
-                                <p className="rounded-lg border border-dashed border-surface-200 py-6 text-center text-xs text-surface-400 dark:border-surface-800 dark:text-surface-500">
+                                <p className="rounded-lg border border-dashed border-surface-200 py-6 text-center text-xs text-surface-500 dark:border-surface-800 dark:text-surface-300">
                                     {droppable ? 'Drop a card here' : 'No leads in this stage'}
                                 </p>
                             )}
 
                             {column.total > column.leads.length && (
-                                <p className="px-2 pt-2 text-center text-[11px] text-surface-500 dark:text-surface-400">
+                                <p className="px-2 pt-2 text-center text-[11px] text-surface-500 dark:text-surface-300">
                                     Showing the newest {column.leads.length} of {column.total}. Open
                                     the table view to filter the rest.
                                 </p>

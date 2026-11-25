@@ -25,10 +25,6 @@ const initialValues = (role?: RoleFormProps['role']): RoleFormValues => ({
     permissions: role?.permissions ?? [],
 });
 
-const focusField = (field: string): void => {
-    document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-};
-
 export default function RoleForm({ role, catalog }: RoleFormProps) {
     const { form, errors, submit, touch, clearError } = useZodForm({
         initial: initialValues(role),
@@ -61,7 +57,6 @@ export default function RoleForm({ role, catalog }: RoleFormProps) {
             <FormErrorSummary
                 errors={errors}
                 labels={{ name: 'Role name', permissions: 'Permissions' }}
-                onFieldFocus={focusField}
             />
 
             <Card>

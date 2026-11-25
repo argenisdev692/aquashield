@@ -8,8 +8,8 @@ use App\Models\Role;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\AccessControl\Data\RoleData;
-use Modules\AccessControl\Rules\ExistingPermissionNames;
 use Modules\AccessControl\Support\PermissionName;
+use Shared\Application\Rules\ExistingPermissionNames;
 use Shared\Domain\Enums\Permission as PermissionEnum;
 
 final class UpdateRoleRequest extends FormRequest
@@ -46,8 +46,8 @@ final class UpdateRoleRequest extends FormRequest
              * Required: the edit form sends the whole matrix. A partial request
              * must not silently revoke every permission.
              */
-            'permissions' => ['required', 'array', 'max:600', new ExistingPermissionNames],
-            'permissions.*' => ['string', 'distinct'],
+            'permissions' => ['required', 'array', 'max:1000', new ExistingPermissionNames],
+            'permissions.*' => ['string', 'max:64', 'distinct'],
         ];
     }
 

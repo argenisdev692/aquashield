@@ -132,7 +132,7 @@ export default function SortableList<T extends SortableItem>({
                                 aria-label={`Reorder ${nameOf(item)}`}
                                 aria-describedby={instructionsId}
                                 title="Drag, or press Arrow Up / Arrow Down"
-                                className="cursor-grab rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:cursor-grabbing disabled:cursor-not-allowed dark:text-surface-400 dark:hover:text-surface-0"
+                                className="cursor-grab rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent active:cursor-grabbing disabled:cursor-not-allowed dark:text-surface-300 dark:hover:text-surface-0"
                                 onDragStart={(event) => {
                                     if (!handle) {
                                         return;
@@ -178,7 +178,7 @@ export default function SortableList<T extends SortableItem>({
                                     type="button"
                                     disabled={disabled || index === 0}
                                     aria-label={`Move ${nameOf(item)} up`}
-                                    className="flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent disabled:pointer-events-none disabled:opacity-30 dark:text-surface-400 dark:hover:text-surface-0"
+                                    className="flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent disabled:pointer-events-none disabled:opacity-30 dark:text-surface-300 dark:hover:text-surface-0"
                                     onClick={() => move(index, index - 1)}
                                 >
                                     <ArrowUp className="size-3.5" aria-hidden="true" />
@@ -188,7 +188,7 @@ export default function SortableList<T extends SortableItem>({
                                     type="button"
                                     disabled={disabled || index === items.length - 1}
                                     aria-label={`Move ${nameOf(item)} down`}
-                                    className="flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent disabled:pointer-events-none disabled:opacity-30 dark:text-surface-400 dark:hover:text-surface-0"
+                                    className="flex size-7 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent disabled:pointer-events-none disabled:opacity-30 dark:text-surface-300 dark:hover:text-surface-0"
                                     onClick={() => move(index, index + 1)}
                                 >
                                     <ArrowDown className="size-3.5" aria-hidden="true" />
@@ -200,7 +200,7 @@ export default function SortableList<T extends SortableItem>({
             </div>
 
             {items.length === 0 && (
-                <p className="py-6 text-center text-sm text-surface-500 dark:text-surface-400">
+                <p className="py-6 text-center text-sm text-surface-500 dark:text-surface-300">
                     {emptyText}
                 </p>
             )}

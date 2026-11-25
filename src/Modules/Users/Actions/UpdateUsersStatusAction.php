@@ -12,6 +12,7 @@ use Modules\Users\Data\BulkActionResultData;
 use Modules\Users\Data\BulkSkipData;
 use Modules\Users\Enums\UserStatus;
 use Modules\Users\Support\AccessCeiling;
+use Modules\Users\Support\AccessRevocation;
 use Shared\Domain\Ports\AuditPort;
 
 /**
@@ -28,6 +29,7 @@ final readonly class UpdateUsersStatusAction
     public function __construct(
         private AuditPort $audit,
         private AccessCeiling $ceiling,
+        private AccessRevocation $revocation,
     ) {}
 
     /**
@@ -79,13 +81,7 @@ final readonly class UpdateUsersStatusAction
 
                 if ($status === UserStatus::Suspended) {
                     // Access is withdrawn now, not on the next login attempt.
-                    $user->tokens()->delete();
-
-                    if (config('session.driver') === 'database') {
-                        DB::table((string) config('session.table', 'sessions'))
-                            ->where('user_id', $user->getKey())
-                            ->delete();
-                    }
+                    $this->revocation->revoke($user);
                 }
 
                 $this->audit->log('user.status.changed', $user, [
@@ -97,7 +93,7 @@ final readonly class UpdateUsersStatusAction
             }
 
             return new BulkActionResultData($updated, $skipped);
-        });
+        }, attempts: 3);
     }
 
     private function skipReason(User $actor, User $user, UserStatus $status): ?string

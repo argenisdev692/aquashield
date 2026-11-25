@@ -171,7 +171,7 @@ export default function PermissionMatrix({
                                         >
                                             {group.name}
                                         </h3>
-                                        <span className="text-xs text-surface-500 tabular-nums dark:text-surface-400">
+                                        <span className="text-xs text-surface-500 tabular-nums dark:text-surface-300">
                                             {selectedInGroup}/{group.items.length}
                                         </span>
                                     </div>

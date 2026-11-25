@@ -44,7 +44,7 @@ export default function LeadsCreate({
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             New lead
                         </h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             Log a lead the office took by phone, referral or walk-in.
                         </p>
                     </div>

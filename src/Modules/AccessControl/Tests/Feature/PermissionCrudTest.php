@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use App\Models\Permission;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+use Modules\AccessControl\Actions\CreatePermissionAction;
+use Modules\AccessControl\Data\PermissionInputData;
 use Modules\AccessControl\Tests\Support\AccessControlFixtures;
 use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Permission\PermissionRegistrar;
@@ -159,4 +163,39 @@ it('returns 404 for an unknown permission', function (): void {
     $this->actingAs($this->admin)
         ->putJson('/permissions/999999', ['name' => 'MISSING'])
         ->assertNotFound();
+});
+
+it('searches permission names case-insensitively', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/permissions?search=create')
+        ->assertOk()
+        ->assertJsonPath('total', 2);
+});
+
+it('treats LIKE wildcards in the search as literals', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/permissions?search='.urlencode('%'))
+        ->assertOk()
+        ->assertJsonPath('total', 0);
+});
+
+it('refuses to delete a permission assigned only to a soft-deleted user', function (): void {
+    $permission = AccessControlFixtures::customPermission('APPROVE_CLAIM');
+    $user = User::factory()->create();
+    $user->givePermissionTo($permission);
+    $user->delete();
+
+    $this->actingAs($this->admin)
+        ->deleteJson('/permissions/'.$permission->uuid)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['permission']);
+
+    expect(Permission::query()->whereKey($permission->id)->exists())->toBeTrue();
+});
+
+it('re-asserts the reserved permission-name invariant at the action boundary', function (): void {
+    expect(fn () => app(CreatePermissionAction::class)->execute(
+        new PermissionInputData(PermissionName::ViewAnyUser->value),
+        $this->admin,
+    ))->toThrow(ValidationException::class);
 });

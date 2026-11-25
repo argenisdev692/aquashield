@@ -7,7 +7,7 @@
  * section shows through behind the cloud, `antialias: false` (ambience, not a
  * game), DPR capped at 1.5 and `powerPreference: low-power`.
  */
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
 import BrandMarkParticles from './BrandMarkParticles';
@@ -17,18 +17,17 @@ interface BrandMarkSceneProps {
 }
 
 export default function BrandMarkScene({ onReady }: BrandMarkSceneProps) {
-    const [ready, setReady] = useState(false);
-
     return (
         <Canvas gl={{ antialias: false, alpha: true, powerPreference: 'low-power' }} dpr={[1, 1.5]}>
             <PerspectiveCamera makeDefault position={[0, 0, 7.24]} fov={45} lookAt={[0, 0, 0]} />
             <Suspense fallback={null}>
-                <BrandMarkParticles
-                    onReady={() => {
-                        setReady(true);
-                        onReady?.();
-                    }}
-                />
+                {/*
+                 * `onReady` is forwarded straight through. The `useState` that
+                 * used to sit here was written and never read: it forced an
+                 * extra render of the whole canvas subtree to store a value no
+                 * branch consumed.
+                 */}
+                <BrandMarkParticles onReady={() => onReady?.()} />
             </Suspense>
         </Canvas>
     );

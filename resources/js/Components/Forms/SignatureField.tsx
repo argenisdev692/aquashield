@@ -159,7 +159,12 @@ export default function SignatureField({
 
     const clear = (): void => {
         padRef.current?.clear();
-        emit(null);
+        // A click handler calls the prop directly. `emit` is an Effect Event and
+        // must only run from an effect (the pad's `endStroke` subscription);
+        // React 19 warns when one is invoked from an event handler, and the
+        // emitted ref has to stay in sync either way.
+        emittedRef.current = null;
+        onChange(null);
         canvasRef.current?.focus();
     };
 

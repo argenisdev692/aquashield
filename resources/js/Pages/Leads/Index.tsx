@@ -37,6 +37,7 @@ type LeadIndexProps = {
         owners: Modules.LeadAppointment.Application.Dtos.AssignableOwnerData[];
     };
     canCreate: boolean;
+    canView: boolean;
     canUpdate: boolean;
     canExport: boolean;
     canBulkDelete: boolean;
@@ -80,7 +81,7 @@ const leadColumns: SimpleColumn<LeadRow>[] = [
                     {row.is_emergency && <Tag variant="destructive">Emergency</Tag>}
                     {row.deleted_at !== null && <Tag variant="destructive">Deleted</Tag>}
                 </span>
-                <span className="truncate text-xs text-surface-500 sm:hidden dark:text-surface-400">
+                <span className="truncate text-xs text-surface-500 sm:hidden dark:text-surface-300">
                     {row.phone ?? row.email ?? '—'}
                 </span>
             </span>
@@ -161,8 +162,17 @@ const leadColumns: SimpleColumn<LeadRow>[] = [
 
 export default function LeadsIndex() {
     const page = usePage<LeadIndexProps>();
-    const { rows, total, options, canCreate, canUpdate, canExport, canBulkDelete, canBulkRestore } =
-        page.props;
+    const {
+        rows,
+        total,
+        options,
+        canCreate,
+        canView,
+        canUpdate,
+        canExport,
+        canBulkDelete,
+        canBulkRestore,
+    } = page.props;
 
     const visitsPending = useVisitPending();
     const table = useCrudTable({
@@ -267,11 +277,15 @@ export default function LeadsIndex() {
                         <DataTableRowActions
                             label={`Actions for ${row.full_name}`}
                             actions={[
-                                {
-                                    label: 'View',
-                                    icon: <Eye className="size-4" aria-hidden="true" />,
-                                    onClick: () => router.visit(`/leads/${row.uuid}`),
-                                },
+                                ...(canView
+                                    ? [
+                                          {
+                                              label: 'View',
+                                              icon: <Eye className="size-4" aria-hidden="true" />,
+                                              onClick: () => router.visit(`/leads/${row.uuid}`),
+                                          },
+                                      ]
+                                    : []),
                                 ...(canUpdate
                                     ? [
                                           {

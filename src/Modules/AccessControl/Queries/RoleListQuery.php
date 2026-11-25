@@ -10,6 +10,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Modules\AccessControl\Data\RoleData;
 use Modules\AccessControl\Data\RoleFilterData;
+use Shared\Support\SearchPattern;
 
 /**
  * The single role list/export query.
@@ -25,15 +26,17 @@ final class RoleListQuery
      */
     public function builder(RoleFilterData $filters): Builder
     {
+        $search = (string) $filters->search;
+
         $query = Role::query()
             ->withCount(['permissions', 'users'])
             ->when(
-                $filters->search !== null && $filters->search !== '',
-                static fn (Builder $query): Builder => $query->where(
-                    'name',
-                    'like',
-                    '%'.$filters->search.'%',
-                ),
+                $search !== '',
+                static function (Builder $query) use ($search): Builder {
+                    SearchPattern::apply($query, 'name', $search);
+
+                    return $query;
+                },
             )
             ->when(
                 $filters->type === 'system',

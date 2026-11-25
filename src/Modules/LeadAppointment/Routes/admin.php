@@ -8,6 +8,7 @@ use Modules\LeadAppointment\Http\Controllers\AppointmentExportController;
 use Modules\LeadAppointment\Http\Controllers\AvailabilityController;
 use Modules\LeadAppointment\Http\Controllers\AvailabilityExceptionExportController;
 use Modules\LeadAppointment\Http\Controllers\CalendarController;
+use Modules\LeadAppointment\Http\Controllers\CalendarEventsController;
 use Modules\LeadAppointment\Http\Controllers\LeadController;
 use Modules\LeadAppointment\Http\Controllers\LeadExportController;
 use Modules\LeadAppointment\Http\Controllers\ReportController;
@@ -57,6 +58,8 @@ return function (): void {
             ->middleware('permission:'.Permission::ViewAnyAppointment->value)->name('index');
         Route::get('/calendar', CalendarController::class)
             ->middleware('permission:'.Permission::ViewAnyAppointment->value)->name('calendar');
+        Route::get('/calendar-events', CalendarEventsController::class)
+            ->middleware('permission:'.Permission::ViewAnyAppointment->value)->name('calendar-events');
         Route::post('/', [AppointmentController::class, 'store'])
             ->middleware('permission:'.Permission::CreateAppointment->value)->name('store');
         Route::post('/bulk-delete', [AppointmentController::class, 'bulkDelete'])

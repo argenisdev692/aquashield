@@ -71,7 +71,7 @@ function CollapseControl({
                 aria-label="Expand navigation"
                 aria-expanded={false}
                 aria-controls={controlsId}
-                className="group relative grid size-10 place-items-center rounded-lg text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                className="group relative grid size-10 place-items-center rounded-lg text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
             >
                 <BrandMark
                     compact
@@ -95,7 +95,7 @@ function CollapseControl({
             aria-label={label}
             aria-expanded={true}
             aria-controls={controlsId}
-            className="grid size-8 shrink-0 place-items-center rounded-md text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+            className="grid size-8 shrink-0 place-items-center rounded-md text-surface-500 transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
         >
             <PanelLeftClose className="size-4 shrink-0" aria-hidden="true" />
         </button>

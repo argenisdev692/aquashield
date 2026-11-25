@@ -73,7 +73,7 @@ export default function FormErrorSummary({
                         <button
                             type="button"
                             onClick={() => onFieldFocus(field)}
-                            className="text-left underline underline-offset-2 transition-colors duration-150 hover:text-aq-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent motion-reduce:transition-none"
+                            className="text-left underline underline-offset-2 transition-colors duration-150 hover:text-aq-danger focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none"
                         >
                             <span className="font-medium">
                                 {labels?.[field] ?? humanize(field)}:

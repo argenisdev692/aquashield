@@ -160,3 +160,36 @@ it('refuses an export above the row cap with 422 instead of truncating', functio
         ->getJson('/users/export/csv')
         ->assertUnprocessable();
 });
+
+it('refuses a PDF above its own row cap while CSV still streams', function (): void {
+    $now = now();
+
+    // MAX_PDF_ROWS (500) + the admin from beforeEach, in chunks to stay under
+    // SQLite's bound-parameter limit. No bcrypt work: raw inserts.
+    for ($chunk = 0; $chunk < 5; $chunk++) {
+        $rows = [];
+
+        for ($i = 0; $i < 100; $i++) {
+            $index = $chunk * 100 + $i;
+
+            $rows[] = [
+                'uuid' => (string) Str::uuid7(),
+                'first_name' => 'Bulk',
+                'email' => 'pdf-bulk'.$index.'@example.com',
+                'password' => 'x',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        DB::table('users')->insert($rows);
+    }
+
+    $this->actingAs($this->admin)
+        ->getJson('/users/export/pdf')
+        ->assertUnprocessable();
+
+    $this->actingAs($this->admin)
+        ->get('/users/export/csv')
+        ->assertOk();
+});

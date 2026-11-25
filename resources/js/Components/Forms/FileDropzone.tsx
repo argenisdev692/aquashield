@@ -58,7 +58,7 @@ export default function FileDropzone({
                     <Upload className="h-6 w-6" aria-hidden="true" />
                     <p className="text-sm font-medium">Click to upload or drag and drop</p>
                     {files.length > 0 && (
-                        <p className="text-xs text-surface-500 dark:text-surface-400">
+                        <p className="text-xs text-surface-500 dark:text-surface-300">
                             {files.length} file{files.length > 1 ? 's' : ''} selected
                         </p>
                     )}

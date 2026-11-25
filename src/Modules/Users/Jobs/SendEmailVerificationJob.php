@@ -50,8 +50,9 @@ final class SendEmailVerificationJob implements ShouldBeUniqueUntilProcessing, S
         $user = $this->user->fresh();
 
         // `fresh()` bypasses the soft-delete scope, so a deleted account still
-        // returns here. Never mail a verification link to a removed account.
-        if (! $user instanceof User || $user->trashed()) {
+        // returns here. A suspended account has no usable session either: the
+        // link would only verify an address on an account that cannot sign in.
+        if (! $user instanceof User || $user->trashed() || ! $user->isActive()) {
             return;
         }
 

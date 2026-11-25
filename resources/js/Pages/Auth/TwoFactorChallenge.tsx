@@ -32,10 +32,6 @@ const linkClass =
 export default function TwoFactorChallenge() {
     const [mode, setMode] = useState<ChallengeMode>('code');
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     /*
      * One hook per transport instead of one schema with a mode branch: the two
      * payloads have different field names and different rules, and Inertia
@@ -103,11 +99,7 @@ export default function TwoFactorChallenge() {
                     className="flex flex-col gap-4"
                     noValidate
                 >
-                    <FormErrorSummary
-                        errors={codeForm.errors}
-                        labels={fieldLabels}
-                        onFieldFocus={focusField}
-                    />
+                    <FormErrorSummary errors={codeForm.errors} labels={fieldLabels} />
 
                     <OtpField
                         label="Authentication code"
@@ -141,11 +133,7 @@ export default function TwoFactorChallenge() {
                     className="flex flex-col gap-4"
                     noValidate
                 >
-                    <FormErrorSummary
-                        errors={recoveryForm.errors}
-                        labels={fieldLabels}
-                        onFieldFocus={focusField}
-                    />
+                    <FormErrorSummary errors={recoveryForm.errors} labels={fieldLabels} />
 
                     <TextField
                         label="Recovery code"

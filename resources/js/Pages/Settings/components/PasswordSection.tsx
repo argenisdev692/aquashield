@@ -17,6 +17,7 @@ interface PasswordSectionProps {
     form: InertiaForm<UpdatePasswordForm>;
     errors: Partial<Record<string, string>>;
     onBlur: (field: keyof UpdatePasswordForm) => void;
+    onClearError: (field: keyof UpdatePasswordForm) => void;
 }
 
 const scorePassword = (value: string): number => {
@@ -43,7 +44,12 @@ const scorePassword = (value: string): number => {
 
 const STRENGTH_LABELS = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'] as const;
 
-export default function PasswordSection({ form, errors, onBlur }: PasswordSectionProps) {
+export default function PasswordSection({
+    form,
+    errors,
+    onBlur,
+    onClearError,
+}: PasswordSectionProps) {
     const meterId = useId();
     const score = scorePassword(form.data.password);
     const label = STRENGTH_LABELS[score];
@@ -57,16 +63,16 @@ export default function PasswordSection({ form, errors, onBlur }: PasswordSectio
                     password: 'New password',
                     password_confirmation: 'Confirm new password',
                 }}
-                onFieldFocus={(field) =>
-                    document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus()
-                }
             />
 
             <PasswordField
                 label="Current password"
                 name="current_password"
                 value={form.data.current_password}
-                onChange={(value) => form.setData('current_password', value)}
+                onChange={(value) => {
+                    form.setData('current_password', value);
+                    onClearError('current_password');
+                }}
                 onBlur={() => onBlur('current_password')}
                 error={errors.current_password}
                 autocomplete="current-password"
@@ -77,7 +83,10 @@ export default function PasswordSection({ form, errors, onBlur }: PasswordSectio
                 label="New password"
                 name="password"
                 value={form.data.password}
-                onChange={(value) => form.setData('password', value)}
+                onChange={(value) => {
+                    form.setData('password', value);
+                    onClearError('password');
+                }}
                 onBlur={() => onBlur('password')}
                 error={errors.password}
                 hint={PASSWORD_HINT}
@@ -116,7 +125,10 @@ export default function PasswordSection({ form, errors, onBlur }: PasswordSectio
                 label="Confirm new password"
                 name="password_confirmation"
                 value={form.data.password_confirmation}
-                onChange={(value) => form.setData('password_confirmation', value)}
+                onChange={(value) => {
+                    form.setData('password_confirmation', value);
+                    onClearError('password_confirmation');
+                }}
                 onBlur={() => onBlur('password_confirmation')}
                 error={errors.password_confirmation}
                 autocomplete="new-password"

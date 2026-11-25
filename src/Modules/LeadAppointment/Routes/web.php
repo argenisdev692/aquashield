@@ -42,7 +42,10 @@ Route::middleware('web')->group(function (): void {
 
         Route::prefix('appointments')->name('appointments.')->group(function (): void {
             Route::get('/create', [AppointmentController::class, 'create'])
-                ->middleware('permission:'.Permission::CreateAppointment->value)->name('create');
+                ->middleware([
+                    'permission:'.Permission::CreateAppointment->value,
+                    'permission:'.Permission::ViewAnyLead->value,
+                ])->name('create');
             Route::get('/{uuid}/edit', [AppointmentController::class, 'edit'])
                 ->whereUuid('uuid')
                 ->middleware('permission:'.Permission::UpdateAppointment->value)->name('edit');

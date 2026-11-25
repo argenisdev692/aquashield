@@ -81,7 +81,7 @@ readout are explained in `.opencode/rules/rules.md`.
 `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and `Users` (FLAT), plus
 `Backups` and `LeadAppointment` (PROGRESSIVE, the largest) — each with its own `ARCHITECTURE.md` and
 tests;
-`tests/Architecture/` runs against them (45 green in four suites on 2026-11-25). The frontend layers are also
+`tests/Architecture/` runs against them (47 green in four suites on 2026-11-25). The frontend layers are also
 present: `resources/js/Components/ui`
 (shadcn primitives on Base UI), `resources/js/Components/DataTable` (the server-first table kit) and
 `resources/js/Components/Forms` (the Zod form kit, buttons and dropzones) exist,

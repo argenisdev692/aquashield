@@ -109,7 +109,7 @@ final readonly class CreateUserAction
             ], $actor, 'users');
 
             return $user;
-        });
+        }, attempts: 3);
 
         // Never dispatch inside the transaction: a rollback must not send an
         // invitation for an account that no longer exists. The timestamp is

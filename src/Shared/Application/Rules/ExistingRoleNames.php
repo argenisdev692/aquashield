@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Modules\AccessControl\Rules;
+namespace Shared\Application\Rules;
 
-use App\Models\Permission;
+use App\Models\Role;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * Resolves the whole permission array in ONE query.
+ * The role twin of {@see ExistingPermissionNames}, for the same reason.
  *
- * The per-item `exists:permissions,name` rule becomes one query per array
- * item — up to 600 round trips for a role save (OWASP API4). This rule keeps
- * the same contract and folds it into a single `whereIn`.
+ * `exists:roles,name` on `roles.*` runs one query per selected role. The
+ * access forms legitimately submit the whole selected set, so the batched
+ * `whereIn` is the normal path, not an optimisation for an edge case.
  */
-final readonly class ExistingPermissionNames implements ValidationRule
+final readonly class ExistingRoleNames implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -34,7 +34,7 @@ final readonly class ExistingPermissionNames implements ValidationRule
         }
 
         /** @var list<string> $existing */
-        $existing = Permission::query()
+        $existing = Role::query()
             ->where('guard_name', 'web')
             ->whereIn('name', $names)
             ->pluck('name')
@@ -45,7 +45,7 @@ final readonly class ExistingPermissionNames implements ValidationRule
         $missing = array_values(array_diff($names, $existing));
 
         if ($missing !== []) {
-            $fail('Unknown permission(s): '.implode(', ', $missing).'.');
+            $fail('Unknown role(s): '.implode(', ', $missing).'.');
         }
     }
 }

@@ -35,7 +35,7 @@ export default function Register() {
 
     return (
         <AuthLayout title="Create account" subtitle="Join AquaShield today" width="md">
-            <FormErrorSummary errors={errors} onFieldFocus={() => {}} />
+            <FormErrorSummary errors={errors} />
 
             <form
                 onSubmit={(e) => {
@@ -100,7 +100,7 @@ export default function Register() {
                 />
             </form>
 
-            <p className="mt-6 text-center text-sm text-surface-600 dark:text-surface-400">
+            <p className="mt-6 text-center text-sm text-surface-600 dark:text-surface-300">
                 Already have an account?{' '}
                 <Link
                     href="/login"

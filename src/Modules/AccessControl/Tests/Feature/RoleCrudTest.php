@@ -6,6 +6,9 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+use Modules\AccessControl\Actions\CreateRoleAction;
+use Modules\AccessControl\Data\RoleInputData;
 use Modules\AccessControl\Tests\Support\AccessControlFixtures;
 use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Activitylog\Models\Activity;
@@ -241,4 +244,54 @@ it('flushes the permission cache and audits it', function (): void {
         'event' => 'access.cache_reset',
         'log_name' => 'access-control',
     ]);
+});
+
+it('searches role names case-insensitively', function (): void {
+    AccessControlFixtures::customRole('CLAIMS_REVIEWER');
+
+    $this->actingAs($this->admin)
+        ->getJson('/roles?search=claims')
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('rows.0.name', 'CLAIMS_REVIEWER');
+});
+
+it('treats LIKE wildcards in the search as literals', function (): void {
+    AccessControlFixtures::customRole('CLAIMS_REVIEWER');
+
+    $this->actingAs($this->admin)
+        ->getJson('/roles?search='.urlencode('%'))
+        ->assertOk()
+        ->assertJsonPath('total', 0);
+});
+
+it('refuses to delete a role assigned only to a soft-deleted user', function (): void {
+    $role = AccessControlFixtures::customRole('CLAIMS_REVIEWER');
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    $user->delete();
+
+    $this->actingAs($this->admin)
+        ->deleteJson('/roles/'.$role->uuid)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['role']);
+
+    expect(Role::query()->whereKey($role->id)->exists())->toBeTrue();
+});
+
+it('re-asserts the reserved system-name invariant at the action boundary', function (): void {
+    expect(fn () => app(CreateRoleAction::class)->execute(
+        new RoleInputData('ADMIN', []),
+        $this->admin,
+    ))->toThrow(ValidationException::class);
+});
+
+it('rejects an overlong permission name on a role', function (): void {
+    $this->actingAs($this->admin)
+        ->postJson('/roles', [
+            'name' => 'CLAIMS_REVIEWER',
+            'permissions' => [str_repeat('A', 65)],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['permissions.0']);
 });

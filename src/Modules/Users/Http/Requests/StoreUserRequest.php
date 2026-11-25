@@ -11,6 +11,8 @@ use App\Rules\Username;
 use App\Support\UserProfileInput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Shared\Application\Rules\ExistingPermissionNames;
+use Shared\Application\Rules\ExistingRoleNames;
 
 final class StoreUserRequest extends FormRequest
 {
@@ -54,13 +56,14 @@ final class StoreUserRequest extends FormRequest
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'gender' => ['nullable', 'string', 'in:male,female,other', 'max:50'],
-            // Both arrays run one `exists` query per item, so they must be
-            // bounded (OWASP API4): 50 covers the 26 seeded roles, 600 covers
-            // the 505 seeded permissions.
-            'roles' => ['nullable', 'array', 'max:50'],
-            'roles.*' => ['string', 'distinct', 'exists:roles,name'],
-            'permissions' => ['nullable', 'array', 'max:600'],
-            'permissions.*' => ['string', 'distinct', 'exists:permissions,name'],
+            // Both arrays are bounded AND resolved in one query each: an
+            // `exists` per item is an N-query request when the UI submits the
+            // whole selection (OWASP API4). 50 covers the 26 seeded roles, 600
+            // covers the 505 seeded permissions.
+            'roles' => ['nullable', 'array', 'max:50', new ExistingRoleNames],
+            'roles.*' => ['string', 'distinct'],
+            'permissions' => ['nullable', 'array', 'max:600', new ExistingPermissionNames],
+            'permissions.*' => ['string', 'distinct'],
             'send_invitation' => ['sometimes', 'boolean'],
             'temporary_password' => [
                 'nullable',

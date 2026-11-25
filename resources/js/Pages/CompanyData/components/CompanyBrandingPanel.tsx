@@ -343,7 +343,7 @@ export default function CompanyBrandingPanel({ controller, canUpdate }: CompanyB
             </div>
 
             {!canUpdate && (
-                <p className="text-xs text-surface-500 dark:text-surface-400">
+                <p className="text-xs text-surface-500 dark:text-surface-300">
                     Brand assets are managed by a super admin. All four current files are visible
                     here.
                 </p>

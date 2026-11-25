@@ -113,17 +113,38 @@ final class Appointment extends Model
             ->when($filters->recordState === 'trashed', fn (Builder $q): Builder => $q->onlyTrashed())
             ->when($filters->recordState === 'all', fn (Builder $q): Builder => $q->withTrashed())
             ->when($filters->dateFrom !== null || $filters->dateTo !== null, function (Builder $q) use ($filters): void {
-                $timezone = Region::from(
-                    (string) config('lead-appointment.default_region', Region::Houston->value),
-                )->timezone();
+                /*
+                 * A visit's displayed date is its region-local date, not the
+                 * company's. Filtering every row against the default region's
+                 * midnight excluded an Eastern visit that the list rendered on
+                 * the selected day, so each region contributes its own local
+                 * day boundaries joined by OR.
+                 */
+                $q->where(function (Builder $local) use ($filters): void {
+                    foreach (Region::cases() as $region) {
+                        $timezone = $region->timezone();
 
-                if ($filters->dateFrom !== null) {
-                    $q->where('starts_at', '>=', CarbonImmutable::parse($filters->dateFrom, $timezone)->startOfDay()->utc());
-                }
+                        $local->orWhere(function (Builder $window) use ($filters, $region, $timezone): void {
+                            $window->where('region', $region->value);
 
-                if ($filters->dateTo !== null) {
-                    $q->where('starts_at', '<=', CarbonImmutable::parse($filters->dateTo, $timezone)->endOfDay()->utc());
-                }
+                            if ($filters->dateFrom !== null) {
+                                $window->where(
+                                    'starts_at',
+                                    '>=',
+                                    CarbonImmutable::parse($filters->dateFrom, $timezone)->startOfDay()->utc(),
+                                );
+                            }
+
+                            if ($filters->dateTo !== null) {
+                                $window->where(
+                                    'starts_at',
+                                    '<=',
+                                    CarbonImmutable::parse($filters->dateTo, $timezone)->endOfDay()->utc(),
+                                );
+                            }
+                        });
+                    }
+                });
             })
             ->orderBy($sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
             ->orderBy('id');

@@ -130,7 +130,7 @@ export default function SavedViewsMenu({ resource, state, onApply }: SavedViewsM
 
                 <PopoverContent align="start" className="w-72 p-2">
                     {controller.isLoading ? (
-                        <p className="px-2 py-3 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="px-2 py-3 text-sm text-surface-500 dark:text-surface-300">
                             Loading views…
                         </p>
                     ) : controller.isError ? (
@@ -148,7 +148,7 @@ export default function SavedViewsMenu({ resource, state, onApply }: SavedViewsM
                             </Button>
                         </div>
                     ) : controller.views.length === 0 ? (
-                        <p className="px-2 py-3 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="px-2 py-3 text-sm text-surface-500 dark:text-surface-300">
                             No saved views yet. Set your filters, then save the view.
                         </p>
                     ) : (

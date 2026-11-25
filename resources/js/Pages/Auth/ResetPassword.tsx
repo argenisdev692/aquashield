@@ -43,10 +43,6 @@ export default function ResetPassword() {
         schema: resetSchema,
     });
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     const fieldLabels = {
         token: 'Token',
         email: 'Email',
@@ -70,7 +66,7 @@ export default function ResetPassword() {
                 className="flex flex-col gap-4"
                 noValidate
             >
-                <FormErrorSummary errors={errors} labels={fieldLabels} onFieldFocus={focusField} />
+                <FormErrorSummary errors={errors} labels={fieldLabels} />
 
                 <TextField
                     label="Email"

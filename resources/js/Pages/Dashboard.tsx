@@ -2,9 +2,9 @@
  * Dashboard — the real operations view.
  *
  * Server props only: the lead columns come from the same `LeadRepository::board`
- * used by `/leads/board`, and the calendar is the current month of the
- * `appointments` table. There is no mock row and no second pipeline state in
- * the browser.
+ * used by `/leads/board`, and the calendar fetches the visible month through
+ * `/appointments/calendar-events`. There is no mock row and no second pipeline
+ * state in the browser.
  */
 import { lazy, Suspense, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
@@ -34,16 +34,20 @@ import AppLayout from '@/Layouts/AppLayout';
 import { usePasskeyPrompt } from '@/Modules/Auth/hooks/usePasskeyPrompt';
 import LeadKanban from '@/Modules/LeadAppointment/components/LeadKanban';
 import ScheduleAppointmentDialog from '@/Modules/LeadAppointment/components/ScheduleAppointmentDialog';
+import { useAppointmentDetail } from '@/Modules/LeadAppointment/hooks/useAppointmentDetail';
+import {
+    useCalendarEvents,
+    useCalendarEventsInvalidator,
+    type CalendarEvent,
+} from '@/Modules/LeadAppointment/hooks/useCalendarEvents';
 import LeadCreateDialog from '@/Pages/Dashboard/components/LeadCreateDialog';
 import { formatDateTime } from '@/lib/date';
 import { useTheme } from '@/lib/theme';
-import type { CalendarAppointment } from '@/Pages/Dashboard/BoardCalendar';
 
 const BoardCalendar = lazy(() => import('@/Pages/Dashboard/BoardCalendar'));
 
 type LeadCard = Modules.LeadAppointment.Application.Dtos.LeadCardData;
 type LeadBoardColumn = Modules.LeadAppointment.Application.Dtos.LeadBoardColumnData;
-type Appointment = Modules.LeadAppointment.Application.Dtos.AppointmentData;
 
 interface StatComparison {
     current: number;
@@ -54,7 +58,6 @@ interface DashboardProps {
     [key: string]: unknown;
     columns: LeadBoardColumn[];
     transitions: Record<string, string[]>;
-    appointments: Appointment[];
     stats: {
         leads: StatComparison;
         inspections: StatComparison;
@@ -64,6 +67,9 @@ interface DashboardProps {
     canCreate: boolean;
     canUpdate: boolean;
     canScheduleAppointment: boolean;
+    canViewCalendar: boolean;
+    canViewAppointment: boolean;
+    canViewLead: boolean;
     options: {
         kinds: { value: string; label: string }[];
         regions: { value: string; label: string }[];
@@ -121,11 +127,13 @@ export default function Dashboard() {
     const {
         columns,
         transitions,
-        appointments,
         stats,
         canCreate,
         canUpdate,
         canScheduleAppointment,
+        canViewCalendar,
+        canViewAppointment,
+        canViewLead,
         options,
         leadOptions,
         googleMapsApiKey,
@@ -136,10 +144,11 @@ export default function Dashboard() {
     } = usePage<DashboardProps>().props;
     const prompt = usePasskeyPrompt();
     const { isDark } = useTheme();
+    const invalidateCalendar = useCalendarEventsInvalidator();
 
     const [view, setView] = useState<'kanban' | 'calendar'>('kanban');
     const [selectedLead, setSelectedLead] = useState<LeadCard | null>(null);
-    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [leadCreateOpen, setLeadCreateOpen] = useState(false);
     const [scheduleOpen, setScheduleOpen] = useState(false);
     const [scheduleDate, setScheduleDate] = useState('');
@@ -149,8 +158,17 @@ export default function Dashboard() {
         phone: string | null;
         region: string | null;
     } | null>(null);
+    const [calendarRange, setCalendarRange] = useState<{ from: string; to: string } | null>(null);
 
-    const drawerOpen = selectedLead !== null || selectedAppointment !== null;
+    const calendar = useCalendarEvents(
+        calendarRange?.from ?? '',
+        calendarRange?.to ?? '',
+        canViewCalendar && calendarRange !== null,
+    );
+    const detail = useAppointmentDetail(selectedEvent?.uuid ?? null, canViewAppointment);
+    const appointment = detail.appointment;
+
+    const drawerOpen = selectedLead !== null || selectedEvent !== null;
 
     const openSchedule = (
         date: string,
@@ -161,16 +179,8 @@ export default function Dashboard() {
         setScheduleOpen(true);
     };
 
-    const calendarAppointments: CalendarAppointment[] = appointments.map((appointment) => ({
-        id: appointment.uuid,
-        title: appointment.customer_name,
-        start: new Date(appointment.starts_at_local),
-        tone: 'normal',
-    }));
-
     const openAppointment = (uuid: string): void => {
-        const appointment = appointments.find((row) => row.uuid === uuid) ?? null;
-        setSelectedAppointment(appointment);
+        setSelectedEvent(calendar.events.find((row) => row.uuid === uuid) ?? null);
         setSelectedLead(null);
     };
 
@@ -190,7 +200,7 @@ export default function Dashboard() {
                  * read as a second page title, not a section.
                  */}
                 <header className="flex flex-wrap items-end justify-between gap-3">
-                    <p className="max-w-prose text-sm text-surface-500 dark:text-surface-400">
+                    <p className="max-w-prose text-sm text-surface-500 dark:text-surface-300">
                         Live lead pipeline and scheduled inspections.
                     </p>
 
@@ -229,6 +239,7 @@ export default function Dashboard() {
                  * chips are computed from the previous month's counts.
                  */}
                 <section
+                    id="kpis"
                     aria-label="Key metrics"
                     className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
                 >
@@ -298,35 +309,73 @@ export default function Dashboard() {
                                 errors={errors}
                                 onSelect={(lead) => {
                                     setSelectedLead(lead);
-                                    setSelectedAppointment(null);
+                                    setSelectedEvent(null);
                                 }}
                             />
                         </TabsPanel>
 
                         <TabsPanel value="calendar">
-                            <Suspense
-                                fallback={
-                                    <div className="p-4" aria-busy="true">
-                                        <Skeleton className="mb-3 h-8 w-56" />
-                                        <div className="grid grid-cols-7 gap-2">
-                                            {Array.from({ length: 35 }, (_, index) => (
-                                                <Skeleton key={index} className="h-20 rounded-lg" />
-                                            ))}
+                            {!canViewCalendar ? (
+                                <p className="px-[1.125rem] py-10 text-center text-sm text-surface-500 dark:text-surface-300">
+                                    You do not have permission to view appointments.
+                                </p>
+                            ) : (
+                                <>
+                                    {calendar.isError ? (
+                                        <div
+                                            role="alert"
+                                            className="mx-[1.125rem] mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
+                                        >
+                                            <span>The calendar could not be loaded.</span>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={calendar.retry}
+                                            >
+                                                Try again
+                                            </Button>
                                         </div>
-                                    </div>
-                                }
-                            >
-                                <BoardCalendar
-                                    appointments={calendarAppointments}
-                                    colorScheme={isDark ? 'dark' : 'light'}
-                                    onSelect={openAppointment}
-                                    onDateClick={
-                                        canScheduleAppointment
-                                            ? (date) => openSchedule(date, null)
-                                            : undefined
-                                    }
-                                />
-                            </Suspense>
+                                    ) : null}
+
+                                    <Suspense
+                                        fallback={
+                                            <div className="p-4" aria-busy="true">
+                                                <Skeleton className="mb-3 h-8 w-56" />
+                                                <div className="grid grid-cols-7 gap-2">
+                                                    {Array.from({ length: 35 }, (_, index) => (
+                                                        <Skeleton
+                                                            key={index}
+                                                            className="h-20 rounded-lg"
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        }
+                                    >
+                                        <BoardCalendar
+                                            events={
+                                                calendar.isPlaceholderData ? [] : calendar.events
+                                            }
+                                            isFetching={calendar.isFetching}
+                                            colorScheme={isDark ? 'dark' : 'light'}
+                                            onSelect={openAppointment}
+                                            onDateClick={
+                                                canScheduleAppointment
+                                                    ? (date) => openSchedule(date, null)
+                                                    : undefined
+                                            }
+                                            onRangeChange={(from, to) =>
+                                                setCalendarRange((current) =>
+                                                    current?.from === from && current.to === to
+                                                        ? current
+                                                        : { from, to },
+                                                )
+                                            }
+                                        />
+                                    </Suspense>
+                                </>
+                            )}
                         </TabsPanel>
                     </Tabs>
                 </section>
@@ -337,7 +386,7 @@ export default function Dashboard() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setSelectedLead(null);
-                        setSelectedAppointment(null);
+                        setSelectedEvent(null);
                     }
                 }}
             >
@@ -406,97 +455,145 @@ export default function Dashboard() {
                                         Schedule visit
                                     </Button>
                                 )}
-                                <Button
-                                    render={<Link href={`/leads/${selectedLead.uuid}`} />}
-                                    nativeButton={false}
-                                    variant="outline"
-                                    className="w-full"
-                                >
-                                    Open lead
-                                </Button>
+                                {canViewLead && (
+                                    <Button
+                                        render={<Link href={`/leads/${selectedLead.uuid}`} />}
+                                        nativeButton={false}
+                                        variant="outline"
+                                        className="w-full"
+                                    >
+                                        Open lead
+                                    </Button>
+                                )}
                             </div>
                         </>
                     )}
 
-                    {selectedAppointment !== null && (
+                    {selectedEvent !== null && (
                         <>
                             <SheetHeader>
                                 <SheetTitle className="text-lg font-bold text-surface-900 dark:text-surface-0">
-                                    {selectedAppointment.customer_name}
+                                    {appointment?.customer_name ?? selectedEvent.customer_name}
                                 </SheetTitle>
                                 <SheetDescription>
-                                    {humanize(selectedAppointment.kind)} ·{' '}
-                                    {humanize(selectedAppointment.status)}
+                                    {humanize(appointment?.kind ?? selectedEvent.kind)} ·{' '}
+                                    {humanize(appointment?.status ?? selectedEvent.status)}
                                 </SheetDescription>
                             </SheetHeader>
 
                             <div className="mt-4 flex flex-col gap-3 px-4 text-sm text-surface-600 dark:text-surface-300">
-                                <p>
-                                    <span className="font-semibold text-surface-900 dark:text-surface-0">
-                                        When:
-                                    </span>{' '}
-                                    {formatDateTime(selectedAppointment.starts_at_local, 'en-US', {
-                                        dateStyle: 'medium',
-                                        timeStyle: 'short',
-                                        timeZone: selectedAppointment.timezone,
-                                    })}{' '}
-                                    –{' '}
-                                    {formatDateTime(selectedAppointment.ends_at_local, 'en-US', {
-                                        dateStyle: 'medium',
-                                        timeStyle: 'short',
-                                        timeZone: selectedAppointment.timezone,
-                                    })}
-                                </p>
-                                <p>
-                                    <span className="font-semibold text-surface-900 dark:text-surface-0">
-                                        Timezone:
-                                    </span>{' '}
-                                    {selectedAppointment.timezone}
-                                </p>
-                                <p>
-                                    <span className="font-semibold text-surface-900 dark:text-surface-0">
-                                        Property:
-                                    </span>{' '}
-                                    {selectedAppointment.address_line || '—'}
-                                </p>
-                                {selectedAppointment.notes !== null && (
-                                    <p>
-                                        <span className="font-semibold text-surface-900 dark:text-surface-0">
-                                            Notes:
-                                        </span>{' '}
-                                        {selectedAppointment.notes}
-                                    </p>
+                                {canViewAppointment && detail.isPending ? (
+                                    <div className="flex flex-col gap-2" aria-busy="true">
+                                        <Skeleton className="h-5 w-3/4" />
+                                        <Skeleton className="h-5 w-1/2" />
+                                        <Skeleton className="h-16 w-full" />
+                                    </div>
+                                ) : appointment !== null ? (
+                                    <>
+                                        <p>
+                                            <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                When:
+                                            </span>{' '}
+                                            {formatDateTime(appointment.starts_at_local, 'en-US', {
+                                                dateStyle: 'medium',
+                                                timeStyle: 'short',
+                                                timeZone: appointment.timezone,
+                                            })}{' '}
+                                            –{' '}
+                                            {formatDateTime(appointment.ends_at_local, 'en-US', {
+                                                dateStyle: 'medium',
+                                                timeStyle: 'short',
+                                                timeZone: appointment.timezone,
+                                            })}
+                                        </p>
+                                        <p>
+                                            <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                Timezone:
+                                            </span>{' '}
+                                            {appointment.timezone}
+                                        </p>
+                                        <p>
+                                            <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                Property:
+                                            </span>{' '}
+                                            {appointment.address_line || '—'}
+                                        </p>
+                                        {appointment.notes !== null && (
+                                            <p>
+                                                <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                    Notes:
+                                                </span>{' '}
+                                                {appointment.notes}
+                                            </p>
+                                        )}
+                                        {appointment.cancel_reason !== null && (
+                                            <p>
+                                                <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                    Cancelled:
+                                                </span>{' '}
+                                                {appointment.cancel_reason}
+                                            </p>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <p>
+                                            <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                When:
+                                            </span>{' '}
+                                            {formatDateTime(
+                                                selectedEvent.starts_at_local,
+                                                'en-US',
+                                                {
+                                                    dateStyle: 'medium',
+                                                    timeStyle: 'short',
+                                                    timeZone: selectedEvent.timezone,
+                                                },
+                                            )}
+                                        </p>
+                                        <p>
+                                            <span className="font-semibold text-surface-900 dark:text-surface-0">
+                                                Timezone:
+                                            </span>{' '}
+                                            {selectedEvent.timezone}
+                                        </p>
+                                    </>
                                 )}
-                                {selectedAppointment.cancel_reason !== null && (
-                                    <p>
-                                        <span className="font-semibold text-surface-900 dark:text-surface-0">
-                                            Cancelled:
-                                        </span>{' '}
-                                        {selectedAppointment.cancel_reason}
+
+                                {canViewAppointment && detail.isError ? (
+                                    <p role="alert" className="text-sm text-aq-danger-strong">
+                                        The full appointment could not be loaded. Open the
+                                        appointment file to retry.
                                     </p>
-                                )}
+                                ) : null}
                             </div>
 
                             <div className="mt-6 flex flex-col gap-2 px-4">
-                                <Button
-                                    render={
-                                        <Link href={`/appointments/${selectedAppointment.uuid}`} />
-                                    }
-                                    nativeButton={false}
-                                    className="w-full"
-                                >
-                                    Open appointment
-                                </Button>
-                                <Button
-                                    render={
-                                        <Link href={`/leads/${selectedAppointment.lead_uuid}`} />
-                                    }
-                                    nativeButton={false}
-                                    variant="outline"
-                                    className="w-full"
-                                >
-                                    Open lead
-                                </Button>
+                                {canViewAppointment && (
+                                    <Button
+                                        render={
+                                            <Link href={`/appointments/${selectedEvent.uuid}`} />
+                                        }
+                                        nativeButton={false}
+                                        className="w-full"
+                                    >
+                                        Open appointment
+                                    </Button>
+                                )}
+                                {canViewLead && (
+                                    <Button
+                                        render={
+                                            <Link
+                                                href={`/leads/${appointment?.lead_uuid ?? selectedEvent.lead_uuid}`}
+                                            />
+                                        }
+                                        nativeButton={false}
+                                        variant="outline"
+                                        className="w-full"
+                                    >
+                                        Open lead
+                                    </Button>
+                                )}
                             </div>
                         </>
                     )}
@@ -532,7 +629,8 @@ export default function Dashboard() {
                     defaultDate={scheduleDate}
                     lead={scheduleLead}
                     onScheduled={() => {
-                        router.reload({ only: ['appointments', 'columns', 'stats'] });
+                        invalidateCalendar();
+                        router.reload({ only: ['columns', 'stats'] });
                     }}
                 />
             )}

@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
+use Modules\LeadAppointment\Application\Dtos\CalendarEventData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
 use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
@@ -210,6 +211,37 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             ->orderBy('starts_at')
             ->get()
             ->map(fn (Appointment $appointment): AppointmentData => $this->toData($appointment))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<CalendarEventData>
+     */
+    public function calendarEventsBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+    ): array {
+        return Appointment::query()
+            ->with('lead:id,uuid,first_name,last_name')
+            ->where('starts_at', '>=', $from->utc())
+            ->where('starts_at', '<=', $to->utc())
+            ->orderBy('starts_at')
+            ->get(['id', 'uuid', 'lead_id', 'starts_at', 'timezone', 'status', 'kind', 'region'])
+            ->map(function (Appointment $appointment): CalendarEventData {
+                $name = trim($appointment->lead->first_name.' '.$appointment->lead->last_name);
+
+                return new CalendarEventData(
+                    uuid: $appointment->uuid,
+                    leadUuid: $appointment->lead->uuid,
+                    customerName: $name === '' ? 'Unknown customer' : $name,
+                    startsAtLocal: $appointment->starts_at->setTimezone($appointment->timezone)->toIso8601String(),
+                    timezone: $appointment->timezone,
+                    status: $appointment->status->value,
+                    kind: $appointment->kind->value,
+                    region: $appointment->region->value,
+                );
+            })
             ->values()
             ->all();
     }

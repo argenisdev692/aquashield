@@ -6,8 +6,7 @@
  * 40rem panel anchored at the top, grouped command list with roving keyboard
  * navigation, empty state and footer hints.
  */
-import { useEffect, useState } from 'react';
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { cn } from '@/lib/utils';
@@ -27,6 +26,7 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
     const [active, setActive] = useState(0);
     const listId = useId();
     const inputId = useId();
+    const listRef = useRef<HTMLDivElement>(null);
 
     const needle = query.trim().toLowerCase();
     const filtered =
@@ -56,6 +56,19 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
     useEffect(() => {
         setActive(0);
     }, [query]);
+
+    /*
+     * ARIA 1.2 puts focus in the input and moves the *active option* with
+     * `aria-activedescendant` — the browser does not scroll it for us. There
+     * are up to 17 commands on the dashboard and the list is capped at 20rem
+     * tall, so ArrowDown past the fold used to select a row the user could not
+     * see (and Enter then ran it). `block: 'nearest'` scrolls the popup only.
+     */
+    useEffect(() => {
+        listRef.current
+            ?.querySelector<HTMLElement>(`[data-index="${active}"]`)
+            ?.scrollIntoView({ block: 'nearest' });
+    }, [active, query]);
 
     const close = (): void => {
         onOpenChange(false);
@@ -151,26 +164,33 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
                             value={query}
                             onChange={(event) => setQuery(event.target.value)}
                             onKeyDown={onKeydown}
-                            className="h-12 w-full bg-transparent text-sm text-surface-900 outline-none transition-colors duration-150 placeholder:text-surface-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-0 dark:placeholder:text-surface-400"
+                            className="h-12 w-full bg-transparent text-sm text-surface-900 outline-none transition-colors duration-150 placeholder:text-surface-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-0 dark:placeholder:text-surface-400"
                         />
                         <kbd className={KBD}>esc</kbd>
                     </div>
 
                     <div
+                        ref={listRef}
                         id={listId}
                         role="listbox"
                         aria-label="Commands"
                         className="max-h-80 overflow-y-auto p-2"
                     >
                         {filtered.length === 0 && (
-                            <p className="px-3 py-8 text-center text-sm text-surface-500 dark:text-surface-400">
+                            <p
+                                role="presentation"
+                                className="px-3 py-8 text-center text-sm text-surface-500 dark:text-surface-300"
+                            >
                                 No commands match “{query}”.
                             </p>
                         )}
 
                         {groups.map((group) => (
-                            <div key={group.label}>
-                                <p className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-[0.14em] text-surface-500 uppercase dark:text-surface-400">
+                            <div key={group.label} role="group" aria-label={group.label}>
+                                <p
+                                    aria-hidden="true"
+                                    className="px-3 pt-2 pb-1 text-[11px] font-semibold tracking-[0.14em] text-surface-500 uppercase dark:text-surface-300"
+                                >
                                     {group.label}
                                 </p>
                                 {group.items.map(({ command, index }) => {
@@ -180,10 +200,11 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
                                         <div
                                             key={command.id}
                                             id={optionId(index)}
+                                            data-index={index}
                                             role="option"
                                             aria-selected={isActive}
                                             className={cn(
-                                                'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-100 motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent',
+                                                'flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-100 motion-reduce:transition-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus',
                                                 isActive
                                                     ? 'bg-surface-100 text-surface-900 dark:bg-surface-800 dark:text-surface-0'
                                                     : 'text-surface-700 dark:text-surface-200',
@@ -203,7 +224,7 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-4 border-t border-surface-200 px-4 py-2.5 text-[11px] text-surface-500 dark:border-surface-700 dark:text-surface-400">
+                    <div className="flex items-center gap-4 border-t border-surface-200 px-4 py-2.5 text-[11px] text-surface-500 dark:border-surface-700 dark:text-surface-300">
                         <span className="flex items-center gap-1">
                             <kbd className={KBD}>↑</kbd>
                             <kbd className={KBD}>↓</kbd>

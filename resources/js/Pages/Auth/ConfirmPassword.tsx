@@ -36,10 +36,6 @@ export default function ConfirmPassword() {
     });
     const logout = useLogout();
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     const onConfirm = (): void => {
         submit(() =>
             form.post('/user/confirm-password', {
@@ -66,7 +62,7 @@ export default function ConfirmPassword() {
                 className="flex flex-col gap-4"
                 noValidate
             >
-                <FormErrorSummary errors={errors} labels={fieldLabels} onFieldFocus={focusField} />
+                <FormErrorSummary errors={errors} labels={fieldLabels} />
 
                 <PasswordField
                     label="Password"

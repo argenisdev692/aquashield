@@ -91,7 +91,7 @@ const userColumns: SimpleColumn<ManagedUser>[] = [
                     </span>
                     {row.deleted_at !== null && <Tag variant="destructive">Deleted</Tag>}
                 </span>
-                <span className="truncate text-xs text-surface-500 sm:hidden dark:text-surface-400">
+                <span className="truncate text-xs text-surface-500 sm:hidden dark:text-surface-300">
                     {row.email}
                 </span>
             </span>

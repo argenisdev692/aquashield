@@ -16,8 +16,8 @@ import NumberField from '@/Components/Forms/NumberField';
 import TextareaField from '@/Components/Forms/TextareaField';
 import TimeField from '@/Components/Forms/TimeField';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDateTime } from '@/lib/date';
-import { useZodForm } from '@/lib/forms';
+import { formatDateTime, todayIso } from '@/lib/date';
+import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
 import {
     durationBetween,
     localParts,
@@ -46,6 +46,8 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
         schema: rescheduleSchema,
     });
 
+    useUnsavedChangesWarning(form.isDirty);
+
     return (
         <AppLayout title="Reschedule appointment">
             <Head title={`Reschedule ${appointment.customer_name}`} />
@@ -56,7 +58,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Reschedule {appointment.customer_name}
                         </h2>
-                        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-300">
                             <Tag variant={statusVariant(appointment.status)}>
                                 {humanize(appointment.status)}
                             </Tag>
@@ -86,7 +88,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                             timeZone: appointment.timezone,
                         })}
                     </p>
-                    <p className="text-xs text-surface-500 dark:text-surface-400">
+                    <p className="text-xs text-surface-500 dark:text-surface-300">
                         {appointment.timezone} · {humanize(appointment.region)} ·{' '}
                         {appointment.address_line}
                     </p>
@@ -121,6 +123,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                                 onBlur={() => touch('date')}
                                 error={errors.date ?? errors.starts_at}
                                 required
+                                min={todayIso(appointment.timezone)}
                             />
 
                             <AvailabilityNotice

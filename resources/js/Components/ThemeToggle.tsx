@@ -19,7 +19,7 @@ export default function ThemeToggle() {
     return (
         <button
             type="button"
-            className="grid size-9 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:text-surface-100 dark:hover:bg-surface-800"
+            className="grid size-9 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-100 dark:hover:bg-surface-800"
             onClick={toggleTheme}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >

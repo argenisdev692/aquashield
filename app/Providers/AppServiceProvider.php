@@ -71,7 +71,11 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         // N+1 is a crash in dev, a logged warning in prod (backend skill §4).
+        // `shouldBeStrict(false)` disables lazy-loading prevention, and Laravel
+        // only invokes the violation callback while prevention is enabled. Keep
+        // prevention on and let the callback replace the throw in production.
         Model::shouldBeStrict(! $this->app->isProduction());
+        Model::preventLazyLoading();
 
         if ($this->app->isProduction()) {
             Model::handleLazyLoadingViolationUsing(function ($model, $relation): void {

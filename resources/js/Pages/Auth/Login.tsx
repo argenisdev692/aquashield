@@ -180,10 +180,6 @@ export default function Login() {
      */
     const [email, setEmail] = useState(demoCredentials?.email ?? '');
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     /* Password transport */
     const {
         form: loginForm,
@@ -263,6 +259,9 @@ export default function Login() {
      * ref and a state setter, so their identity changing must not restart the
      * ceremony.
      */
+    /* oxlint-disable react-hooks/exhaustive-deps -- `passkey` is deliberately
+       excluded: its functions are recreated per render, and re-running would
+       restart the WebAuthn conditional-UI ceremony on every keystroke. */
     useEffect(() => {
         if (step !== 'password') {
             return;
@@ -281,6 +280,7 @@ export default function Login() {
             passkey.cancelAutofill();
         };
     }, [step]);
+    /* oxlint-enable react-hooks/exhaustive-deps */
 
     const onPasskeySignIn = (): void => {
         void passkey.signIn().then((result) => {
@@ -448,11 +448,7 @@ export default function Login() {
                         className="flex flex-col gap-4"
                         noValidate
                     >
-                        <FormErrorSummary
-                            errors={loginErrors}
-                            labels={fieldLabels}
-                            onFieldFocus={focusField}
-                        />
+                        <FormErrorSummary errors={loginErrors} labels={fieldLabels} />
 
                         <TextField
                             label="Email"
@@ -595,11 +591,7 @@ export default function Login() {
                         className="flex flex-col gap-4"
                         noValidate
                     >
-                        <FormErrorSummary
-                            errors={emailCodeErrors}
-                            labels={fieldLabels}
-                            onFieldFocus={focusField}
-                        />
+                        <FormErrorSummary errors={emailCodeErrors} labels={fieldLabels} />
 
                         {emailCodeError ? (
                             <p role="alert" className="text-sm font-medium text-aq-danger-strong">
@@ -650,11 +642,7 @@ export default function Login() {
                             </p>
                         ) : null}
 
-                        <FormErrorSummary
-                            errors={codeErrors}
-                            labels={fieldLabels}
-                            onFieldFocus={focusField}
-                        />
+                        <FormErrorSummary errors={codeErrors} labels={fieldLabels} />
 
                         <OtpField
                             label="Sign-in code"
@@ -693,11 +681,7 @@ export default function Login() {
                         className="flex flex-col gap-4"
                         noValidate
                     >
-                        <FormErrorSummary
-                            errors={authenticatorErrors}
-                            labels={fieldLabels}
-                            onFieldFocus={focusField}
-                        />
+                        <FormErrorSummary errors={authenticatorErrors} labels={fieldLabels} />
 
                         <TextField
                             label="Email"

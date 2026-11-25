@@ -82,8 +82,8 @@ it('rejects an unknown filter with 422', function (): void {
 });
 
 it('rejects uncapped role and permission arrays with 422', function (): void {
-    // Both arrays run one `exists` query per item; the max rule is what stops
-    // an oversized payload before it becomes an N-query request (OWASP API4).
+    // Both arrays are resolved in one `whereIn` each; the max rule still stops
+    // an oversized payload before the batched rule runs (OWASP API4).
     $roles = array_map(static fn (int $i): string => 'ROLE_'.$i, range(1, 51));
     $permissions = array_map(static fn (int $i): string => 'PERM_'.$i, range(1, 601));
 
@@ -93,6 +93,18 @@ it('rejects uncapped role and permission arrays with 422', function (): void {
             'email' => 'over@gmail.com',
             'roles' => $roles,
             'permissions' => $permissions,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['roles', 'permissions']);
+});
+
+it('rejects an unknown role or permission on create with 422', function (): void {
+    $this->actingAs($this->admin)
+        ->postJson('/users', [
+            'first_name' => 'Ghost',
+            'email' => 'ghost@gmail.com',
+            'roles' => ['NOT_A_ROLE'],
+            'permissions' => ['NOT_A_PERMISSION'],
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['roles', 'permissions']);

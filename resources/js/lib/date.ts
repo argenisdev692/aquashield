@@ -87,3 +87,25 @@ export function formatDateTime(
         ? value
         : new Intl.DateTimeFormat(locale, options).format(date);
 }
+
+/**
+ * Today's calendar date in the given zone as `YYYY-MM-DD`.
+ *
+ * The appointment wire value is a wall-clock date parsed in the appointment's
+ * region timezone, so a browser-local `toISOString()` can be a day ahead or
+ * behind at the boundary. `formatToParts` keeps the year/month/day assignment
+ * explicit instead of relying on a locale that formats with slashes.
+ */
+export function todayIso(timeZone?: string): string {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).formatToParts(new Date());
+
+    const value = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find((part) => part.type === type)?.value ?? '';
+
+    return `${value('year')}-${value('month')}-${value('day')}`;
+}

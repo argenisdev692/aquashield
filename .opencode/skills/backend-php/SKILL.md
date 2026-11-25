@@ -108,7 +108,8 @@ Strict mode is environment-split, and this is deliberate:
 
 ```php
 // AppServiceProvider::boot()
-Model::shouldBeStrict(! $this->app->isProduction());   // throw in local, log in prod
+Model::shouldBeStrict(! $this->app->isProduction());   // missing attributes / discarded input
+Model::preventLazyLoading();                           // keep prevention on in production too
 
 if ($this->app->isProduction()) {
     Model::handleLazyLoadingViolationUsing(function ($model, $relation): void {
@@ -118,8 +119,11 @@ if ($this->app->isProduction()) {
 ```
 
 Local throws so an N+1 is a stack trace you cannot ignore; production logs so a lazy load on a rarely
-hit branch degrades one request instead of a 500. This is what makes the N+1 rules enforceable rather
-than aspirational.
+hit branch degrades one request instead of a 500. **`shouldBeStrict(false)` alone does not log:** it
+sets `preventsLazyLoading = false`, and Laravel only invokes the violation callback while prevention
+is enabled — the callback would be dead code. Keep `preventLazyLoading()` on unconditionally and let
+the production callback replace the throw. This is what makes the N+1 rules enforceable rather than
+aspirational.
 
 **N+1 prevention — mandatory.**
 

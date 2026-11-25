@@ -85,7 +85,7 @@ function TableCaption({ className, ...props }: React.ComponentProps<'caption'>) 
     return (
         <caption
             data-slot="table-caption"
-            className={cn('mt-4 text-sm text-surface-500 dark:text-surface-400', className)}
+            className={cn('mt-4 text-sm text-surface-500 dark:text-surface-300', className)}
             {...props}
         />
     );

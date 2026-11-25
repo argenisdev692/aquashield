@@ -50,10 +50,6 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
         clearError(key);
     };
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     return (
         <AppLayout title="Edit user">
             <Head title={`Edit ${user.name}`} />
@@ -80,7 +76,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
                     <UserStatusBadge status={user.status} label={user.status_label} />
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={focusField} />
+                <FormErrorSummary errors={errors} />
 
                 <Card>
                     <CardHeader>

@@ -34,17 +34,27 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
     );
 }
 
+/**
+ * `overlayClassName` is a local addition to the generated primitive: the
+ * default scrim is deliberately faint so a routine dialog does not black out
+ * the page, but a blocking alert (the idle-session warning) needs the heavier
+ * `bg-aq-overlay/50` the command palette already uses. Customising it here
+ * keeps every other dialog on the default instead of teaching each call site
+ * to fight the primitive.
+ */
 function DialogContent({
     className,
+    overlayClassName,
     children,
     showCloseButton = true,
     ...props
 }: DialogPrimitive.Popup.Props & {
     showCloseButton?: boolean;
+    overlayClassName?: string;
 }) {
     return (
         <DialogPortal>
-            <DialogOverlay />
+            <DialogOverlay className={overlayClassName} />
             <DialogPrimitive.Popup
                 data-slot="dialog-content"
                 className={cn(
@@ -126,7 +136,7 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
         <DialogPrimitive.Description
             data-slot="dialog-description"
             className={cn(
-                'text-sm text-surface-500 dark:text-surface-400 *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
+                'text-sm text-surface-500 dark:text-surface-300 *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
                 className,
             )}
             {...props}

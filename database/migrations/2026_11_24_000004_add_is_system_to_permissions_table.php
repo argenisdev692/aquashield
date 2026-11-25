@@ -13,6 +13,11 @@ use Illuminate\Support\Facades\Schema;
  * Every row that exists before this migration came from RolePermissionSeeder,
  * so it is backfilled as system. Rows created through the AccessControl module
  * are custom and may be renamed/deleted while unassigned.
+ *
+ * This assumes the database had no hand-created permissions before the
+ * migration. On a database that did, those rows become system too (not
+ * renamable or deletable); verify the catalogue before running this migration
+ * on an existing installation.
  */
 return new class extends Migration
 {

@@ -71,7 +71,7 @@ export default function AvailabilityNotice({ date, region, onPickDate }: Availab
 
     if (isError) {
         return (
-            <p className="text-xs text-surface-500 dark:text-surface-400">
+            <p className="text-xs text-surface-500 dark:text-surface-300">
                 The company calendar could not be loaded, so this day is unchecked here.
             </p>
         );
@@ -121,7 +121,7 @@ export default function AvailabilityNotice({ date, region, onPickDate }: Availab
                             key={day.date}
                             type="button"
                             onClick={() => onPickDate(day.date)}
-                            className="rounded-full border border-surface-300 px-2 py-0.5 font-medium text-surface-800 transition-colors duration-150 hover:border-aq-accent hover:text-aq-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:border-surface-600 dark:text-surface-100"
+                            className="rounded-full border border-surface-300 px-2 py-0.5 font-medium text-surface-800 transition-colors duration-150 hover:border-aq-accent hover:text-aq-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:border-surface-600 dark:text-surface-100"
                         >
                             {formatIsoDate(day.date, 'en-US', {
                                 weekday: 'short',

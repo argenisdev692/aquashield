@@ -11,7 +11,7 @@ import { Button } from '@/Components/ui/button';
 import FormActions from '@/Components/Forms/FormActions';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
 import AppLayout from '@/Layouts/AppLayout';
-import { useZodForm } from '@/lib/forms';
+import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
 import AppointmentFormFields, {
     type AppointmentOptions,
 } from '@/Modules/LeadAppointment/components/AppointmentFormFields';
@@ -46,6 +46,8 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
         schema: appointmentFormSchema,
     });
 
+    useUnsavedChangesWarning(form.isDirty);
+
     return (
         <AppLayout title="New appointment">
             <Head title="New appointment" />
@@ -56,7 +58,7 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Schedule a visit
                         </h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             The office's availability windows and the single-crew daily cap are
                             checked on the server.
                         </p>

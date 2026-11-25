@@ -57,7 +57,7 @@ export default function DataTableColumns<TData extends RowData>({
         <Popover>
             <PopoverTrigger render={<Button type="button" variant="outline" size="toolbar" />}>
                 <Columns3
-                    className="size-3.5 text-surface-500 dark:text-surface-400"
+                    className="size-3.5 text-surface-500 dark:text-surface-300"
                     aria-hidden="true"
                 />
                 Columns
@@ -73,7 +73,7 @@ export default function DataTableColumns<TData extends RowData>({
                     <PopoverTitle className="text-sm font-semibold text-surface-900 dark:text-surface-0">
                         Columns
                     </PopoverTitle>
-                    <span className="text-[11px] text-surface-500 tabular-nums dark:text-surface-400">
+                    <span className="text-[11px] text-surface-500 tabular-nums dark:text-surface-300">
                         {visibleCount} of {leafColumns.length}
                     </span>
                 </div>

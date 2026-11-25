@@ -18,10 +18,11 @@ type BoardProps = {
     transitions: Record<string, string[]>;
     canUpdate: boolean;
     canCreate: boolean;
+    canView: boolean;
 };
 
 export default function LeadsBoard() {
-    const { columns, transitions, canUpdate, canCreate, errors } = usePage<
+    const { columns, transitions, canUpdate, canCreate, canView, errors } = usePage<
         BoardProps & { errors: Record<string, string> }
     >().props;
 
@@ -43,7 +44,7 @@ export default function LeadsBoard() {
                                 {total}
                             </span>
                         </div>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             Drag a card to a legal stage, or use the stage selector on the card for
                             keyboard access.
                         </p>
@@ -76,6 +77,7 @@ export default function LeadsBoard() {
                     columns={columns}
                     transitions={transitions}
                     canUpdate={canUpdate}
+                    canView={canView}
                     errors={errors}
                 />
             </div>

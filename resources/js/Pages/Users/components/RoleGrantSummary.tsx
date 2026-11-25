@@ -32,7 +32,7 @@ export default function RoleGrantSummary({ catalog, selectedRoles }: RoleGrantSu
             </p>
 
             {granted.length === 0 ? (
-                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                <p className="mt-1 text-xs text-surface-500 dark:text-surface-300">
                     No permissions.
                 </p>
             ) : (

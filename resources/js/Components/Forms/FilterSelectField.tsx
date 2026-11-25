@@ -255,6 +255,13 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                     >
                         <PopoverTrigger
                             id={id}
+                            /*
+                             * Base UI injects `aria-expanded` and `aria-controls`
+                             * on its trigger at runtime (PopoverTrigger.js), so
+                             * the required pair exists in the DOM. The rule reads
+                             * JSX only and cannot see component-injected props.
+                             */
+                            // oxlint-disable-next-line jsx-a11y/role-has-required-aria-props
                             role="combobox"
                             disabled={disabled}
                             aria-invalid={invalid || undefined}
@@ -270,7 +277,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                         >
                             <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
                                 {!hasSelection ? (
-                                    <span className="truncate text-surface-500 dark:text-surface-400">
+                                    <span className="truncate text-surface-500 dark:text-surface-300">
                                         {placeholder}
                                     </span>
                                 ) : multiple ? (
@@ -316,7 +323,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
 
                                 <CommandList>
                                     {loading ? (
-                                        <div className="flex items-center gap-2 px-3 py-6 text-sm text-surface-500 dark:text-surface-400">
+                                        <div className="flex items-center gap-2 px-3 py-6 text-sm text-surface-500 dark:text-surface-300">
                                             <Loader2
                                                 className="size-4 animate-spin motion-reduce:animate-none"
                                                 aria-hidden="true"
@@ -324,7 +331,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                                             {loadingText}
                                         </div>
                                     ) : waitingForQuery ? (
-                                        <p className="px-3 py-6 text-center text-sm text-surface-500 dark:text-surface-400">
+                                        <p className="px-3 py-6 text-center text-sm text-surface-500 dark:text-surface-300">
                                             Type at least {minQueryLength} characters to search.
                                         </p>
                                     ) : (
@@ -376,7 +383,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                         <button
                             type="button"
                             aria-label="Clear selection"
-                            className="absolute top-1/2 right-8 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-400 dark:hover:text-surface-0"
+                            className="absolute top-1/2 right-8 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-surface-500 transition-colors duration-150 hover:text-surface-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-accent dark:text-surface-300 dark:hover:text-surface-0"
                             onClick={() => emit([])}
                         >
                             <X className="size-4" aria-hidden="true" />

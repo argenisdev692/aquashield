@@ -160,7 +160,7 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) 
         <span
             data-slot="command-shortcut"
             className={cn(
-                'ml-auto text-xs tracking-widest text-surface-500 dark:text-surface-400 group-data-selected/command-item:text-surface-900 dark:group-data-selected/command-item:text-surface-0',
+                'ml-auto text-xs tracking-widest text-surface-500 dark:text-surface-300 group-data-selected/command-item:text-surface-900 dark:group-data-selected/command-item:text-surface-0',
                 className,
             )}
             {...props}

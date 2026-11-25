@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\AccessControl\Tests\Support\AccessControlFixtures;
 use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Permission\PermissionRegistrar;
@@ -88,8 +89,17 @@ it('forbids an export without the view permission', function (): void {
 });
 
 it('audits both export surfaces', function (): void {
-    $this->actingAs($this->admin)->get('/roles/export/csv')->assertOk();
-    $this->actingAs($this->admin)->get('/permissions/export/csv')->assertOk();
+    // The audit row is written when the rows are produced, so the streamed
+    // response has to be consumed for the assertion to be meaningful.
+    $this->actingAs($this->admin)
+        ->get('/roles/export/csv')
+        ->assertOk()
+        ->streamedContent();
+
+    $this->actingAs($this->admin)
+        ->get('/permissions/export/csv')
+        ->assertOk()
+        ->streamedContent();
 
     $this->assertDatabaseHas('activity_log', [
         'event' => 'role.exported',
@@ -99,4 +109,28 @@ it('audits both export surfaces', function (): void {
         'event' => 'permission.exported',
         'log_name' => 'access-control',
     ]);
+});
+
+it('rejects a permission PDF export above its lower cap', function (): void {
+    $rows = [];
+
+    for ($i = 0; $i < 1_991; $i++) {
+        $rows[] = [
+            'name' => 'LOAD_TEST_'.$i,
+            'guard_name' => 'web',
+            'is_system' => false,
+            'uuid' => sprintf('00000000-0000-7000-8000-%012d', $i),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    foreach (array_chunk($rows, 500) as $chunk) {
+        DB::table('permissions')->insert($chunk);
+    }
+
+    // 10 seeded + 1,991 = 2,001 > PDF cap of 2,000.
+    $this->actingAs($this->admin)
+        ->get('/permissions/export/pdf')
+        ->assertStatus(422);
 });

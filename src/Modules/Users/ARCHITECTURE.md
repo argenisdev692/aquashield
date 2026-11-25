@@ -70,6 +70,10 @@ PROGRESSIVE".
   and records `user.exported` before streaming.
 - Export mechanics: `Shared\Domain\Ports\ExportPort` only. The module ships
   `Exports/UserExportTransformer` + `resources/views/exports/users.blade.php`.
+- Access-array validation: `Shared\Application\Rules\ExistingRoleNames` /
+  `ExistingPermissionNames` resolve the whole selection in one `whereIn`. A
+  per-item `exists` is one query per item and the access forms legitimately
+  submit the full set (OWASP API4).
 - Audit: `Shared\Domain\Ports\AuditPort` (explicit actions). No `LogsActivity`
   on `User`: the auth model is updated by Fortify too, and passive logging there
   would mix self-service profile edits with administrative actions. Events:
@@ -91,9 +95,11 @@ PROGRESSIVE".
   creates an `active` verified account with `must_change_password=true` and no
   invitation mail. `EnsureAccountIsActive` keeps that account on the password
   tab until Fortify's update action clears the flag.
-- Suspension: `UpdateUsersStatusAction` revokes Sanctum tokens and database
-  sessions in the same transaction; `App\Http\Middleware\EnsureAccountIsActive`
-  terminates an existing web session on its next request.
+- Suspension: `UpdateUsersStatusAction` revokes access through
+  `Support/AccessRevocation` (Sanctum tokens, plus database sessions when that
+  is the session store) in the same transaction;
+  `App\Http\Middleware\EnsureAccountIsActive` terminates an existing web session
+  on its next request.
 - Real-time uniqueness: `GET /users/availability` is a throttled probe over the
   two allowlisted columns, including soft-deleted rows (their unique index still
   occupies the value). `Rule::unique(...)->ignore(...)` remains authoritative.
@@ -120,6 +126,8 @@ PROGRESSIVE".
   read out of the controller.
 - `Support/` — the ceiling has three consumers (policy + two assign actions, and
   the create/status actions), so it is a named rule, not a helper folder.
+  `AccessRevocation` is the same shape for "this account loses access now"
+  (delete, suspend, activate) — three consumers, one definition.
 - `Jobs/` — the invitation and the password-set link are external calls that
   must not run inside the request or the transaction.
 - `Actions/` — the lifecycle operations (`ActivateUserAction`,
@@ -189,8 +197,10 @@ advertised as equivalent to a passkey.
 - No custom cache. spatie/laravel-permission caches the permission registry for
   24 hours and flushes it on every role/permission change; a second cache would
   need a second invalidation path.
-- Exports are synchronous and capped at 10,000 rows. A queued export is a
-  separate feature; the cap reports rather than truncates.
+- Exports are synchronous. Tabular exports are capped at 10,000 rows and PDF at
+  500: dompdf renders the whole table inside the request, so the PDF cap is
+  lower on purpose. A queued export is a separate feature; the cap reports
+  rather than truncates.
 - Admin-created/changed accounts are e-mail-verified by the administrator. This
   is deliberate for an internal staff workflow; a verification wall would lock
   the new user out of the screens they were created for.
@@ -251,7 +261,6 @@ advertised as equivalent to a passkey.
 - `tests/Feature/Mail/MailTransportConfigTest.php` and
   `tests/Unit/Mail/CircuitBreakerTransportTest.php` — explicit timeouts and the
   mail circuit breaker.
-- `Tests/Unit/UserFilterDataTest.php` — the DataTable/export query contract.
 
 ## Mode review (the FLAT side of the OCP bet)
 

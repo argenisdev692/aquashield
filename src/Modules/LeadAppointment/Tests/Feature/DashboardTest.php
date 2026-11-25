@@ -42,16 +42,18 @@ it('zeroes the gated monthly counters for a user without permission', function (
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->has('columns', 0)
-            ->has('appointments', 0)
             ->where('stats.leads.current', 0)
             ->where('stats.leads.previous', 0)
             ->where('stats.inspections.current', 0)
             ->where('stats.won.current', 0)
             ->where('stats.appointments.current', 0)
+            ->where('canViewCalendar', false)
+            ->where('canViewAppointment', false)
+            ->where('canViewLead', false)
         );
 });
 
-it('renders the real lead columns and the current month of appointments', function (): void {
+it('renders the real lead columns and the monthly KPI snapshot', function (): void {
     $lead = LeadAppointmentFixtures::lead();
     $start = CarbonImmutable::now('America/Chicago')->startOfMonth()->addDay()->setTime(10, 0);
 
@@ -71,8 +73,6 @@ it('renders the real lead columns and the current month of appointments', functi
             ->has('columns', 7)
             ->where('columns.0.status', 'new')
             ->where('columns.0.total', 1)
-            ->has('appointments', 1)
-            ->where('appointments.0.lead_uuid', $lead->uuid)
             ->where('stats.leads.current', 1)
             ->where('stats.leads.previous', 0)
             ->where('stats.inspections.current', 1)
@@ -84,6 +84,9 @@ it('renders the real lead columns and the current month of appointments', functi
             ->where('canCreate', true)
             ->where('canUpdate', true)
             ->where('canScheduleAppointment', true)
+            ->where('canViewCalendar', true)
+            ->where('canViewAppointment', true)
+            ->where('canViewLead', true)
             ->has('options.kinds', 5)
             ->has('options.regions', 3)
             ->has('leadOptions.regions', 3)

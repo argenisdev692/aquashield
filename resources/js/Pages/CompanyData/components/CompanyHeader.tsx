@@ -65,7 +65,7 @@ export default function CompanyHeader({ company, assets, canUpdate }: CompanyHea
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <dt className="sr-only">Email</dt>
                                 <Mail
-                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-400"
+                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-300"
                                     aria-hidden="true"
                                 />
                                 <dd className="min-w-0 truncate">
@@ -83,7 +83,7 @@ export default function CompanyHeader({ company, assets, canUpdate }: CompanyHea
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <dt className="sr-only">Website</dt>
                                 <Globe
-                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-400"
+                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-300"
                                     aria-hidden="true"
                                 />
                                 <dd className="min-w-0 truncate">
@@ -103,7 +103,7 @@ export default function CompanyHeader({ company, assets, canUpdate }: CompanyHea
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <dt className="sr-only">Location</dt>
                                 <MapPin
-                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-400"
+                                    className="size-3.5 shrink-0 text-surface-500 dark:text-surface-300"
                                     aria-hidden="true"
                                 />
                                 <dd className="min-w-0 truncate text-surface-600 dark:text-surface-300">

@@ -48,9 +48,27 @@ const fetchCalendarDays = async (
 
     const payload = await requestJson(`/availability/calendar?${params.toString()}`, { signal });
 
-    return isRecord(payload) && Array.isArray(payload.data)
-        ? payload.data.filter(isCalendarDay)
-        : [];
+    if (!isRecord(payload) || !Array.isArray(payload.data)) {
+        throw new Error('The availability feed returned an unexpected payload.');
+    }
+
+    /*
+     * A day this client cannot read used to be filtered out — and a missing
+     * day in the month grid reads as "closed", which is a silent business
+     * change, not a display glitch. Fail instead: the panel's error boundary
+     * offers a retry, and a contract drift is visible.
+     */
+    const days: CalendarDay[] = [];
+
+    for (const day of payload.data) {
+        if (!isCalendarDay(day)) {
+            throw new Error('The availability feed returned a day this client cannot read.');
+        }
+
+        days.push(day);
+    }
+
+    return days;
 };
 
 const CALENDAR_PREFIX = ['lead-appointment', 'availability-calendar'] as const;

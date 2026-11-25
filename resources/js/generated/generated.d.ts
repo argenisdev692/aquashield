@@ -472,11 +472,28 @@ declare namespace Modules {
                     }[];
                     appointments: Modules.LeadAppointment.Application.Dtos.AppointmentData[];
                 };
+                export type CalendarEventData = {
+                    uuid: string;
+                    lead_uuid: string;
+                    customer_name: string;
+                    starts_at_local: string;
+                    timezone: string;
+                    status: string;
+                    kind: string;
+                    region: string;
+                };
+                export type CalendarEventsData = {
+                    data: Modules.LeadAppointment.Application.Dtos.CalendarEventData[];
+                };
                 export type CalendarFeedData = {
                     from: string;
                     to: string;
                     timezone: string;
                     days: Modules.LeadAppointment.Application.Dtos.CalendarDayData[];
+                };
+                export type CalendarWindowFilterData = {
+                    from: string;
+                    to: string;
                 };
                 export type CancelAppointmentData = {
                     reason: string;

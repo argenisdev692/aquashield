@@ -56,7 +56,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
     /**
      * @return list<LeadBoardColumnData>
      */
-    public function board(int $perStage = 50): array
+    public function board(int $perStage = 25): array
     {
         // One grouped count instead of one COUNT per stage. The card queries
         // stay per-stage because each column has its own LIMIT.

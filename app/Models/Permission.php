@@ -24,12 +24,8 @@ use Spatie\Permission\Models\Permission as SpatiePermission;
  * @property bool $is_system
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Collection<int, Permission> $permissions
- * @property-read int|null $permissions_count
  * @property-read Collection<int, Role> $roles
  * @property-read int|null $roles_count
- * @property-read Collection<int, Permission> $teams
- * @property-read int|null $teams_count
  * @property-read Collection<int, User> $users
  * @property-read int|null $users_count
  *
@@ -49,6 +45,11 @@ use Spatie\Permission\Models\Permission as SpatiePermission;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission withoutPermission($permissions)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission withoutRole($roles, ?string $guard = null)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission withoutTeam($teams)
+ *
+ * @property-read Collection<int, Permission> $permissions
+ * @property-read int|null $permissions_count
+ * @property-read Collection<int, Permission> $teams
+ * @property-read int|null $teams_count
  *
  * @mixin \Eloquent
  */

@@ -61,7 +61,7 @@ export default function ActivityLogShow() {
 
                 <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
                     <div>
-                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                             Recorded
                         </dt>
                         <dd className="mt-0.5 text-sm text-surface-900 tabular-nums dark:text-surface-0">
@@ -69,7 +69,7 @@ export default function ActivityLogShow() {
                         </dd>
                     </div>
                     <div>
-                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                             Causer
                         </dt>
                         <dd className="mt-0.5 text-sm text-surface-900 dark:text-surface-0">
@@ -77,7 +77,7 @@ export default function ActivityLogShow() {
                         </dd>
                     </div>
                     <div>
-                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                             Subject
                         </dt>
                         <dd className="mt-0.5 text-sm text-surface-900 dark:text-surface-0">
@@ -85,7 +85,7 @@ export default function ActivityLogShow() {
                         </dd>
                     </div>
                     <div>
-                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-400">
+                        <dt className="text-[11px] font-semibold tracking-wide text-surface-600 uppercase dark:text-surface-300">
                             Entry ID
                         </dt>
                         <dd className="mt-0.5 truncate font-mono text-xs text-surface-700 dark:text-surface-200">
@@ -118,7 +118,7 @@ export default function ActivityLogShow() {
                                 key={key}
                                 className="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-baseline sm:gap-4"
                             >
-                                <dt className="font-mono text-xs text-surface-600 sm:w-48 sm:shrink-0 dark:text-surface-400">
+                                <dt className="font-mono text-xs text-surface-600 sm:w-48 sm:shrink-0 dark:text-surface-300">
                                     {key}
                                 </dt>
                                 <dd className="min-w-0 break-words text-sm text-surface-900 dark:text-surface-0">

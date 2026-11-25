@@ -6,6 +6,8 @@ namespace Modules\AccessControl\Actions;
 
 use App\Models\Permission;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Shared\Domain\Ports\AuditPort;
@@ -30,7 +32,12 @@ final readonly class DeletePermissionAction
         DB::transaction(function () use ($permission, $actor): void {
             $locked = Permission::query()
                 ->whereKey($permission->getKey())
-                ->withCount(['roles', 'users'])
+                ->withCount([
+                    'roles',
+                    // The invariant is "assigned to any user", including a
+                    // soft-deleted one: the pivot row survives the soft delete.
+                    'users' => static fn (Builder $query): Builder => $query->withoutGlobalScope(SoftDeletingScope::class),
+                ])
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -55,7 +62,7 @@ final readonly class DeletePermissionAction
 
             $locked->delete();
 
-            $this->registrar->forgetCachedPermissions();
+            DB::afterCommit(fn () => $this->registrar->forgetCachedPermissions());
         });
     }
 }

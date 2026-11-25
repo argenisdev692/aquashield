@@ -93,9 +93,11 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::loginView(fn () => inertia('Auth/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => session('status'),
-            'demoCredentials' => app()->isLocal() ? [
+            // Local convenience only. The password lives in .env (never in
+            // source); when it is absent the demo block is not rendered.
+            'demoCredentials' => app()->isLocal() && config('seed.user_password') ? [
                 'email' => 'demo@aquashield.test',
-                'password' => 'demo01=',
+                'password' => config('seed.user_password'),
                 'name' => 'AquaShield Demo',
             ] : null,
         ]));

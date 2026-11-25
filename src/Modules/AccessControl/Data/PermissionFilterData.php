@@ -49,7 +49,15 @@ final class PermissionFilterData extends Data
     public static function fromRequest(Request $request): self
     {
         $filter = $request->input('filter');
-        $filter = is_array($filter) ? $filter : [];
+
+        if ($filter === '' || $filter === null) {
+            $filter = [];
+        } elseif (! is_array($filter)) {
+            // A malformed filter must not silently widen the list (fail-open).
+            throw ValidationException::withMessages([
+                'filter' => 'The filter must be an object.',
+            ]);
+        }
 
         $unknown = array_diff(array_map('strval', array_keys($filter)), self::ALLOWED_FILTERS);
 

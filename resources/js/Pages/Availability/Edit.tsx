@@ -52,7 +52,7 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Edit {exception.date}
                         </h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             Dates and windows are read in {timezone}. A closed day disappears from
                             the operator's bookable slots.
                         </p>

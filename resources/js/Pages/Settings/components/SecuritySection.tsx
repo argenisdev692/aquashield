@@ -329,11 +329,6 @@ export default function SecuritySection({
                                 <FormErrorSummary
                                     errors={confirmForm.errors}
                                     labels={{ code: 'Authentication code' }}
-                                    onFieldFocus={(field) =>
-                                        document
-                                            .querySelector<HTMLElement>(`[name="${field}"]`)
-                                            ?.focus()
-                                    }
                                 />
 
                                 <OtpField

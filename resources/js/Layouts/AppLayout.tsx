@@ -158,7 +158,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                     <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
                         <button
                             type="button"
-                            className="-ms-1 grid size-10 shrink-0 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none lg:hidden dark:text-surface-100 dark:hover:bg-surface-800"
+                            className="-ms-1 grid size-10 shrink-0 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none lg:hidden dark:text-surface-100 dark:hover:bg-surface-800"
                             aria-label="Open navigation"
                             aria-controls={navPanelId}
                             aria-expanded={navOpen}
@@ -189,7 +189,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                          */}
                         <button
                             type="button"
-                            className="hidden h-10 w-full max-w-md min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-content-border bg-surface-0 px-3 text-left text-sm text-surface-500 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:flex dark:bg-surface-800/60 dark:text-surface-300 dark:hover:bg-surface-800 motion-reduce:transition-none"
+                            className="hidden h-10 w-full max-w-md min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-content-border bg-surface-0 px-3 text-left text-sm text-surface-500 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus md:flex dark:bg-surface-800/60 dark:text-surface-300 dark:hover:bg-surface-800 motion-reduce:transition-none"
                             aria-label="Open command palette"
                             aria-keyshortcuts="Control+K Meta+K"
                             onClick={() => setPaletteOpen(true)}
@@ -204,7 +204,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                         <div className="ms-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
                             <button
                                 type="button"
-                                className="grid size-9 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 md:hidden dark:text-surface-100 dark:hover:bg-surface-800 motion-reduce:transition-none"
+                                className="grid size-9 place-items-center rounded-lg text-surface-700 transition-colors duration-150 hover:bg-surface-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus md:hidden dark:text-surface-100 dark:hover:bg-surface-800 motion-reduce:transition-none"
                                 aria-label="Open command palette"
                                 aria-keyshortcuts="Control+K Meta+K"
                                 onClick={() => setPaletteOpen(true)}

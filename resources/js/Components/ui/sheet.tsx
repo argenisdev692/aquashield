@@ -116,7 +116,7 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
     return (
         <SheetPrimitive.Description
             data-slot="sheet-description"
-            className={cn('text-sm text-surface-500 dark:text-surface-400', className)}
+            className={cn('text-sm text-surface-500 dark:text-surface-300', className)}
             {...props}
         />
     );

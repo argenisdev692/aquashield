@@ -63,6 +63,6 @@ final readonly class AssignRolesAction
             ], $actor, 'users');
 
             return $locked->refresh()->load(['roles:id,name', 'permissions:id,name']);
-        });
+        }, attempts: 3);
     }
 }

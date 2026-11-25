@@ -36,7 +36,7 @@ function DayCard({ day, today, interactive, onSelect }: DayCardProps) {
         'flex h-full min-h-20 w-full flex-col gap-1 rounded-lg border p-2 text-left transition-colors duration-150 motion-reduce:transition-none',
         day.is_open ? 'border-aq-success/30 bg-aq-success/5' : 'border-aq-danger/25 bg-aq-danger/5',
         interactive
-            ? 'hover:border-aq-accent/60 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:hover:bg-surface-800'
+            ? 'hover:border-aq-accent/60 hover:bg-surface-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:hover:bg-surface-800'
             : undefined,
         isToday ? 'ring-1 ring-aq-accent' : undefined,
     );
@@ -101,7 +101,7 @@ export default function AvailabilityMonthGrid({
 
     if (weeks.length === 0) {
         return (
-            <p className="rounded-lg border border-surface-200 px-4 py-10 text-center text-sm text-surface-500 dark:border-surface-800 dark:text-surface-400">
+            <p className="rounded-lg border border-surface-200 px-4 py-10 text-center text-sm text-surface-500 dark:border-surface-800 dark:text-surface-300">
                 No days in this window.
             </p>
         );
@@ -120,7 +120,7 @@ export default function AvailabilityMonthGrid({
                             <th
                                 key={weekday}
                                 scope="col"
-                                className="px-1 pb-1 text-left text-xs font-semibold text-surface-500 dark:text-surface-400"
+                                className="px-1 pb-1 text-left text-xs font-semibold text-surface-500 dark:text-surface-300"
                             >
                                 {weekday}
                             </th>

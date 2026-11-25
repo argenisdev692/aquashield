@@ -102,7 +102,7 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
                 logout();
             }}
             aria-label="Sign out"
-            className="grid size-9 shrink-0 place-items-center rounded-full border border-content-border bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
+            className="grid size-9 shrink-0 place-items-center rounded-full border border-content-border bg-surface-0 text-surface-700 transition-colors duration-200 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:bg-surface-800 dark:text-surface-100 dark:hover:bg-surface-700 motion-reduce:transition-none"
         >
             <LogOut className="size-4" aria-hidden="true" />
         </button>
@@ -134,7 +134,7 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
                             <button
                                 type="button"
                                 aria-label={`Account menu for ${user.name}`}
-                                className="rounded-full transition-shadow duration-150 hover:ring-2 hover:ring-aq-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none"
+                                className="rounded-full transition-shadow duration-150 hover:ring-2 hover:ring-aq-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none"
                             >
                                 {avatar('size-9')}
                             </button>
@@ -191,7 +191,7 @@ export default function SidebarAccountFooter({ collapsed = false }: SidebarAccou
              */}
             <Link
                 href={SETTINGS_NAV.href}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition-colors duration-150 hover:bg-surface-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none dark:hover:bg-surface-800"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 transition-colors duration-150 hover:bg-surface-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:hover:bg-surface-800"
             >
                 {avatar('size-9')}
 

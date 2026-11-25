@@ -389,7 +389,7 @@ function SearchableSelectFilter({
                         'truncate',
                         selected
                             ? 'text-surface-700 dark:text-surface-100'
-                            : 'text-surface-500 dark:text-surface-400',
+                            : 'text-surface-500 dark:text-surface-300',
                     )}
                 >
                     {selected?.label ?? allLabel}
@@ -529,7 +529,7 @@ function MultiSelectFilter({
                     type="button"
                     onClick={() => onChange([])}
                     disabled={disabled}
-                    className="self-start text-xs font-medium text-surface-500 transition-colors duration-150 hover:text-surface-800 motion-reduce:transition-none dark:text-surface-400 dark:hover:text-surface-100"
+                    className="self-start text-xs font-medium text-surface-500 transition-colors duration-150 hover:text-surface-800 motion-reduce:transition-none dark:text-surface-300 dark:hover:text-surface-100"
                 >
                     Clear {def.label.toLowerCase()}
                 </button>
@@ -632,7 +632,7 @@ function DateRangeFilter({
                 {def.label}
             </span>
             <div className="grid grid-cols-2 gap-2">
-                <label className="flex flex-col gap-1 text-xs text-surface-500 dark:text-surface-400">
+                <label className="flex flex-col gap-1 text-xs text-surface-500 dark:text-surface-300">
                     From
                     <Input
                         id={`filter-from-${uid}`}
@@ -644,7 +644,7 @@ function DateRangeFilter({
                         className="h-9 w-full py-1.5 text-sm tabular-nums dark:bg-surface-900"
                     />
                 </label>
-                <label className="flex flex-col gap-1 text-xs text-surface-500 dark:text-surface-400">
+                <label className="flex flex-col gap-1 text-xs text-surface-500 dark:text-surface-300">
                     To
                     <Input
                         id={`filter-to-${uid}`}
@@ -667,7 +667,7 @@ function DateRangeFilter({
                 >
                     <SelectTrigger className="h-9 w-full" aria-label={`${def.label} presets`}>
                         <Calendar
-                            className="size-3.5 text-surface-500 dark:text-surface-400"
+                            className="size-3.5 text-surface-500 dark:text-surface-300"
                             aria-hidden="true"
                         />
                         <SelectValue placeholder="Presets">
@@ -776,7 +776,7 @@ export default function CrudFilters({ defs, state, onChange, disabled = false }:
                             'size-3.5',
                             activeCount > 0
                                 ? 'text-aq-accent'
-                                : 'text-surface-500 dark:text-surface-400',
+                                : 'text-surface-500 dark:text-surface-300',
                         )}
                         aria-hidden="true"
                     />

@@ -610,12 +610,12 @@ export default function DataTableKit<TData extends RowData>({
                                 >
                                     {exporting === null ? (
                                         <Download
-                                            className="size-3.5 text-surface-500 dark:text-surface-400"
+                                            className="size-3.5 text-surface-500 dark:text-surface-300"
                                             aria-hidden="true"
                                         />
                                     ) : (
                                         <Loader2
-                                            className="size-3.5 animate-spin text-surface-500 motion-reduce:animate-none dark:text-surface-400"
+                                            className="size-3.5 animate-spin text-surface-500 motion-reduce:animate-none dark:text-surface-300"
                                             aria-hidden="true"
                                         />
                                     )}
@@ -798,7 +798,7 @@ export default function DataTableKit<TData extends RowData>({
                                                          */
                                                         'group/head -my-1 flex w-full items-center gap-1.5 rounded-sm py-1 transition-colors duration-150 motion-reduce:transition-none',
                                                         headerType,
-                                                        'hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:text-surface-100',
+                                                        'hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:hover:text-surface-100',
                                                         justifyClass(column?.align),
                                                         sorted !== false &&
                                                             'text-surface-900 dark:text-surface-0',

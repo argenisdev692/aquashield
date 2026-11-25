@@ -131,7 +131,7 @@ export default function CountryPicker({
                     <CommandList className="max-h-72">
                         <CommandEmpty>
                             No country matches “{search.trim()}”.
-                            <span className="mt-1 block text-xs text-surface-500 dark:text-surface-400">
+                            <span className="mt-1 block text-xs text-surface-500 dark:text-surface-300">
                                 Try a name, an ISO code or a calling code.
                             </span>
                         </CommandEmpty>
@@ -161,18 +161,18 @@ export default function CountryPicker({
 
                                 <span className="min-w-0 flex-1 truncate">{option.name}</span>
 
-                                <span className="shrink-0 font-mono text-[11px] tracking-wide text-surface-500 uppercase dark:text-surface-400">
+                                <span className="shrink-0 font-mono text-[11px] tracking-wide text-surface-500 uppercase dark:text-surface-300">
                                     {option.code}
                                 </span>
 
-                                <span className="w-11 shrink-0 text-right tabular-nums text-surface-500 dark:text-surface-400">
+                                <span className="w-11 shrink-0 text-right tabular-nums text-surface-500 dark:text-surface-300">
                                     +{option.callingCode}
                                 </span>
                             </CommandItem>
                         ))}
                     </CommandList>
 
-                    <div className="-mx-1 -mb-1 flex items-center justify-between rounded-b-xl border-t border-surface-200/80 px-3 py-2 text-[11px] text-surface-500 dark:border-surface-700 dark:text-surface-400">
+                    <div className="-mx-1 -mb-1 flex items-center justify-between rounded-b-xl border-t border-surface-200/80 px-3 py-2 text-[11px] text-surface-500 dark:border-surface-700 dark:text-surface-300">
                         <span>{COUNTRY_OPTIONS.length} countries</span>
                         <span aria-hidden="true">↑↓ move · ↵ select · esc close</span>
                     </div>

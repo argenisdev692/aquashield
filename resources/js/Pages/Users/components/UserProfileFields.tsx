@@ -29,6 +29,13 @@ interface UserProfileFieldsProps {
     disabled?: boolean;
 }
 
+/*
+ * `max` for the date-of-birth input. Module scope keeps `new Date()` out of
+ * render (an impure call React Compiler flags); a page session cannot outlive
+ * the day in any way that matters.
+ */
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
 const GENDER_OPTIONS = [
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' },
@@ -122,7 +129,7 @@ export default function UserProfileFields({
                 onChange={(value) => onChange('date_of_birth', value ?? '')}
                 onBlur={() => onBlur('date_of_birth')}
                 error={errors.date_of_birth}
-                max={new Date().toISOString().slice(0, 10)}
+                max={TODAY_ISO}
                 disabled={disabled}
             />
 

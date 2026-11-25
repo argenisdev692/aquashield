@@ -158,7 +158,7 @@ export default function ConfirmPasswordDialog({
                     {canUsePasskey && (
                         <div className="flex items-center gap-3" aria-hidden="true">
                             <span className="h-px grow bg-aq-shell-line" />
-                            <span className="text-xs text-surface-500 dark:text-surface-400">
+                            <span className="text-xs text-surface-500 dark:text-surface-300">
                                 or
                             </span>
                             <span className="h-px grow bg-aq-shell-line" />

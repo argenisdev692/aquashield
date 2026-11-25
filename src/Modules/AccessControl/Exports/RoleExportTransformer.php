@@ -21,6 +21,7 @@ final readonly class RoleExportTransformer
     public function __construct(
         private RoleFilterData $filters,
         private RoleListQuery $roles,
+        private int $limit,
     ) {}
 
     /**
@@ -51,7 +52,12 @@ final readonly class RoleExportTransformer
      */
     public function rows(): iterable
     {
-        foreach ($this->roles->builder($this->filters)->lazy(500) as $role) {
+        /*
+         * The controller checks the count before streaming; this limit is the
+         * race guard. A row inserted between the count and the stream must not
+         * push the file past the format ceiling.
+         */
+        foreach ($this->roles->builder($this->filters)->limit($this->limit)->lazy(500) as $role) {
             yield [
                 'name' => SpreadsheetCell::sanitise($role->name),
                 'type' => SpreadsheetCell::sanitise(RoleData::isSystemName((string) $role->name) ? 'System' : 'Custom'),

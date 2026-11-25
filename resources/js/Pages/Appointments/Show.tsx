@@ -45,11 +45,13 @@ type ShowProps = {
     canUpdate: boolean;
     canDelete: boolean;
     canRestore: boolean;
+    canViewLead: boolean;
     errors: Record<string, string>;
 };
 
 export default function AppointmentsShow() {
-    const { appointment, canUpdate, canDelete, canRestore, errors } = usePage<ShowProps>().props;
+    const { appointment, canUpdate, canDelete, canRestore, canViewLead, errors } =
+        usePage<ShowProps>().props;
     const deleted = appointment.deleted_at !== null;
 
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -91,7 +93,7 @@ export default function AppointmentsShow() {
                             </Tag>
                             {deleted && <Tag variant="destructive">Deleted</Tag>}
                         </div>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             {humanize(appointment.kind)} · {humanize(appointment.region)} ·{' '}
                             {appointment.uuid}
                         </p>
@@ -163,7 +165,7 @@ export default function AppointmentsShow() {
 
                         <dl className="grid gap-4 sm:grid-cols-2">
                             <div>
-                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                     Starts
                                 </dt>
                                 <dd className="mt-0.5 text-sm tabular-nums text-surface-900 dark:text-surface-0">
@@ -175,7 +177,7 @@ export default function AppointmentsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                     Ends
                                 </dt>
                                 <dd className="mt-0.5 text-sm tabular-nums text-surface-900 dark:text-surface-0">
@@ -187,7 +189,7 @@ export default function AppointmentsShow() {
                                 </dd>
                             </div>
                             <div className="sm:col-span-2">
-                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                     Property
                                 </dt>
                                 <dd className="mt-0.5 flex items-start gap-2 text-sm text-surface-700 dark:text-surface-200">
@@ -201,7 +203,7 @@ export default function AppointmentsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                     Timezone
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-700 dark:text-surface-200">
@@ -209,7 +211,7 @@ export default function AppointmentsShow() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                     Google event
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-700 dark:text-surface-200">
@@ -218,7 +220,7 @@ export default function AppointmentsShow() {
                             </div>
                             {appointment.previous_starts_at !== null && (
                                 <div className="sm:col-span-2">
-                                    <dt className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                                    <dt className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                         Previous slot
                                     </dt>
                                     <dd className="mt-0.5 text-sm tabular-nums text-surface-700 dark:text-surface-200">
@@ -233,7 +235,7 @@ export default function AppointmentsShow() {
                         </dl>
 
                         <div>
-                            <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                            <h3 className="text-xs font-medium text-surface-500 dark:text-surface-300">
                                 Notes
                             </h3>
                             <p className="mt-1 whitespace-pre-line text-sm text-surface-700 dark:text-surface-200">
@@ -254,30 +256,46 @@ export default function AppointmentsShow() {
                                 Contact
                             </h2>
 
-                            <a
-                                href={`tel:${appointment.customer_phone ?? ''}`}
-                                className="flex items-center gap-2 text-sm text-surface-700 transition-colors duration-150 hover:text-aq-accent dark:text-surface-200"
-                            >
-                                <Phone className="size-4 text-surface-400" aria-hidden="true" />
-                                {appointment.customer_phone ?? 'No phone'}
-                            </a>
+                            {appointment.customer_phone !== null ? (
+                                <a
+                                    href={`tel:${appointment.customer_phone}`}
+                                    className="flex items-center gap-2 text-sm text-surface-700 transition-colors duration-150 hover:text-aq-accent dark:text-surface-200"
+                                >
+                                    <Phone className="size-4 text-surface-400" aria-hidden="true" />
+                                    {appointment.customer_phone}
+                                </a>
+                            ) : (
+                                <span className="flex items-center gap-2 text-sm text-surface-500 dark:text-surface-300">
+                                    <Phone className="size-4 text-surface-400" aria-hidden="true" />
+                                    No phone
+                                </span>
+                            )}
 
-                            <a
-                                href={`mailto:${appointment.customer_email ?? ''}`}
-                                className="flex items-center gap-2 break-all text-sm text-surface-700 transition-colors duration-150 hover:text-aq-accent dark:text-surface-200"
-                            >
-                                <Mail className="size-4 text-surface-400" aria-hidden="true" />
-                                {appointment.customer_email ?? 'No email'}
-                            </a>
+                            {appointment.customer_email !== null ? (
+                                <a
+                                    href={`mailto:${appointment.customer_email}`}
+                                    className="flex items-center gap-2 break-all text-sm text-surface-700 transition-colors duration-150 hover:text-aq-accent dark:text-surface-200"
+                                >
+                                    <Mail className="size-4 text-surface-400" aria-hidden="true" />
+                                    {appointment.customer_email}
+                                </a>
+                            ) : (
+                                <span className="flex items-center gap-2 break-all text-sm text-surface-500 dark:text-surface-300">
+                                    <Mail className="size-4 text-surface-400" aria-hidden="true" />
+                                    No email
+                                </span>
+                            )}
 
-                            <Button
-                                render={<Link href={`/leads/${appointment.lead_uuid}`} />}
-                                nativeButton={false}
-                                variant="outline"
-                                className="mt-1 h-9"
-                            >
-                                Open lead
-                            </Button>
+                            {canViewLead && (
+                                <Button
+                                    render={<Link href={`/leads/${appointment.lead_uuid}`} />}
+                                    nativeButton={false}
+                                    variant="outline"
+                                    className="mt-1 h-9"
+                                >
+                                    Open lead
+                                </Button>
+                            )}
                         </section>
 
                         {!deleted && canUpdate && (
@@ -318,6 +336,7 @@ export default function AppointmentsShow() {
                                     <Button
                                         variant="outline"
                                         className="h-9 justify-start gap-2"
+                                        disabled={acting}
                                         onClick={() => setCancelOpen(true)}
                                     >
                                         <X className="size-4" aria-hidden="true" />

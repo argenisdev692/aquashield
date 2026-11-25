@@ -53,7 +53,7 @@ export default function AvailabilityCreate({ defaults, timezone }: AvailabilityC
                         <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Block or open a day
                         </h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
+                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-300">
                             A closure overrides the weekly hours for that date. The operator sees it
                             before booking a visit in {timezone}.
                         </p>

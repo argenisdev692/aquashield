@@ -39,9 +39,38 @@ it('emits https asset urls when the proxy terminates tls', function () {
 
     $html = (string) $response->getContent();
 
+    /*
+     * Read the concrete asset names from the manifest instead of naming one.
+     * The old assertion pinned a font file, so removing the unused Inter
+     * pipeline turned an HTTPS-proxy check into a font-existence check. The
+     * contract under test is "every build asset is absolute and HTTPS", and
+     * the two entry files are always present.
+     */
+    $manifest = json_decode(
+        (string) file_get_contents(public_path('build/manifest.json')),
+        true,
+        512,
+        JSON_THROW_ON_ERROR,
+    );
+
+    $entries = is_array($manifest) ? $manifest : [];
+
+    $jsEntry = $entries['resources/js/app.tsx'] ?? null;
+    $cssEntry = $entries['resources/css/app.css'] ?? null;
+
+    expect($jsEntry)->toBeArray();
+    expect($cssEntry)->toBeArray();
+
+    $jsFile = is_array($jsEntry) && is_string($jsEntry['file'] ?? null) ? $jsEntry['file'] : '';
+    $cssFile = is_array($cssEntry) && is_string($cssEntry['file'] ?? null) ? $cssEntry['file'] : '';
+
+    expect($jsFile)->not->toBe('');
+    expect($cssFile)->not->toBe('');
+
     expect($html)
         ->toContain('https://aquashield-production.up.railway.app/build/assets/')
-        ->toContain('https://aquashield-production.up.railway.app/build/assets/inter-500-normal-')
+        ->toContain('https://aquashield-production.up.railway.app/build/'.$jsFile)
+        ->toContain('https://aquashield-production.up.railway.app/build/'.$cssFile)
         ->not->toContain('http://aquashield-production.up.railway.app/build/assets/');
 });
 

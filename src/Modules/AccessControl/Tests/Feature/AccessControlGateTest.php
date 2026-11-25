@@ -96,3 +96,34 @@ it('forbids the permission export without its capability pair', function (): voi
         ->get('/permissions/export/csv')
         ->assertForbidden();
 });
+
+it('enforces every fine-grained permission while the gate still passes', function (): void {
+    $role = AccessControlFixtures::customRole('CLAIMS_REVIEWER');
+    $permission = AccessControlFixtures::customPermission('APPROVE_CLAIM');
+    $super = Role::findByName(RoleName::SuperAdmin->value, 'web');
+
+    /** @var list<array{string, string, PermissionName, array<string, mixed>}> $cases */
+    $cases = [
+        ['GET', '/roles/create', PermissionName::CreateRole, []],
+        ['GET', '/roles/'.$role->uuid.'/edit', PermissionName::UpdateRole, []],
+        ['PUT', '/roles/'.$role->uuid, PermissionName::UpdateRole, ['name' => 'RENAMED', 'permissions' => []]],
+        ['DELETE', '/roles/'.$role->uuid, PermissionName::DeleteRole, []],
+        ['GET', '/permissions', PermissionName::ViewAnyPermission, []],
+        ['POST', '/permissions', PermissionName::CreatePermission, ['name' => 'NEW_PERMISSION']],
+        ['PUT', '/permissions/'.$permission->uuid, PermissionName::UpdatePermission, ['name' => 'RENAMED_PERMISSION']],
+        ['DELETE', '/permissions/'.$permission->uuid, PermissionName::DeletePermission, []],
+        ['POST', '/access-control/cache-reset', PermissionName::UpdatePermission, []],
+    ];
+
+    foreach ($cases as [$method, $uri, $capability, $payload]) {
+        $super->revokePermissionTo($capability->value);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $this->actingAs($this->admin)
+            ->json($method, $uri, $payload)
+            ->assertForbidden();
+
+        $super->givePermissionTo($capability->value);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+});

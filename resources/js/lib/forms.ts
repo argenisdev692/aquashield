@@ -157,8 +157,23 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         const next: FormErrorMap = { ...clientErrors };
         delete next[field];
         setClientErrors(next);
-        // Scope the server-error clear to this field. Clearing the whole bag
-        // made typing in one input erase the error shown under another.
+
+        /*
+         * Scope the server-error clear to this field. Clearing the whole bag
+         * made typing in one input erase the error shown under another.
+         *
+         * A Fortify named bag (`updatePassword`, `updateProfileInformation`)
+         * arrives as `{ bag: { field: message } }`, so `clearErrors(field)` is
+         * a silent no-op for it — the flattening above would show the message
+         * forever. Clear the owning bag (the smallest scope Inertia exposes)
+         * before clearing the field itself.
+         */
+        for (const [bag, raw] of Object.entries(inertiaForm.errors ?? {})) {
+            if (isErrorBag(raw) && Object.hasOwn(raw, field)) {
+                inertiaForm.clearErrors(bag as FormDataKeys<T>);
+            }
+        }
+
         inertiaForm.clearErrors(field as FormDataKeys<T>);
     };
 

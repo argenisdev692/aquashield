@@ -12,9 +12,12 @@ interface TagProps {
 export function Tag({ variant = 'default', className, children }: TagProps) {
     const variants = {
         default: 'bg-surface-100 text-surface-700 dark:bg-surface-800 dark:text-surface-200',
-        success: 'bg-aq-success/10 text-aq-success dark:bg-aq-success/20',
-        warning: 'bg-aq-warning/10 text-aq-warning dark:bg-aq-warning/20',
-        destructive: 'bg-aq-danger/10 text-aq-danger dark:bg-aq-danger/20',
+        success:
+            'bg-aq-success/10 text-aq-success-strong dark:bg-aq-success/10 dark:text-aq-success-strong',
+        warning:
+            'bg-aq-warning/10 text-aq-warning-strong dark:bg-aq-warning/10 dark:text-aq-warning-strong',
+        destructive:
+            'bg-aq-danger/10 text-aq-danger-strong dark:bg-aq-danger/10 dark:text-aq-danger-strong',
         outline:
             'border border-surface-200 text-surface-600 dark:border-surface-800 dark:text-surface-300 dark:bg-transparent',
     };

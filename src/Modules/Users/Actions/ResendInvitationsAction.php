@@ -74,7 +74,7 @@ final readonly class ResendInvitationsAction
             }
 
             return [new BulkActionResultData($updated, $skipped), $invited];
-        });
+        }, attempts: 3);
 
         foreach ($invited as $user) {
             SendUserInvitationJob::dispatch(

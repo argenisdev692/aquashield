@@ -67,6 +67,13 @@ export default function SelectField({
                     <SelectTrigger
                         aria-describedby={describedBy}
                         aria-invalid={error ? true : undefined}
+                        /*
+                         * Forwarded to the real DOM trigger. Nine screens pass
+                         * `onBlur={() => touch('field')}` expecting the kit to
+                         * validate on blur; the prop used to be accepted and
+                         * dropped, so those call sites never ran.
+                         */
+                        onBlur={onBlur}
                         className={cn('h-10 w-full', error ? 'border-aq-danger' : undefined)}
                     >
                         <SelectValue placeholder={placeholder}>

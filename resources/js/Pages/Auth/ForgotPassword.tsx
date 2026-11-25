@@ -27,10 +27,6 @@ export default function ForgotPassword() {
         schema: forgotSchema,
     });
 
-    const focusField = (field: string): void => {
-        document.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
-    };
-
     const fieldLabels = {
         email: 'Email',
     };
@@ -56,7 +52,7 @@ export default function ForgotPassword() {
                 className="flex flex-col gap-4"
                 noValidate
             >
-                <FormErrorSummary errors={errors} labels={fieldLabels} onFieldFocus={focusField} />
+                <FormErrorSummary errors={errors} labels={fieldLabels} />
 
                 <TextField
                     label="Email"

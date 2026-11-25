@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 
@@ -32,11 +31,6 @@ export default defineConfig(({ command }) => ({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
-            fonts: [
-                bunny('Inter', {
-                    weights: [400, 500, 600, 700],
-                }),
-            ],
         }),
         react({
             babel: {
@@ -52,6 +46,15 @@ export default defineConfig(({ command }) => ({
         // Production bundles ship no source maps: they would expose the
         // original TSX to anyone with the asset URL (OWASP A02/A05 policy).
         sourcemap: false,
+        /*
+         * `BrandMarkScene` is a ~919 kB chunk on purpose: three.js + drei for
+         * the shield's water moment. It is `lazy()`-loaded and gated by an
+         * IntersectionObserver on the marketing page, so it reaches neither the
+         * app shell nor a signed-in route. Raising the limit keeps the one
+         * expected warning from training people to ignore build output; a new
+         * chunk above 1 MB is still reported.
+         */
+        chunkSizeWarningLimit: 1000,
     },
     server: {
         // Bind IPv4 explicitly. Vite otherwise writes `http://[::1]:5173`

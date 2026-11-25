@@ -74,11 +74,29 @@ const queryOptionsFor = (resource: string) =>
                 { signal },
             );
 
+            /*
+             * The controller always answers `{ views: [] }`, so a different
+             * envelope is a contract violation. Filtering quietly made a view
+             * the client could not parse vanish from the menu; the panel owns
+             * an error state and a retry, so fail into it.
+             */
             if (!isRecord(payload) || !Array.isArray(payload.views)) {
-                return [];
+                throw new Error('The saved-views endpoint returned an unexpected payload.');
             }
 
-            return payload.views.filter(isSavedView);
+            const views: SavedView[] = [];
+
+            for (const view of payload.views) {
+                if (!isSavedView(view)) {
+                    throw new Error(
+                        'The saved-views endpoint returned a view this client cannot read.',
+                    );
+                }
+
+                views.push(view);
+            }
+
+            return views;
         },
         staleTime: 60_000,
         gcTime: 300_000,

@@ -7,7 +7,6 @@ namespace Modules\LeadAppointment\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Response as InertiaResponse;
-use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Application\Queries\DashboardStatsQuery;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
@@ -29,37 +28,37 @@ final readonly class DashboardController
 {
     public function __construct(
         private LeadReader $leads,
-        private AppointmentReader $appointments,
         private DashboardStatsQuery $stats,
     ) {}
 
     public function __invoke(Request $request): InertiaResponse
     {
-        $canViewLeads = $request->user()?->can(Permission::ViewAnyLead->value) ?? false;
-        $canViewAppointments = $request->user()?->can(Permission::ViewAnyAppointment->value) ?? false;
-        $canCreateLead = $request->user()?->can(Permission::CreateLead->value) ?? false;
-        $canUpdateLead = $request->user()?->can(Permission::UpdateLead->value) ?? false;
-        $canScheduleAppointment = $request->user()?->can(Permission::CreateAppointment->value) ?? false;
+        $user = $request->user();
+        $canViewLeads = $user !== null && $user->can(Permission::ViewAnyLead->value);
+        $canViewAppointments = $user !== null && $user->can(Permission::ViewAnyAppointment->value);
+        $canViewAppointment = $user !== null && $user->can(Permission::ViewAppointment->value);
+        $canViewLead = $user !== null && $user->can(Permission::ViewLead->value);
+        $canCreateLead = $user !== null && $user->can(Permission::CreateLead->value);
+        $canUpdateLead = $user !== null && $user->can(Permission::UpdateLead->value);
+        $canScheduleAppointment = $user !== null
+            && $user->can(Permission::CreateAppointment->value)
+            && $user->can(Permission::ViewAnyLead->value);
         $columns = $canViewLeads ? $this->leads->board() : [];
 
         $timezone = Region::from((string) config('lead-appointment.default_region', Region::Houston->value))
             ->timezone();
         $now = CarbonImmutable::now($timezone);
-        $from = $now->startOfMonth();
-        $to = $now->endOfMonth();
-
-        $appointments = $canViewAppointments
-            ? $this->appointments->calendarBetween($from, $to, null)
-            : [];
 
         return inertia('Dashboard', [
             'columns' => $columns,
             'transitions' => LeadStatus::transitionMap(),
-            'appointments' => $appointments,
             'stats' => $this->stats->execute($now, $canViewLeads, $canViewAppointments),
             'canCreate' => $canCreateLead,
             'canUpdate' => $canUpdateLead,
             'canScheduleAppointment' => $canScheduleAppointment,
+            'canViewCalendar' => $canViewAppointments,
+            'canViewAppointment' => $canViewAppointment,
+            'canViewLead' => $canViewLead,
             'leadOptions' => [
                 'regions' => array_map(
                     static fn (Region $region): SelectOptionData => new SelectOptionData($region->value, $region->label()),

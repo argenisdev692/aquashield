@@ -255,7 +255,7 @@ export default function AddressSection({ apiKey, form, errors, onBlur }: Address
             </div>
 
             {hasCoordinates && (
-                <p className="text-xs text-surface-500 dark:text-surface-400">
+                <p className="text-xs text-surface-500 dark:text-surface-300">
                     Coordinates: {form.data.latitude?.toFixed(5)}, {form.data.longitude?.toFixed(5)}
                 </p>
             )}

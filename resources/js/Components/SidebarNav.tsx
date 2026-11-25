@@ -32,7 +32,7 @@ interface SidebarNavProps {
 
 const rowClass = (active: boolean, collapsed: boolean): string =>
     cn(
-        'group relative flex h-11 items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 motion-reduce:transition-none',
+        'group relative flex h-11 items-center gap-3 rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none',
         collapsed ? 'justify-center px-0' : 'px-3',
         active
             ? 'bg-aq-accent/10 text-surface-900 transition-colors duration-150 dark:bg-aq-accent/15 dark:text-surface-0'
@@ -74,7 +74,7 @@ export default function SidebarNav({
                         'h-4 w-4 shrink-0',
                         isItemActive
                             ? 'text-aq-accent-deep dark:text-aq-accent'
-                            : 'text-surface-400 dark:text-surface-500',
+                            : 'text-surface-500 dark:text-surface-300',
                     )}
                     aria-hidden="true"
                 />

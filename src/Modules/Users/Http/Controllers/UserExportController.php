@@ -39,6 +39,13 @@ final readonly class UserExportController
             abort(422, 'The export is limited to '.UserExportTransformer::MAX_ROWS.' rows. Narrow the filters.');
         }
 
+        // dompdf renders the whole table inside the request, so the PDF cap is
+        // lower than the streamed formats'. Refuse before rendering rather
+        // than producing a 500 halfway through the document.
+        if ($format === 'pdf' && $rowCount > UserExportTransformer::MAX_PDF_ROWS) {
+            abort(422, 'The PDF export is limited to '.UserExportTransformer::MAX_PDF_ROWS.' rows. Narrow the filters or use CSV/XLSX.');
+        }
+
         // Audit-worthy file access (OWASP A09). No search term, no email: the
         // filter summary is deliberately non-PII.
         $this->audit->log('user.exported', null, [

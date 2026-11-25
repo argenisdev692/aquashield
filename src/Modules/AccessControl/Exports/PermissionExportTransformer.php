@@ -17,6 +17,7 @@ final readonly class PermissionExportTransformer
     public function __construct(
         private PermissionFilterData $filters,
         private PermissionListQuery $permissions,
+        private int $limit,
     ) {}
 
     /**
@@ -48,7 +49,12 @@ final readonly class PermissionExportTransformer
      */
     public function rows(): iterable
     {
-        foreach ($this->permissions->builder($this->filters)->lazy(500) as $permission) {
+        /*
+         * The controller checks the count before streaming; this limit is the
+         * race guard. A row inserted between the count and the stream must not
+         * push the file past the format ceiling.
+         */
+        foreach ($this->permissions->builder($this->filters)->limit($this->limit)->lazy(500) as $permission) {
             yield [
                 'name' => SpreadsheetCell::sanitise($permission->name),
                 'group' => SpreadsheetCell::sanitise(PermissionName::group((string) $permission->name)),

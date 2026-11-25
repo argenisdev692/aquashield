@@ -194,7 +194,13 @@ use Spatie\Permission\Traits\HasRoles;
     'registered_by_id',
     'passkey_prompt_dismissed_at',
 ])]
-#[Hidden(['password', 'remember_token', 'google_id'])]
+#[Hidden([
+    'password',
+    'remember_token',
+    'google_id',
+    'two_factor_secret',
+    'two_factor_recovery_codes',
+])]
 class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */

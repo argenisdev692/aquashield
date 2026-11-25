@@ -77,7 +77,7 @@ final readonly class AssignRoleToUsersAction
             }
 
             return new BulkActionResultData($updated, $skipped);
-        });
+        }, attempts: 3);
     }
 
     private function skipReason(User $actor, User $user, string $role): ?string
