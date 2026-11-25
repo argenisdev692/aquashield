@@ -37,7 +37,7 @@ export default function AvailabilityCreate({ defaults, timezone }: AvailabilityC
         reason: '',
     };
 
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial,
         schema: availabilityExceptionSchema,
     });
@@ -50,9 +50,9 @@ export default function AvailabilityCreate({ defaults, timezone }: AvailabilityC
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Block or open a day
-                        </h1>
+                        </h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
                             A closure overrides the weekly hours for that date. The operator sees it
                             before booking a visit in {timezone}.
@@ -63,14 +63,14 @@ export default function AvailabilityCreate({ defaults, timezone }: AvailabilityC
                         render={<Link href="/availability" />}
                         nativeButton={false}
                         variant="outline"
-                        className="h-9 gap-2"
+                        size="header"
                     >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         Back to availability
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

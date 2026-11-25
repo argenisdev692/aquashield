@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityException;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -91,6 +92,72 @@ it('prefills the create form with the day the calendar supplied', function (): v
             ->where('defaults.date', '2026-12-24')
             ->where('defaults.is_available', false)
             ->has('timezone'));
+});
+
+it('redirects the calendar to the edit form when the day already has an exception', function (): void {
+    $exception = AvailabilityException::factory()->create(['date' => '2026-12-24']);
+
+    $this->actingAs($this->admin)
+        ->get('/availability/create?date=2026-12-24')
+        ->assertRedirect('/availability/'.$exception->uuid.'/edit');
+
+    // Any other day still opens the create form.
+    $this->actingAs($this->admin)
+        ->get('/availability/create?date=2026-12-25')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Availability/Create'));
+});
+
+it('keeps a create-only user on the create form for a day that already exists', function (): void {
+    $creator = User::factory()->create();
+    $creator->givePermissionTo(PermissionName::CreateAvailabilityException->value);
+
+    AvailabilityException::factory()->create(['date' => '2026-12-24']);
+
+    // Redirecting to the edit route would answer 403 for this caller, so the
+    // duplicate-day conflict has to stay a form error instead.
+    $this->actingAs($creator)
+        ->get('/availability/create?date=2026-12-24')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Availability/Create'));
+});
+
+it('opens the edit form for an update-only user', function (): void {
+    $editor = User::factory()->create();
+    $editor->givePermissionTo(PermissionName::UpdateAvailabilityException->value);
+
+    $exception = AvailabilityException::factory()->create(['date' => '2026-12-24']);
+
+    // The month grid links every day to the read route; the controller turns it
+    // into the edit form for a caller who may update but cannot create.
+    $this->actingAs($editor)
+        ->get('/availability/create?date=2026-12-24')
+        ->assertRedirect('/availability/'.$exception->uuid.'/edit');
+});
+
+it('sends an update-only user back when the day has no exception', function (): void {
+    $editor = User::factory()->create();
+    $editor->givePermissionTo(PermissionName::UpdateAvailabilityException->value);
+
+    // Nothing to edit and no permission to create: the create form's save would
+    // always answer 403, so the caller returns to the table with a reason.
+    $this->actingAs($editor)
+        ->get('/availability/create?date=2026-12-25')
+        ->assertRedirect('/availability')
+        ->assertSessionHas('status');
+});
+
+it('keeps the availability write gated on the create permission', function (): void {
+    $editor = User::factory()->create();
+    $editor->givePermissionTo(PermissionName::UpdateAvailabilityException->value);
+
+    $this->actingAs($editor)
+        ->post('/availability', [
+            'date' => '2026-12-24',
+            'is_available' => false,
+            'reason' => 'Holiday',
+        ])
+        ->assertForbidden();
 });
 
 it('renders the edit form for an existing exception', function (): void {
@@ -211,4 +278,33 @@ it('keeps the JSON resource and the page route on separate contracts', function 
         ->get('/availability')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('Availability/Index'));
+});
+
+it('reads back a deleted weekly window and restores it', function (): void {
+    $rule = LeadAppointmentFixtures::companyRule(3, '09:00', '13:00');
+    $rule->delete();
+
+    $this->actingAs($this->admin)
+        ->get('/availability')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rules', 0)
+            ->has('trashedRules', 1)
+            ->where('trashedRules.0.uuid', $rule->uuid)
+            ->where('trashedRules.0.day_of_week', 3)
+            ->where('trashedRules.0.start_time', '09:00')
+            ->where('canRestoreRule', true));
+
+    $this->actingAs($this->admin)
+        ->patch('/availability-rules/'.$rule->uuid.'/restore')
+        ->assertOk();
+
+    expect($rule->refresh()->trashed())->toBeFalse();
+
+    $this->actingAs($this->admin)
+        ->get('/availability')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rules', 1)
+            ->has('trashedRules', 0));
 });

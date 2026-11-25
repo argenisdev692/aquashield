@@ -25,6 +25,14 @@ declare module '@inertiajs/core' {
             cookieConsent: Shared.Application.DTOs.CookieConsentData | null;
 
             /**
+             * Every permission name the signed-in user holds, as
+             * `HandleInertiaRequests` reads them from the database. The shell
+             * filters its destinations by this list; it is a courtesy, never a
+             * control — every route re-checks the same permission.
+             */
+            authPermissions: string[];
+
+            /**
              * Non-null while the visitor is authenticated. The idle dialog
              * reads both numbers from the server policy; a guest page gets
              * `null` and mounts nothing.

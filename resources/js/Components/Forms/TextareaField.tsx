@@ -50,7 +50,7 @@ export default function TextareaField({
                     rows={rows}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={describedBy}
-                    className={error ? 'border-destructive' : undefined}
+                    className={error ? 'border-aq-danger' : undefined}
                 />
             )}
         </FieldShell>

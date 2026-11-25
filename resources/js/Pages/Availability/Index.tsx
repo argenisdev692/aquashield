@@ -7,14 +7,16 @@
  * refresh when a weekly rule changes. The weekly hours panel is Inertia state
  * with dialog writes, so a calendar day and its source never disagree.
  */
-import { Suspense, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarOff,
     CalendarPlus,
     ChevronLeft,
     ChevronRight,
+    Loader2,
     Pencil,
+    RefreshCw,
     RotateCcw,
     Trash2,
 } from 'lucide-react';
@@ -33,7 +35,9 @@ import AppLayout from '@/Layouts/AppLayout';
 import { formatIsoDate } from '@/lib/date';
 import { useBulkActions, useCrudTable } from '@/lib/crud-table';
 import { useVisitPending } from '@/lib/visits';
+import AvailabilityCalendarBoundary from '@/Modules/LeadAppointment/components/AvailabilityCalendarBoundary';
 import { useAvailabilityCalendarInvalidator } from '@/Modules/LeadAppointment/hooks/useAvailabilityCalendar';
+import { useSyncHolidays } from '@/Modules/LeadAppointment/hooks/useAvailabilityMutations';
 import AvailabilityCalendarPanel, {
     AvailabilityMonthSkeleton,
 } from './components/AvailabilityCalendarPanel';
@@ -43,13 +47,14 @@ import RulesPanel from './components/RulesPanel';
 
 type ExceptionRow = Modules.LeadAppointment.Application.Dtos.AvailabilityExceptionData;
 type Rule = Modules.LeadAppointment.Application.Dtos.AvailabilityRuleData;
-type Option = { value: string; label: string };
+type Option = Shared.Application.DTOs.SelectOptionData;
 
 interface AvailabilityIndexProps {
     [key: string]: unknown;
     rows: ExceptionRow[];
     total: number;
     rules: Rule[];
+    trashedRules: Rule[];
     options: {
         availability: Option[];
         sources: Option[];
@@ -73,6 +78,7 @@ interface AvailabilityIndexProps {
     canCreateRule: boolean;
     canUpdateRule: boolean;
     canDeleteRule: boolean;
+    canRestoreRule: boolean;
 }
 
 const dayLabel = (date: string): string =>
@@ -89,12 +95,93 @@ const windowLabel = (row: ExceptionRow): string =>
 const sourceTag = (source: string): 'default' | 'outline' =>
     source === 'holiday' ? 'default' : 'outline';
 
+/** One sentence for the sync result, without "1 days" or "0 rows replaced". */
+const describeSync = (
+    result: Modules.LeadAppointment.Application.Dtos.HolidayResyncResultData,
+): string => {
+    if (result.created === 0) {
+        return 'The federal calendar is already up to date for the current and next year.';
+    }
+
+    const days = result.created === 1 ? '1 holiday day' : `${result.created} holiday days`;
+    const replaced =
+        result.purged === 0
+            ? ''
+            : `, replacing ${result.purged === 1 ? '1 previous row' : `${result.purged} previous rows`}`;
+
+    return `${days} written for the current and next year${replaced}.`;
+};
+
+/*
+ * Module scope, not a render value: `useServerTable` treats `columns` as a
+ * model input, and the adapter's contract is that a page hands it a stable
+ * array (see lib/data-table.ts).
+ */
+const exceptionColumns: SimpleColumn<ExceptionRow>[] = [
+    {
+        accessorKey: 'date',
+        header: 'Day',
+        sortKey: 'date',
+        className: 'whitespace-nowrap',
+        cell: ({ row }): React.ReactNode => (
+            <span className="flex items-center gap-2 font-medium whitespace-nowrap text-surface-900 dark:text-surface-0">
+                {dayLabel(row.date)}
+                {row.deleted_at !== null && <Tag variant="destructive">Deleted</Tag>}
+            </span>
+        ),
+    },
+    {
+        accessorKey: 'is_available',
+        header: 'State',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        cell: ({ row }): React.ReactNode => (
+            <Tag variant={row.is_available ? 'success' : 'destructive'}>
+                {row.is_available ? 'Open' : 'Closed'}
+            </Tag>
+        ),
+    },
+    {
+        accessorKey: 'start_time',
+        header: 'Window',
+        sortable: false,
+        className: 'whitespace-nowrap tabular-nums text-surface-600 dark:text-surface-300',
+        hideBelow: 'sm',
+        cell: ({ row }): React.ReactNode => windowLabel(row),
+    },
+    {
+        accessorKey: 'reason',
+        header: 'Reason',
+        sortable: false,
+        className: 'max-w-[280px]',
+        cell: ({ value }): React.ReactNode => (
+            <span className="block truncate text-surface-600 dark:text-surface-300">
+                {typeof value === 'string' && value !== '' ? value : '—'}
+            </span>
+        ),
+    },
+    {
+        accessorKey: 'source',
+        header: 'Source',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        hideBelow: 'md',
+        cell: ({ value }): React.ReactNode =>
+            typeof value === 'string' ? (
+                <Tag variant={sourceTag(value)}>{value === 'holiday' ? 'Holiday' : 'Manual'}</Tag>
+            ) : (
+                '—'
+            ),
+    },
+];
+
 export default function AvailabilityIndex() {
     const page = usePage<AvailabilityIndexProps>();
     const {
         rows,
         total,
         rules,
+        trashedRules,
         options,
         calendar,
         canCreate,
@@ -108,10 +195,12 @@ export default function AvailabilityIndex() {
         canCreateRule,
         canUpdateRule,
         canDeleteRule,
+        canRestoreRule,
     } = page.props;
 
     const visitsPending = useVisitPending();
     const invalidateCalendar = useAvailabilityCalendarInvalidator();
+    const syncHolidays = useSyncHolidays();
     const table = useCrudTable({
         endpoint: '/availability',
         defaults: { sort: { field: 'date', order: 1 } },
@@ -128,12 +217,29 @@ export default function AvailabilityIndex() {
     const [pendingDelete, setPendingDelete] = useState<ExceptionRow | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [syncMessage, setSyncMessage] = useState<string | null>(null);
+    const [syncError, setSyncError] = useState<string | null>(null);
 
     const bounds = monthBounds(month);
 
+    /*
+     * The grid links every day to the same route, so the hint has to describe
+     * what this caller can actually do there. Everything stays server-checked:
+     * the controller only offers the edit form to a caller who may update, and
+     * only offers the form at all to a caller who may create.
+     */
+    const calendarHint =
+        canCreate && canUpdate
+            ? 'Select a day to block it or to open an extra window. A day that already has an exception opens its edit form.'
+            : canCreate
+              ? 'Select a day to block it or to open an extra window.'
+              : 'Select a day to change its exception. A day that follows the weekly hours needs the create permission.';
+
     const refresh = (): void => {
         invalidateCalendar();
-        router.reload({ only: ['rows', 'total', 'currentPage', 'perPage', 'rules'] });
+        router.reload({
+            only: ['rows', 'total', 'currentPage', 'perPage', 'rules', 'trashedRules'],
+        });
     };
 
     const changeMonth = (delta: number): void => {
@@ -148,65 +254,48 @@ export default function AvailabilityIndex() {
         router.visit(`/availability/create?date=${encodeURIComponent(date)}`);
     };
 
-    const columns: SimpleColumn<ExceptionRow>[] = [
-        {
-            accessorKey: 'date',
-            header: 'Day',
-            sortKey: 'date',
-            className: 'whitespace-nowrap',
-            cell: ({ row }): React.ReactNode => (
-                <span className="flex items-center gap-2 font-medium whitespace-nowrap text-surface-900 dark:text-surface-0">
-                    {dayLabel(row.date)}
-                    {row.deleted_at !== null && <Tag variant="destructive">Deleted</Tag>}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'is_available',
-            header: 'State',
-            sortable: false,
-            className: 'whitespace-nowrap',
-            cell: ({ row }): React.ReactNode => (
-                <Tag variant={row.is_available ? 'success' : 'destructive'}>
-                    {row.is_available ? 'Open' : 'Closed'}
-                </Tag>
-            ),
-        },
-        {
-            accessorKey: 'start_time',
-            header: 'Window',
-            sortable: false,
-            className: 'whitespace-nowrap tabular-nums text-surface-600 dark:text-surface-300',
-            hideBelow: 'sm',
-            cell: ({ row }): React.ReactNode => windowLabel(row),
-        },
-        {
-            accessorKey: 'reason',
-            header: 'Reason',
-            sortable: false,
-            className: 'max-w-[280px]',
-            cell: ({ value }): React.ReactNode => (
-                <span className="block truncate text-surface-600 dark:text-surface-300">
-                    {typeof value === 'string' && value !== '' ? value : '—'}
-                </span>
-            ),
-        },
-        {
-            accessorKey: 'source',
-            header: 'Source',
-            sortable: false,
-            className: 'whitespace-nowrap',
-            hideBelow: 'md',
-            cell: ({ value }): React.ReactNode =>
-                typeof value === 'string' ? (
-                    <Tag variant={sourceTag(value)}>
-                        {value === 'holiday' ? 'Holiday' : 'Manual'}
-                    </Tag>
-                ) : (
-                    '—'
-                ),
-        },
-    ];
+    const runHolidaySync = (): void => {
+        setSyncMessage(null);
+        setSyncError(null);
+
+        syncHolidays.mutate(undefined, {
+            onSuccess: (result) => {
+                setSyncMessage(describeSync(result));
+                refresh();
+            },
+            onError: (cause) => {
+                setSyncError(
+                    cause instanceof Error && cause.message !== ''
+                        ? cause.message
+                        : 'The holiday calendar could not be synced. Try again.',
+                );
+            },
+        });
+    };
+
+    const confirmDelete = (): void => {
+        if (pendingDelete === null) {
+            return;
+        }
+
+        setDeleting(true);
+        setDeleteError(null);
+
+        router.delete(`/availability/${pendingDelete.uuid}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                invalidateCalendar();
+                setPendingDelete(null);
+            },
+            // The dialog stays open on failure: the message below it is the
+            // only feedback the operator gets, and closing it would throw the
+            // reason away (onFinish runs after onError, always).
+            onError: (errors) => {
+                setDeleteError(errors.date ?? 'The day could not be removed. Try again.');
+            },
+            onFinish: () => setDeleting(false),
+        });
+    };
 
     const filters: CrudFilterDef[] = [
         {
@@ -235,27 +324,6 @@ export default function AvailabilityIndex() {
 
     const exportFormats: ExportFormat[] = canExport ? ['csv', 'xlsx', 'pdf'] : [];
 
-    const confirmDelete = (): void => {
-        if (pendingDelete === null) {
-            return;
-        }
-
-        setDeleting(true);
-        setDeleteError(null);
-
-        router.delete(`/availability/${pendingDelete.uuid}`, {
-            preserveScroll: true,
-            onSuccess: invalidateCalendar,
-            onError: (errors) => {
-                setDeleteError(errors.date ?? 'The day could not be removed. Try again.');
-            },
-            onFinish: () => {
-                setDeleting(false);
-                setPendingDelete(null);
-            },
-        });
-    };
-
     return (
         <AppLayout title="Availability">
             <Head title="Availability" />
@@ -270,10 +338,29 @@ export default function AvailabilityIndex() {
                     <div className="flex flex-wrap items-center gap-2">
                         {canCreate && (
                             <>
+                                {/* The route re-checks CREATE_AVAILABILITY_EXCEPTION and
+                                    throttles at 10/min — this is a convenience, not the gate. */}
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="h-9 gap-2"
+                                    size="header"
+                                    onClick={runHolidaySync}
+                                    disabled={syncHolidays.isPending || visitsPending}
+                                >
+                                    {syncHolidays.isPending ? (
+                                        <Loader2
+                                            className="size-4 animate-spin motion-reduce:animate-none"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <RefreshCw className="size-4" aria-hidden="true" />
+                                    )}
+                                    {syncHolidays.isPending ? 'Syncing…' : 'Sync holidays'}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="header"
                                     onClick={() => setClosureOpen(true)}
                                 >
                                     <CalendarOff className="size-4" aria-hidden="true" />
@@ -282,7 +369,7 @@ export default function AvailabilityIndex() {
                                 <Button
                                     render={<Link href="/availability/create" />}
                                     nativeButton={false}
-                                    className="h-9 gap-2"
+                                    size="header"
                                 >
                                     <CalendarPlus className="size-4" aria-hidden="true" />
                                     New exception
@@ -291,6 +378,24 @@ export default function AvailabilityIndex() {
                         )}
                     </div>
                 </div>
+
+                {syncMessage !== null && (
+                    <p
+                        role="status"
+                        className="rounded-lg border border-aq-success/40 bg-aq-success/5 px-3 py-2 text-sm text-surface-700 dark:text-surface-200"
+                    >
+                        {syncMessage}
+                    </p>
+                )}
+
+                {syncError !== null && (
+                    <p
+                        role="alert"
+                        className="rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
+                    >
+                        {syncError}
+                    </p>
+                )}
 
                 <section
                     aria-labelledby="availability-calendar-heading"
@@ -324,7 +429,7 @@ export default function AvailabilityIndex() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="h-8"
+                                size="sm"
                                 onClick={goToCurrentMonth}
                             >
                                 This month
@@ -350,15 +455,33 @@ export default function AvailabilityIndex() {
 
                     <div className="p-3">
                         {canViewCalendar ? (
-                            <Suspense fallback={<AvailabilityMonthSkeleton />}>
+                            /*
+                             * The key is the visible window, not a mount token:
+                             * while the boundary is in its failed state it does
+                             * not render its children, so without a key a month
+                             * change would keep showing the old error instead of
+                             * asking the server for the new month.
+                             */
+                            <AvailabilityCalendarBoundary
+                                key={`${bounds.from}:${bounds.to}`}
+                                fallback={<AvailabilityMonthSkeleton />}
+                            >
                                 <AvailabilityCalendarPanel
                                     from={bounds.from}
                                     to={bounds.to}
                                     today={calendar.today}
-                                    canEdit={canCreate}
+                                    /*
+                                     * Clicking a day opens `/availability/create`,
+                                     * which the controller turns into the edit
+                                     * form when a row exists. That route now
+                                     * accepts CREATE or UPDATE, so an update-only
+                                     * editor gets the edit form instead of a 403;
+                                     * the write itself stays on CREATE.
+                                     */
+                                    canEdit={canCreate || canUpdate}
                                     onSelectDate={handleSelectDate}
                                 />
-                            </Suspense>
+                            </AvailabilityCalendarBoundary>
                         ) : (
                             <p className="px-2 py-8 text-center text-sm text-surface-500 dark:text-surface-400">
                                 The month grid needs the availability-rule permission. The table
@@ -367,9 +490,9 @@ export default function AvailabilityIndex() {
                         )}
                     </div>
 
-                    {canCreate && canViewCalendar && (
+                    {canViewCalendar && (canCreate || canUpdate) && (
                         <p className="px-4 pb-3 text-xs text-surface-500 dark:text-surface-400">
-                            Select a day to block it or to open an extra window.
+                            {calendarHint}
                         </p>
                     )}
                 </section>
@@ -377,16 +500,18 @@ export default function AvailabilityIndex() {
                 {canViewCalendar && (
                     <RulesPanel
                         rules={rules}
+                        trashedRules={trashedRules}
                         canCreate={canCreateRule}
                         canUpdate={canUpdateRule}
                         canDelete={canDeleteRule}
+                        canRestore={canRestoreRule}
                         onChanged={refresh}
                     />
                 )}
 
                 <DataTableKit
                     {...table.kitProps}
-                    columns={columns}
+                    columns={exceptionColumns}
                     data={rows}
                     total={total}
                     loading={visitsPending || bulk.processing || deleting}
@@ -458,7 +583,10 @@ export default function AvailabilityIndex() {
                                                     <Trash2 className="size-4" aria-hidden="true" />
                                                 ),
                                                 destructive: true,
-                                                onClick: () => setPendingDelete(row),
+                                                onClick: () => {
+                                                    setDeleteError(null);
+                                                    setPendingDelete(row);
+                                                },
                                             },
                                         ]
                                       : []),
@@ -466,7 +594,7 @@ export default function AvailabilityIndex() {
                         />
                     )}
                     emptyTitle="No availability exceptions"
-                    emptyDescription="Holidays appear after the sync; a closure reported by the crew appears here as soon as it is saved."
+                    emptyDescription="Holidays appear after a sync; a closure reported by the crew appears here as soon as it is saved."
                 />
             </div>
 

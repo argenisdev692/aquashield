@@ -2,6 +2,9 @@
  * DateField — calendar date whose wire value is an ISO date (`YYYY-MM-DD`),
  * never a JavaScript `Date`. The browser control displays a localised string;
  * the form stores the date the server can validate without a timezone shift.
+ *
+ * The render-prop form of `FieldShell` is load-bearing: it is what hands the
+ * control the `aria-describedby` that points at this field's own hint/error.
  */
 import { useId } from 'react';
 import FieldShell from './FieldShell';
@@ -39,21 +42,24 @@ export default function DateField({
 
     return (
         <FieldShell id={id} label={label} name={name} error={error} hint={hint} required={required}>
-            <Input
-                id={id}
-                name={name}
-                type="date"
-                value={value ?? ''}
-                min={min}
-                max={max}
-                onChange={(event) =>
-                    onChange(event.target.value === '' ? null : event.target.value)
-                }
-                onBlur={onBlur}
-                disabled={disabled}
-                aria-invalid={error ? true : undefined}
-                className={error ? 'border-aq-danger' : undefined}
-            />
+            {({ describedBy, invalid }) => (
+                <Input
+                    id={id}
+                    name={name}
+                    type="date"
+                    value={value ?? ''}
+                    min={min}
+                    max={max}
+                    onChange={(event) =>
+                        onChange(event.target.value === '' ? null : event.target.value)
+                    }
+                    onBlur={onBlur}
+                    disabled={disabled}
+                    aria-invalid={invalid || undefined}
+                    aria-describedby={describedBy}
+                    className={error ? 'border-aq-danger' : undefined}
+                />
+            )}
         </FieldShell>
     );
 }

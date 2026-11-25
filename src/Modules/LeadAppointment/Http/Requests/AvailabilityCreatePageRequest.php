@@ -9,9 +9,17 @@ use Shared\Domain\Enums\Permission;
 
 final class AvailabilityCreatePageRequest extends FormRequest
 {
+    /**
+     * This is the read behind the month grid's day link, which both an editor
+     * and a creator use. The controller decides which branch each capability
+     * gets; the write stays on `CreateAvailabilityException`.
+     */
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::CreateAvailabilityException->value) ?? false;
+        return $this->user()?->canAny([
+            Permission::CreateAvailabilityException->value,
+            Permission::UpdateAvailabilityException->value,
+        ]) ?? false;
     }
 
     /**

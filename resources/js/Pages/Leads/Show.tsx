@@ -123,9 +123,9 @@ export default function LeadsShow({
                                 Leads
                             </Link>
                             <span className="text-surface-300 dark:text-surface-600">/</span>
-                            <h1 className="truncate text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                            <h2 className="truncate text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                                 {lead.full_name}
-                            </h1>
+                            </h2>
                             {lead.is_emergency && <Tag variant="destructive">Emergency</Tag>}
                             {lead.is_spam && (
                                 <Tag variant="warning">Spam score {lead.spam_score}</Tag>
@@ -394,10 +394,7 @@ export default function LeadsShow({
                             Log activity
                         </h2>
 
-                        <FormErrorSummary
-                            errors={activityForm.errors}
-                            onFieldFocus={() => activityForm.focusFirstError()}
-                        />
+                        <FormErrorSummary errors={activityForm.errors} />
 
                         <form
                             onSubmit={(event) => {

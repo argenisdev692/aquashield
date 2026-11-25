@@ -7,15 +7,14 @@
  * cache, so an open month cannot keep showing the old schedule.
  */
 import { useState } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import SelectField from '@/Components/Forms/SelectField';
 import TimeField from '@/Components/Forms/TimeField';
 import { FormDialog } from '@/Components/Forms/FormOverlay';
 import { Button } from '@/Components/ui/button';
 import { Tag } from '@/Components/ui/tag';
 import { CrudDialog } from '@/Components/DataTable';
-import { HttpRequestError } from '@/lib/http';
-import { useZodForm } from '@/lib/forms';
+import { NO_SERVER_ERROR, serverErrorFrom, useZodForm, type ServerErrorState } from '@/lib/forms';
 import { useAvailabilityMutations } from '@/Modules/LeadAppointment/hooks/useAvailabilityMutations';
 import {
     availabilityRuleSchema,
@@ -24,6 +23,10 @@ import {
 } from '@/Modules/LeadAppointment/schemas/availability';
 
 type Rule = Modules.LeadAppointment.Application.Dtos.AvailabilityRuleData;
+
+/** The weekday a stored rule points at, or Monday for a row we cannot map. */
+const dayOptionFor = (dayOfWeek: number): AvailabilityRuleFormValues['day_of_week'] =>
+    DAY_OPTIONS.find((option) => Number(option.value) === dayOfWeek)?.value ?? '1';
 
 interface RuleDialogProps {
     open: boolean;
@@ -34,24 +37,19 @@ interface RuleDialogProps {
 
 function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
     const { saveRule } = useAvailabilityMutations();
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [serverError, setServerError] = useState<string | null>(null);
+    const [serverError, setServerError] = useState<ServerErrorState>(NO_SERVER_ERROR);
 
     const initial: AvailabilityRuleFormValues = {
-        day_of_week:
-            rule === null
-                ? '1'
-                : (String(rule.day_of_week) as AvailabilityRuleFormValues['day_of_week']),
+        day_of_week: rule === null ? '1' : dayOptionFor(rule.day_of_week),
         start_time: rule?.start_time ?? '08:00',
         end_time: rule?.end_time ?? '17:00',
     };
 
     const { form, errors, submit, touch } = useZodForm({ initial, schema: availabilityRuleSchema });
-    const mergedErrors = { ...errors, ...fieldErrors };
+    const mergedErrors = { ...errors, ...serverError.fieldErrors };
 
     const onSubmit = (): void => {
-        setServerError(null);
-        setFieldErrors({});
+        setServerError(NO_SERVER_ERROR);
 
         submit(() => {
             void saveRule
@@ -62,18 +60,8 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
                     onSaved();
                 })
                 .catch((caught: unknown) => {
-                    if (caught instanceof HttpRequestError) {
-                        const fields = { ...caught.fieldErrors };
-                        setFieldErrors(fields);
-                        setServerError(Object.keys(fields).length === 0 ? caught.message : null);
-
-                        return;
-                    }
-
                     setServerError(
-                        caught instanceof Error && caught.message !== ''
-                            ? caught.message
-                            : 'The weekly window could not be saved. Try again.',
+                        serverErrorFrom(caught, 'The weekly window could not be saved. Try again.'),
                     );
                 });
         });
@@ -89,14 +77,13 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel={rule === null ? 'Add window' : 'Save window'}
-            guardDirty={false}
         >
-            {serverError !== null && (
+            {serverError.serverError !== null && (
                 <p
                     role="alert"
                     className="rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
                 >
-                    {serverError}
+                    {serverError.serverError}
                 </p>
             )}
 
@@ -150,24 +137,30 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
 
 interface RulesPanelProps {
     rules: Rule[];
+    /** Soft-deleted windows, read back so a delete is not one-way in the UI. */
+    trashedRules: Rule[];
     canCreate: boolean;
     canUpdate: boolean;
     canDelete: boolean;
+    canRestore: boolean;
     onChanged: () => void;
 }
 
 export default function RulesPanel({
     rules,
+    trashedRules,
     canCreate,
     canUpdate,
     canDelete,
+    canRestore,
     onChanged,
 }: RulesPanelProps) {
-    const { deleteRule } = useAvailabilityMutations();
+    const { deleteRule, restoreRule } = useAvailabilityMutations();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<Rule | null>(null);
     const [pendingDelete, setPendingDelete] = useState<Rule | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [restoreError, setRestoreError] = useState<string | null>(null);
 
     const openCreate = (): void => {
         setEditing(null);
@@ -200,6 +193,21 @@ export default function RulesPanel({
         );
     };
 
+    const restore = (rule: Rule): void => {
+        setRestoreError(null);
+
+        void restoreRule.mutateAsync(rule.uuid).then(
+            () => onChanged(),
+            (caught: unknown) => {
+                setRestoreError(
+                    caught instanceof Error && caught.message !== ''
+                        ? caught.message
+                        : 'The window could not be restored. Try again.',
+                );
+            },
+        );
+    };
+
     return (
         <section
             aria-labelledby="weekly-hours-heading"
@@ -219,12 +227,7 @@ export default function RulesPanel({
                 </div>
 
                 {canCreate && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8 gap-2"
-                        onClick={openCreate}
-                    >
+                    <Button type="button" variant="outline" onClick={openCreate}>
                         <Plus className="size-4" aria-hidden="true" />
                         Add window
                     </Button>
@@ -300,6 +303,62 @@ export default function RulesPanel({
                             ))}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/*
+             * A window delete is soft (`AvailabilityRule` uses SoftDeletes) and
+             * the restore endpoint already existed, so hiding the trashed rows
+             * made the dialog's "you can add the window again" the only path
+             * back. The list is short by nature (7 days), so it needs no table.
+             */}
+            {canRestore && trashedRules.length > 0 && (
+                <div className="border-t border-surface-200 px-4 py-3 dark:border-surface-800">
+                    <h3 className="text-sm font-semibold text-surface-900 dark:text-surface-0">
+                        Deleted weekly windows
+                    </h3>
+                    <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+                        These weekdays stay closed until a window is restored.
+                    </p>
+
+                    {restoreError !== null && (
+                        <p
+                            role="alert"
+                            className="mt-2 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
+                        >
+                            {restoreError}
+                        </p>
+                    )}
+
+                    <ul className="mt-2 flex flex-col gap-1.5">
+                        {trashedRules.map((rule) => (
+                            <li
+                                key={rule.uuid}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-surface-200 px-3 py-2 text-sm dark:border-surface-700"
+                            >
+                                <span className="flex flex-wrap items-center gap-2 text-surface-600 dark:text-surface-300">
+                                    <span className="font-medium text-surface-800 dark:text-surface-100">
+                                        {rule.day_label}
+                                    </span>
+                                    <span className="tabular-nums">
+                                        {rule.start_time}–{rule.end_time}
+                                    </span>
+                                    <Tag variant="destructive">Deleted</Tag>
+                                </span>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={restoreRule.isPending}
+                                    onClick={() => restore(rule)}
+                                >
+                                    <RotateCcw className="size-3.5" aria-hidden="true" />
+                                    Restore
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
 

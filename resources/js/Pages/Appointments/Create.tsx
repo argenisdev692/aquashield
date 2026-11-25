@@ -41,7 +41,7 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
         notes: '',
     };
 
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial,
         schema: appointmentFormSchema,
     });
@@ -53,9 +53,9 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Schedule a visit
-                        </h1>
+                        </h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
                             The office's availability windows and the single-crew daily cap are
                             checked on the server.
@@ -73,7 +73,7 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

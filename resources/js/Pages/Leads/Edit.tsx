@@ -78,7 +78,7 @@ export default function LeadsEdit({
     options: LeadOptions;
     googleMapsApiKey: string;
 }) {
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial: valuesFrom(lead),
         schema: leadFormSchema,
     });
@@ -90,9 +90,9 @@ export default function LeadsEdit({
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Edit {lead.full_name}
-                        </h1>
+                        </h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
                             Source: {lead.source_detail ?? lead.source}. Stage changes are audited
                             separately.
@@ -112,7 +112,7 @@ export default function LeadsEdit({
                     </div>
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

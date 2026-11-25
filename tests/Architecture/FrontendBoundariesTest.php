@@ -159,6 +159,29 @@ it('network I/O lives in module hooks, not in components', function () use ($app
     expect($hits)->toBe([], "Network I/O outside a module hook — it belongs in resources/js/Modules/{context}/hooks/:\n  ".implode("\n  ", $hits));
 });
 
+it('limits network I/O in lib to the declared transport helpers', function () use ($projectPath) {
+    /*
+     * Invariant 1 has one blind spot the tsx globs cannot see: a helper in
+     * `lib/` that performs the request a page asked for. That is how a page
+     * keeps a clean import list while still owning a write. The list below is
+     * the whole exception, deliberately: `http.ts` *is* the transport, and
+     * `crud-table.ts` carries the bulk delete/restore that five list screens
+     * share (Rule of Three — five hook copies would be worse).
+     */
+    $lib = tsFilesIn("$projectPath/resources/js/lib", $projectPath);
+
+    $hits = tsxFilesMatching(
+        $lib,
+        $projectPath,
+        '~(?:^|[^\w$.])(fetch\s*\(|requestJson\s*\(|new\s+XMLHttpRequest|new\s+WebSocket|\baxios\b)~',
+    );
+
+    expect($hits)->toBe(
+        ['resources/js/lib/crud-table.ts', 'resources/js/lib/http.ts'],
+        "Network I/O in resources/js/lib must be one of the declared transport helpers:\n  ".implode("\n  ", $hits),
+    );
+});
+
 /* ------------------------------------------- invariant 2: state lives in module hooks */
 
 it('server state lives in module hooks', function () use ($appTsx, $projectPath) {
@@ -173,6 +196,25 @@ it('server state lives in module hooks', function () use ($appTsx, $projectPath)
     );
 
     expect($hits)->toBe([], "Server state belongs in Modules/{context}/hooks/ — pages and components never reach into @tanstack directly:\n  ".implode("\n  ", $hits));
+});
+
+it('documents the only lib modules that know about TanStack', function () use ($projectPath) {
+    /*
+     * The same blind spot as invariant 1: `lib/` is outside the tsx glob, so a
+     * helper can import a query cache or a table instance and stay green.
+     * `data-table.ts` is the shared table adapter (the kit cannot own the
+     * engine and still be importable by five pages), and `auth.ts` clears the
+     * cache on logout so the next actor cannot read the previous one's rows.
+     * A third entry is a design decision, not a convenience — make it here.
+     */
+    $lib = tsFilesIn("$projectPath/resources/js/lib", $projectPath);
+
+    $hits = tsxFilesMatching($lib, $projectPath, '~from\s+[\'"]@tanstack/(?:react-query|react-table)[\'"]~');
+
+    expect($hits)->toBe(
+        ['resources/js/lib/auth.ts', 'resources/js/lib/data-table.ts'],
+        "lib modules importing @tanstack must be documented here:\n  ".implode("\n  ", $hits),
+    );
 });
 
 /* ------------------------------------ invariant 5: server rows are not re-ordered */

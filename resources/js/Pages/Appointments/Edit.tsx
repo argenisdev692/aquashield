@@ -41,7 +41,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
         reason: '',
     };
 
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial,
         schema: rescheduleSchema,
     });
@@ -53,9 +53,9 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Reschedule {appointment.customer_name}
-                        </h1>
+                        </h2>
                         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-surface-500 dark:text-surface-400">
                             <Tag variant={statusVariant(appointment.status)}>
                                 {humanize(appointment.status)}
@@ -92,7 +92,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                     </p>
                 </section>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

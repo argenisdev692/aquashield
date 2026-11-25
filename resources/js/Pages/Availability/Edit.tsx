@@ -36,7 +36,7 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
         reason: exception.reason ?? '',
     };
 
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial,
         schema: availabilityExceptionSchema,
     });
@@ -49,9 +49,9 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             Edit {exception.date}
-                        </h1>
+                        </h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
                             Dates and windows are read in {timezone}. A closed day disappears from
                             the operator's bookable slots.
@@ -62,14 +62,14 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
                         render={<Link href="/availability" />}
                         nativeButton={false}
                         variant="outline"
-                        className="h-9 gap-2"
+                        size="header"
                     >
                         <ArrowLeft className="size-4" aria-hidden="true" />
                         Back to availability
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

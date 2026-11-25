@@ -10,8 +10,7 @@ import { useState } from 'react';
 import DateField from '@/Components/Forms/DateField';
 import TextField from '@/Components/Forms/TextField';
 import { FormDialog } from '@/Components/Forms/FormOverlay';
-import { HttpRequestError } from '@/lib/http';
-import { useZodForm } from '@/lib/forms';
+import { NO_SERVER_ERROR, serverErrorFrom, useZodForm, type ServerErrorState } from '@/lib/forms';
 import { useAvailabilityMutations } from '@/Modules/LeadAppointment/hooks/useAvailabilityMutations';
 import {
     bulkClosureSchema,
@@ -32,18 +31,16 @@ export default function BulkClosureDialog({
     onCreated,
 }: BulkClosureDialogProps) {
     const mutations = useAvailabilityMutations();
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    const [serverError, setServerError] = useState<string | null>(null);
+    const [serverError, setServerError] = useState<ServerErrorState>(NO_SERVER_ERROR);
 
     const initial: BulkClosureFormValues = { from: '', to: '', reason: '' };
 
     const { form, errors, submit, touch } = useZodForm({ initial, schema: bulkClosureSchema });
 
-    const mergedErrors = { ...errors, ...fieldErrors };
+    const mergedErrors = { ...errors, ...serverError.fieldErrors };
 
     const onSubmit = (): void => {
-        setServerError(null);
-        setFieldErrors({});
+        setServerError(NO_SERVER_ERROR);
 
         submit(() => {
             void mutations.closeRange
@@ -54,18 +51,8 @@ export default function BulkClosureDialog({
                     onCreated();
                 })
                 .catch((caught: unknown) => {
-                    if (caught instanceof HttpRequestError) {
-                        const fields = { ...caught.fieldErrors };
-                        setFieldErrors(fields);
-                        setServerError(Object.keys(fields).length === 0 ? caught.message : null);
-
-                        return;
-                    }
-
                     setServerError(
-                        caught instanceof Error && caught.message !== ''
-                            ? caught.message
-                            : 'The closure could not be created. Try again.',
+                        serverErrorFrom(caught, 'The closure could not be created. Try again.'),
                     );
                 });
         });
@@ -84,14 +71,13 @@ export default function BulkClosureDialog({
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel="Close days"
-            guardDirty={false}
         >
-            {serverError !== null && (
+            {serverError.serverError !== null && (
                 <p
                     role="alert"
                     className="rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
                 >
-                    {serverError}
+                    {serverError.serverError}
                 </p>
             )}
 

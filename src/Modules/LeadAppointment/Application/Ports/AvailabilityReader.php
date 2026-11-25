@@ -34,6 +34,17 @@ interface AvailabilityReader
      */
     public function rules(): array;
 
+    /**
+     * Soft-deleted weekly windows, same order as `rules()`.
+     *
+     * The screen deletes a window with a confirmation dialog; without this read
+     * the delete was one-way in the UI even though `restoreRule()` and its route
+     * already existed.
+     *
+     * @return list<AvailabilityRuleData>
+     */
+    public function trashedRules(): array;
+
     public function findRule(string $uuid): ?AvailabilityRuleData;
 
     /**
@@ -42,4 +53,12 @@ interface AvailabilityReader
     public function exceptions(?string $from, ?string $to): array;
 
     public function findException(string $uuid): ?AvailabilityExceptionData;
+
+    /**
+     * The active exception for one calendar date, or null when the day follows
+     * the weekly rule. Backs the calendar's "open that day" link, which must
+     * land on the edit form when a row already exists — a second active row for
+     * the same date is refused by the store action.
+     */
+    public function findExceptionByDate(string $date): ?AvailabilityExceptionData;
 }

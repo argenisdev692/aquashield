@@ -36,6 +36,14 @@ export function parseIsoDate(value: string | null | undefined): Date | undefined
     return date;
 }
 
+/**
+ * True for a calendar-valid `YYYY-MM-DD` (`2026-02-31` is rejected, not rolled
+ * into March). Use this instead of a second local copy of the date regex.
+ */
+export function isIsoDate(value: string): boolean {
+    return parseIsoDate(value) !== undefined;
+}
+
 /** Format a local `Date` as ISO `YYYY-MM-DD` without a UTC conversion. */
 export function toIsoDate(date: Date): string {
     const year = String(date.getFullYear()).padStart(4, '0');

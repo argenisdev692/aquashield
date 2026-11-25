@@ -83,9 +83,9 @@ export default function AppointmentsShow() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                            <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                                 {appointment.customer_name}
-                            </h1>
+                            </h2>
                             <Tag variant={statusVariant(appointment.status)}>
                                 {humanize(appointment.status)}
                             </Tag>

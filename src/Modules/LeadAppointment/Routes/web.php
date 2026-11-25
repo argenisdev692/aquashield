@@ -57,8 +57,16 @@ Route::middleware('web')->group(function (): void {
         Route::prefix('availability')->name('availability.')->group(function (): void {
             Route::get('/', [AvailabilityPageController::class, 'index'])
                 ->middleware('permission:'.Permission::ViewAnyAvailabilityException->value)->name('index');
+            /*
+             * The month grid links every day to "create": the resolved day has
+             * no uuid, so the controller is what turns the visit into an edit
+             * when a row already exists for that date. An update-only editor
+             * therefore needs to reach this READ route — `permission:a|b` is
+             * Spatie's any-of form. The write route below stays CREATE-only, so
+             * this widens navigation, never authorisation.
+             */
             Route::get('/create', [AvailabilityPageController::class, 'create'])
-                ->middleware('permission:'.Permission::CreateAvailabilityException->value)->name('create');
+                ->middleware('permission:'.Permission::CreateAvailabilityException->value.'|'.Permission::UpdateAvailabilityException->value)->name('create');
             Route::post('/', [AvailabilityPageController::class, 'store'])
                 ->middleware('permission:'.Permission::CreateAvailabilityException->value)->name('store');
             Route::get('/{uuid}/edit', [AvailabilityPageController::class, 'edit'])

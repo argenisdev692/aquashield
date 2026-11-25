@@ -4,10 +4,17 @@
  * behind an IntersectionObserver-gated, reduced-motion-aware R3F canvas, with
  * the still mark as the poster.
  */
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import BrandMarkScene from '@/Components/BrandMarkScene';
+
+/**
+ * The R3F scene pulls in `three`, `@react-three/fiber` and `drei` — ~600 kB
+ * that only this below-the-fold reveal needs. `lazy()` is what actually moves
+ * it out of the Welcome chunk; a bare `<Suspense>` around a static import
+ * renders a fallback and still ships the bytes.
+ */
+const BrandMarkScene = lazy(() => import('@/Components/BrandMarkScene'));
 
 const WORKFLOW_PILLS: readonly string[] = ['Live Dispatch', 'Claim Tracking', 'Instant Invoicing'];
 

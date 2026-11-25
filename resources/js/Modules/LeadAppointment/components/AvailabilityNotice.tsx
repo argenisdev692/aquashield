@@ -2,8 +2,13 @@
  * AvailabilityNotice — the operator's day check inside the appointment form.
  *
  * It reads the same resolved feed as the availability month, for a bounded
- * 15-day window, so a closed day is visible before the server rejects the
- * booking. When the day is closed it offers the next open days as one-click
+ * 15-day window. That window is keyed by its own bounds (`from`, `to`,
+ * `region`), so each date picked in the form is a separate cache entry rather
+ * than a slice of the month panel's entry — deliberate: the lookahead must be
+ * able to cross a month boundary, and the month key cannot answer a window
+ * that starts mid-month.
+ *
+ * When the day is closed it offers the next open days as one-click
  * replacements, which is the whole point of recording a crew closure.
  *
  * The notice is a courtesy, not a control: the scheduling action still
@@ -12,12 +17,18 @@
 import { usePage } from '@inertiajs/react';
 import { CalendarCheck2, CalendarX2 } from 'lucide-react';
 import { Skeleton } from '@/Components/ui/skeleton';
-import { formatIsoDate, parseIsoDate, toIsoDate } from '@/lib/date';
+import { formatWindows, type AvailabilityDay } from '@/lib/availability';
+import { formatIsoDate, isIsoDate, parseIsoDate, toIsoDate } from '@/lib/date';
 import { useAvailabilityWindow } from '../hooks/useAvailabilityCalendar';
 
-type CalendarDay = Modules.LeadAppointment.Application.Dtos.CalendarDayData;
+type CalendarDay = AvailabilityDay;
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * Compile-time-checked against the generated union, so renaming the server
+ * permission fails `tsc` instead of silently hiding the notice forever.
+ */
+const VIEW_ANY_AVAILABILITY_RULE: Shared.Domain.Enums.Permission = 'VIEW_ANY_AVAILABILITY_RULE';
+
 const LOOKAHEAD_DAYS = 14;
 
 interface AvailabilityNoticeProps {
@@ -38,14 +49,10 @@ const addDays = (isoDate: string, days: number): string => {
     );
 };
 
-const windowsLabel = (day: CalendarDay): string =>
-    day.windows.map((window) => `${window.start}–${window.end}`).join(', ');
-
 export default function AvailabilityNotice({ date, region, onPickDate }: AvailabilityNoticeProps) {
-    const page = usePage<{ authPermissions?: string[] }>();
-    const granted = page.props.authPermissions ?? [];
-    const canView = granted.includes('VIEW_ANY_AVAILABILITY_RULE');
-    const validDate = ISO_DATE.test(date);
+    const page = usePage();
+    const canView = page.props.authPermissions.includes(VIEW_ANY_AVAILABILITY_RULE);
+    const validDate = isIsoDate(date);
     const to = validDate ? addDays(date, LOOKAHEAD_DAYS) : '';
     const { days, isPending, isError } = useAvailabilityWindow(
         date,
@@ -81,7 +88,7 @@ export default function AvailabilityNotice({ date, region, onPickDate }: Availab
             <p className="flex items-center gap-1.5 rounded-lg border border-aq-success/30 bg-aq-success/5 px-3 py-2 text-xs text-surface-700 dark:text-surface-200">
                 <CalendarCheck2 className="size-3.5 shrink-0 text-aq-success" aria-hidden="true" />
                 <span>
-                    Open {windowsLabel(selected)}
+                    Open {formatWindows(selected.windows)}
                     {selected.reason === null ? '' : ` · ${selected.reason}`}
                 </span>
             </p>

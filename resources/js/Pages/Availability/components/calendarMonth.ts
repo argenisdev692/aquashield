@@ -5,13 +5,12 @@
  * goes into the query string, the cache key and the heading, so a browser in a
  * negative-offset timezone cannot shift the window by a day.
  */
+import type { AvailabilityDay } from '@/lib/availability';
 import { formatIsoDate, parseIsoDate, toIsoDate } from '@/lib/date';
 
-type CalendarDay = Modules.LeadAppointment.Application.Dtos.CalendarDayData;
+type CalendarDay = AvailabilityDay;
 
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
-
-export const monthStartOf = (isoDate: string): string => `${isoDate.slice(0, 7)}-01`;
 
 export const monthBounds = (monthStart: string): { from: string; to: string } => {
     const anchor = parseIsoDate(monthStart);
@@ -46,20 +45,31 @@ export const spokenDate = (isoDate: string): string =>
 export type CalendarWeek = (CalendarDay | null)[];
 
 /**
- * Chunk the resolved month into calendar rows. The feed is one bounded month
- * (not a paginated list), so this is layout, not server-side filtering.
+ * Chunk the resolved month into calendar rows.
+ *
+ * Each day is placed in its own weekday column, so a missing day (a truncated
+ * feed, a partially cached window) leaves one blank cell instead of shifting
+ * every later date into the wrong column. The feed is one bounded month, not a
+ * paginated list, so this is layout, not server-side filtering.
  */
 export const buildWeeks = (days: readonly CalendarDay[]): CalendarWeek[] => {
-    if (days.length === 0) {
-        return [];
-    }
-
-    const firstDay = parseIsoDate(days[0].date);
-    const offset = firstDay === undefined ? 0 : firstDay.getDay();
     const weeks: CalendarWeek[] = [];
-    let week: CalendarWeek = Array.from({ length: offset }, () => null);
+    let week: CalendarWeek = [];
 
     for (const day of days) {
+        const column = parseIsoDate(day.date)?.getDay() ?? week.length;
+
+        // A day that belongs to an earlier column means a new row started in
+        // the feed; close the current one rather than appending out of order.
+        if (column < week.length) {
+            weeks.push(padWeek(week));
+            week = [];
+        }
+
+        while (week.length < column) {
+            week.push(null);
+        }
+
         week.push(day);
 
         if (week.length === 7) {
@@ -69,18 +79,21 @@ export const buildWeeks = (days: readonly CalendarDay[]): CalendarWeek[] => {
     }
 
     if (week.length > 0) {
-        while (week.length < 7) {
-            week.push(null);
-        }
-
-        weeks.push(week);
+        weeks.push(padWeek(week));
     }
 
     return weeks;
 };
 
-export const windowsLabel = (day: CalendarDay): string =>
-    day.windows.map((window) => `${window.start}–${window.end}`).join(', ');
+const padWeek = (week: CalendarWeek): CalendarWeek => {
+    const padded = [...week];
+
+    while (padded.length < 7) {
+        padded.push(null);
+    }
+
+    return padded;
+};
 
 export const sourceLabel = (source: string): string => {
     switch (source) {

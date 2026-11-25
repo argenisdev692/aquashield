@@ -67,7 +67,7 @@ export default function SelectField({
                     <SelectTrigger
                         aria-describedby={describedBy}
                         aria-invalid={error ? true : undefined}
-                        className={cn('h-10 w-full', error ? 'border-destructive' : undefined)}
+                        className={cn('h-10 w-full', error ? 'border-aq-danger' : undefined)}
                     >
                         <SelectValue placeholder={placeholder}>
                             {selectedLabel ?? placeholder}

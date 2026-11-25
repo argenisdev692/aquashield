@@ -51,6 +51,9 @@ final readonly class AvailabilityPageController
             'rules' => $this->can($request, Permission::ViewAnyAvailabilityRule->value)
                 ? $this->availability->rules()
                 : [],
+            'trashedRules' => $this->can($request, Permission::ViewAnyAvailabilityRule->value)
+                ? $this->availability->trashedRules()
+                : [],
             'options' => $this->options(),
             'calendar' => [
                 'from' => $today->startOfMonth()->toDateString(),
@@ -70,11 +73,42 @@ final readonly class AvailabilityPageController
             'canCreateRule' => $this->can($request, Permission::CreateAvailabilityRule->value),
             'canUpdateRule' => $this->can($request, Permission::UpdateAvailabilityRule->value),
             'canDeleteRule' => $this->can($request, Permission::DeleteAvailabilityRule->value),
+            'canRestoreRule' => $this->can($request, Permission::RestoreAvailabilityRule->value),
         ]);
     }
 
-    public function create(AvailabilityCreatePageRequest $request): InertiaResponse
+    public function create(AvailabilityCreatePageRequest $request): InertiaResponse|RedirectResponse
     {
+        $date = $request->validated('date');
+
+        /*
+         * The month grid always links to "create", but a date that already has
+         * an active exception cannot be created twice: the store action answers
+         * a conflict, so the operator would land on a form whose save is
+         * guaranteed to fail. Send them to the row that exists instead.
+         *
+         * Only for a caller who may update — redirecting a create-only user to
+         * the edit route would answer 403 and be worse than the conflict.
+         */
+        if (is_string($date) && $this->can($request, Permission::UpdateAvailabilityException->value)) {
+            $existing = $this->availability->findExceptionByDate($date);
+
+            if ($existing !== null) {
+                return to_route('availability.edit', $existing->uuid);
+            }
+        }
+
+        /*
+         * An update-only caller reaches this route from the month grid. A day
+         * with no exception follows the weekly rule, so there is nothing to
+         * edit and this caller cannot store: rendering the create form would
+         * offer a save that always answers 403.
+         */
+        if (! $this->can($request, Permission::CreateAvailabilityException->value)) {
+            return to_route('availability.index')
+                ->with('status', 'That day follows the weekly hours. Adding a one-off day needs the create permission.');
+        }
+
         return inertia('Availability/Create', [
             'defaults' => [
                 'date' => $request->validated('date'),

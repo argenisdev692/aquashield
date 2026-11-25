@@ -2,11 +2,15 @@
  * TimeField — a wall-clock time whose wire value is `HH:MM`, never a Date.
  * The browser control is localised; the form keeps the value the server's
  * `date_format:H:i` rule reads without a timezone conversion.
+ *
+ * The render-prop form of `FieldShell` is load-bearing: it is what hands the
+ * control the `aria-describedby` that points at this field's own hint/error
+ * ("The end time must be later than the start time" is otherwise announced
+ * once by `role="alert"` and never again on focus).
  */
 import { useId } from 'react';
 import FieldShell from './FieldShell';
 import { Input } from '@/Components/ui/input';
-import { cn } from '@/lib/utils';
 
 interface TimeFieldProps {
     label: string;
@@ -42,20 +46,22 @@ export default function TimeField({
 
     return (
         <FieldShell id={id} label={label} name={name} error={error} hint={hint} required={required}>
-            <Input
-                id={id}
-                name={name}
-                type="time"
-                value={value}
-                min={min}
-                max={max}
-                step={step}
-                onChange={(event) => onChange(event.target.value)}
-                onBlur={onBlur}
-                disabled={disabled}
-                aria-invalid={error ? true : undefined}
-                className={cn(error && 'border-aq-danger')}
-            />
+            {({ describedBy, invalid }) => (
+                <Input
+                    id={id}
+                    name={name}
+                    type="time"
+                    value={value}
+                    min={min}
+                    max={max}
+                    step={step}
+                    onChange={(event) => onChange(event.target.value)}
+                    onBlur={onBlur}
+                    disabled={disabled}
+                    aria-invalid={invalid || undefined}
+                    aria-describedby={describedBy}
+                />
+            )}
         </FieldShell>
     );
 }

@@ -8,17 +8,11 @@
  */
 import { CalendarCheck2, CalendarX2 } from 'lucide-react';
 import { Tag } from '@/Components/ui/tag';
+import { formatWindows, type AvailabilityDay } from '@/lib/availability';
 import { cn } from '@/lib/utils';
-import {
-    WEEKDAYS,
-    buildWeeks,
-    sourceLabel,
-    spokenDate,
-    windowsLabel,
-    type CalendarWeek,
-} from './calendarMonth';
+import { WEEKDAYS, buildWeeks, sourceLabel, spokenDate, type CalendarWeek } from './calendarMonth';
 
-type CalendarDay = Modules.LeadAppointment.Application.Dtos.CalendarDayData;
+type CalendarDay = AvailabilityDay;
 
 interface DayCardProps {
     day: CalendarDay;
@@ -30,9 +24,11 @@ interface DayCardProps {
 function DayCard({ day, today, interactive, onSelect }: DayCardProps) {
     const isToday = day.date === today;
     const dayNumber = Number(day.date.slice(8, 10));
-    const detail = day.is_open ? windowsLabel(day) : (day.reason ?? sourceLabel(day.source));
+    const detail = day.is_open
+        ? formatWindows(day.windows)
+        : (day.reason ?? sourceLabel(day.source));
     const stateLabel = day.is_open
-        ? `Open${day.windows.length > 0 ? ` ${windowsLabel(day)}` : ''}`
+        ? `Open${day.windows.length > 0 ? ` ${formatWindows(day.windows)}` : ''}`
         : `Closed${day.reason === null ? '' : ` — ${day.reason}`}`;
     const label = `${spokenDate(day.date)} — ${stateLabel}${interactive ? '. Add or change this day.' : ''}`;
 
@@ -60,7 +56,7 @@ function DayCard({ day, today, interactive, onSelect }: DayCardProps) {
             <Tag variant={day.is_open ? 'success' : 'destructive'}>
                 {day.is_open ? 'Open' : 'Closed'}
             </Tag>
-            <span className="line-clamp-2 text-[11px] leading-tight text-surface-600 dark:text-surface-300">
+            <span className="line-clamp-2 text-xs leading-tight text-surface-600 dark:text-surface-300">
                 {detail}
             </span>
         </>
@@ -132,13 +128,10 @@ export default function AvailabilityMonthGrid({
                     </tr>
                 </thead>
                 <tbody>
-                    {weeks.map((week: CalendarWeek, index) => (
-                        <tr key={index}>
+                    {weeks.map((week: CalendarWeek) => (
+                        <tr key={week[0]?.date ?? 'empty-week'}>
                             {week.map((day, cell) => (
-                                <td
-                                    key={day?.date ?? `empty-${index}-${cell}`}
-                                    className="p-0 align-top"
-                                >
+                                <td key={day?.date ?? `empty-${cell}`} className="p-0 align-top">
                                     {day === null ? (
                                         <div className="min-h-20 rounded-lg border border-dashed border-surface-200 dark:border-surface-800" />
                                     ) : (

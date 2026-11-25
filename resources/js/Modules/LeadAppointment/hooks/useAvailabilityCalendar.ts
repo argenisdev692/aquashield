@@ -8,10 +8,16 @@
  * day notice share one cache entry per window.
  */
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import type { AvailabilityDay } from '@/lib/availability';
 import { requestJson } from '@/lib/http';
 
-type CalendarDay = Modules.LeadAppointment.Application.Dtos.CalendarDayData;
-type CalendarWindow = CalendarDay['windows'][number];
+/**
+ * `/availability/calendar` answers `AvailabilityDayData`, not `CalendarDayData`
+ * (the appointment feed, which also carries `appointments`). The alias lives in
+ * `lib/availability.ts` so the hook, the grid and the day notice cannot drift.
+ */
+type CalendarDay = AvailabilityDay;
+type CalendarWindow = AvailabilityDay['windows'][number];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;

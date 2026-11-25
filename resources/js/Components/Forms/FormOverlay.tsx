@@ -15,15 +15,6 @@ import { cn } from '@/lib/utils';
 import AppButton from './AppButton';
 import FormErrorSummary from './FormErrorSummary';
 
-/**
- * The summary's links focus the offending control by `name`. `CSS.escape` keeps
- * a dotted or bracketed field name from breaking the selector. The shell used
- * to pass a no-op, so clicking an error in any dialog did nothing.
- */
-const focusField = (field: string): void => {
-    document.querySelector<HTMLElement>(`[name="${CSS.escape(field)}"]`)?.focus();
-};
-
 export interface FormOverlayState {
     processing: boolean;
     isDirty: boolean;
@@ -85,7 +76,7 @@ function FormBody({
                 )}
             </div>
 
-            {errors && <FormErrorSummary errors={errors} onFieldFocus={focusField} />}
+            {errors && <FormErrorSummary errors={errors} />}
 
             <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">{children}</div>
 

@@ -14,9 +14,9 @@ export default function RolesEdit({ role, catalog }: RolesEditProps) {
 
             <div className="mb-6">
                 <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                    <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                         {role.name}
-                    </h1>
+                    </h2>
                     <span className="text-xs font-medium tracking-tight text-surface-500 dark:text-surface-400">
                         {role.users_count} user{role.users_count === 1 ? '' : 's'}
                     </span>

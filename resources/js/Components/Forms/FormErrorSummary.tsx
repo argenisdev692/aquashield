@@ -9,13 +9,22 @@
  *
  * A message alone ("Enter a valid email address") does not say which field it
  * belongs to. Each entry therefore prefixes the humanised field label.
+ *
+ * The block focuses ITSELF when errors appear. That has to happen in an effect,
+ * not in the submit handler: the handler runs before React commits the fields'
+ * `aria-invalid`, so a `[aria-invalid="true"]` query there matches nothing on
+ * the first failure. Focusing the container is also the safer target — it
+ * exists in the same commit as the messages, and it announces the whole list.
  */
+import { useEffect, useRef } from 'react';
+import { focusFieldByName } from '@/lib/forms';
 
 interface FormErrorSummaryProps {
     errors: Record<string, string | undefined>;
     /** Optional field → label map. Falls back to a humanised field name. */
     labels?: Record<string, string>;
-    onFieldFocus: (field: string) => void;
+    /** Defaults to focusing the control by its `name` attribute. */
+    onFieldFocus?: (field: string) => void;
 }
 
 const humanize = (field: string): string =>
@@ -24,8 +33,24 @@ const humanize = (field: string): string =>
         .replace(/([a-z\d])([A-Z])/g, '$1 $2')
         .replace(/^\w/, (character) => character.toUpperCase());
 
-export default function FormErrorSummary({ errors, labels, onFieldFocus }: FormErrorSummaryProps) {
+export default function FormErrorSummary({
+    errors,
+    labels,
+    onFieldFocus = focusFieldByName,
+}: FormErrorSummaryProps) {
     const keys = Object.keys(errors);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const hadErrors = useRef(false);
+
+    useEffect(() => {
+        const hasErrors = keys.length > 0;
+
+        if (hasErrors && !hadErrors.current) {
+            containerRef.current?.focus();
+        }
+
+        hadErrors.current = hasErrors;
+    }, [keys.length]);
 
     if (keys.length === 0) {
         return null;
@@ -33,6 +58,7 @@ export default function FormErrorSummary({ errors, labels, onFieldFocus }: FormE
 
     return (
         <div
+            ref={containerRef}
             role="alert"
             tabIndex={-1}
             className="rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2.5 text-sm"

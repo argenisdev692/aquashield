@@ -154,6 +154,20 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
             ->all();
     }
 
+    /**
+     * @return list<AvailabilityRuleData>
+     */
+    public function trashedRules(): array
+    {
+        return AvailabilityRule::onlyTrashed()
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn (AvailabilityRule $rule): AvailabilityRuleData => $this->toRuleData($rule))
+            ->values()
+            ->all();
+    }
+
     public function findRule(string $uuid): ?AvailabilityRuleData
     {
         $rule = AvailabilityRule::query()
@@ -258,6 +272,15 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
     {
         $exception = AvailabilityException::query()
             ->where('uuid', $uuid)
+            ->first();
+
+        return $exception === null ? null : $this->toExceptionData($exception);
+    }
+
+    public function findExceptionByDate(string $date): ?AvailabilityExceptionData
+    {
+        $exception = AvailabilityException::query()
+            ->whereDate('date', $date)
             ->first();
 
         return $exception === null ? null : $this->toExceptionData($exception);

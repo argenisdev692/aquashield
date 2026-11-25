@@ -34,6 +34,15 @@ export default function AvailabilityCalendarPanel({
                 isFetching ? 'opacity-70' : undefined,
             )}
         >
+            {/*
+             * The month label in the page toolbar is the single live region for
+             * this panel: it announces the new month name (and "loading") when
+             * the window changes. A second `role="status"` here said the same
+             * thing one tick later, so a month change was read out twice.
+             * `aria-busy` still tells assistive tech that this subtree is
+             * refreshing.
+             */}
+
             <AvailabilityMonthGrid
                 days={days}
                 today={today}

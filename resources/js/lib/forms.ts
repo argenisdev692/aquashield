@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { useForm as useInertiaForm } from '@inertiajs/react';
 import type { FormDataKeys, FormDataType } from '@inertiajs/core';
 import type { ZodType } from 'zod';
+import { HttpRequestError } from '@/lib/http';
 
 export type FormValues = Record<string, unknown>;
 
@@ -24,6 +25,17 @@ export type FormErrorMap = Partial<Record<string, string>>;
 export interface UseZodFormOptions<T extends FormDataType<T>> {
     initial: T;
     schema: ZodType<T>;
+}
+
+/**
+ * Focus one control by its `name` attribute.
+ *
+ * `CSS.escape` keeps a dotted or bracketed field name (`user.email`,
+ * `items[0]`) from breaking the selector. Shared by `FormErrorSummary`'s
+ * per-field links and the overlay kit so there is one selector, not three.
+ */
+export function focusFieldByName(field: string): void {
+    document.querySelector<HTMLElement>(`[name="${CSS.escape(field)}"]`)?.focus();
 }
 
 export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions<T>) {
@@ -150,14 +162,17 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         inertiaForm.clearErrors(field as FormDataKeys<T>);
     };
 
-    const focusFirstError = () => {
-        const target = document.querySelector<HTMLElement>('[aria-invalid="true"]');
-        target?.focus();
-    };
-
+    /*
+     * `submit` must NOT focus here. It runs inside the submit event, before
+     * React has committed the `aria-invalid` attributes a query would look for,
+     * so on a first invalid submit (fields never blurred) it found nothing and
+     * focus stayed on the submit button. `FormErrorSummary` focuses itself in
+     * an effect, in the same commit that renders the errors — which also covers
+     * a server 422 arriving after the visit. Its per-field links use
+     * `focusFieldByName`.
+     */
     const submit = (action: () => void) => {
         if (!validate()) {
-            void focusFirstError();
             return;
         }
         action();
@@ -172,7 +187,6 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         validateField,
         touch,
         clearError,
-        focusFirstError,
         submit,
     };
 }
@@ -199,4 +213,37 @@ export function useUnsavedChangesWarning(isDirty: boolean): void {
 
         return () => window.removeEventListener('beforeunload', handler);
     }, [isDirty]);
+}
+
+/**
+ * The 422 bag a JSON write produces, in the shape the form kit renders.
+ *
+ * `requestJson` throws `HttpRequestError` with Laravel's field bag for a
+ * validation failure; anything else (a 429 with no body, a dropped connection
+ * surfacing as `TypeError`) is not field-specific and belongs in the dialog's
+ * alert region instead. A dialog that writes outside an Inertia visit needs
+ * exactly this mapping, and it must be the same mapping every time.
+ */
+export interface ServerErrorState {
+    readonly fieldErrors: Readonly<Record<string, string>>;
+    readonly serverError: string | null;
+}
+
+/** The idle state — pass it to `useState` so "no error" is one named value. */
+export const NO_SERVER_ERROR: ServerErrorState = { fieldErrors: {}, serverError: null };
+
+export function serverErrorFrom(cause: unknown, fallback: string): ServerErrorState {
+    if (cause instanceof HttpRequestError) {
+        const fieldErrors = { ...cause.fieldErrors };
+
+        return {
+            fieldErrors,
+            serverError: Object.keys(fieldErrors).length === 0 ? cause.message : null,
+        };
+    }
+
+    return {
+        fieldErrors: {},
+        serverError: cause instanceof Error && cause.message !== '' ? cause.message : fallback,
+    };
 }

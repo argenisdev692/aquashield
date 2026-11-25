@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "types:check": "tsc --noEmit",
     "types:watch": "tsc --noEmit --watch",
+    "test:unit": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "syn": "node scripts/ai-config-sync.mjs",
@@ -17,7 +18,7 @@
     "verify": "npm run syn:check && npm run format:check && npm run types:check",
     "fix": "npm run format && npm run syn",
     "module:make": "node scripts/module-make.mjs",
-    "module:done": "npm run fix && npm run types:check && npm run build && composer gate",
+    "module:done": "npm run fix && npm run types:check && npm run test:unit && npm run build && composer gate",
     "module:codegen": "composer codegen && npm run module:done",
     "test:module": "php artisan test --compact --filter=",
     "dev:async": "concurrently -k -n vite,tsc -c \"#93c5fd,#c4b5fd\" \"npm:dev\" \"npm:types:watch\""
@@ -35,7 +36,8 @@
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
-    "vite": "^8.3.8"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
   },
   "optionalDependencies": {
     "@laravel/multiplex": "^0.4.1"
@@ -51,11 +53,9 @@
     "@react-three/fiber": "^9.8.2",
     "@tanstack/react-query": "^5.108.0",
     "@tanstack/react-table": "^9.3.1",
-    "@tresjs/core": "^5.10.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "babel-plugin-react-compiler": "^1.0.0",
-    "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

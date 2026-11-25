@@ -29,7 +29,7 @@ export default function LeadsCreate({
     options: LeadOptions;
     googleMapsApiKey: string;
 }) {
-    const { form, errors, submit, touch, focusFirstError } = useZodForm({
+    const { form, errors, submit, touch } = useZodForm({
         initial: { ...emptyLeadFormValues },
         schema: leadFormSchema,
     });
@@ -41,9 +41,9 @@ export default function LeadsCreate({
             <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                        <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                             New lead
-                        </h1>
+                        </h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
                             Log a lead the office took by phone, referral or walk-in.
                         </p>
@@ -60,7 +60,7 @@ export default function LeadsCreate({
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} onFieldFocus={() => focusFirstError()} />
+                <FormErrorSummary errors={errors} />
 
                 <form
                     onSubmit={(event) => {

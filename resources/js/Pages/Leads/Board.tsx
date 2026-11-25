@@ -36,9 +36,9 @@ export default function LeadsBoard() {
                     <div>
                         <div className="flex items-center gap-2">
                             <KanbanSquare className="size-5 text-aq-accent" aria-hidden="true" />
-                            <h1 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
+                            <h2 className="text-xl font-semibold tracking-tight text-surface-900 dark:text-surface-0">
                                 Leads pipeline
-                            </h1>
+                            </h2>
                             <span className="rounded-full bg-surface-100 px-2 py-px text-xs font-semibold tabular-nums text-surface-600 dark:bg-surface-800 dark:text-surface-300">
                                 {total}
                             </span>
