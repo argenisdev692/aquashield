@@ -43,7 +43,7 @@ export type ColumnAlign = 'left' | 'center' | 'right';
 
 /** One server column. `sortable` defaults to `true`. */
 export interface SimpleColumn<TData> {
-    accessorKey: string;
+    accessorKey: Extract<keyof TData, string>;
     header: string;
     /**
      * Stable identity for the column. Defaults to `accessorKey`.

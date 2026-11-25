@@ -22,7 +22,7 @@ import {
 import AppLayout from '@/Layouts/AppLayout';
 import { useCrudTable } from '@/lib/crud-table';
 import { formatDateTime } from '@/lib/date';
-import { useVisitPending } from '@/lib/visits';
+import { accessControlUrls } from '@/Modules/AccessControl/endpoints';
 import { usePermissionCacheReset } from '@/Modules/AccessControl/hooks/usePermissionCacheReset';
 import PermissionDialog from './components/PermissionDialog';
 
@@ -50,6 +50,7 @@ const permissionColumns: SimpleColumn<Permission>[] = [
     {
         accessorKey: 'name',
         header: 'Permission',
+        hidable: false,
         cell: ({ row }) => (
             <div className="flex min-w-0 flex-col gap-1">
                 <span className="truncate font-mono text-sm font-medium text-surface-900 dark:text-surface-0">
@@ -110,17 +111,17 @@ export default function PermissionsIndex() {
         canResetCache,
     } = page.props;
 
-    const visitsPending = useVisitPending();
     const table = useCrudTable({
-        endpoint: '/permissions',
+        endpoint: accessControlUrls.permissions,
         defaults: { sort: { field: 'name', order: 1 } },
     });
+    const visitsPending = table.pending;
 
     const [dialog, setDialog] = useState<DialogState>(null);
     const [deleteTarget, setDeleteTarget] = useState<Permission | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const { reset: resetCache, resetting } = usePermissionCacheReset();
-    const deleteForm = useForm({});
+    const deleteForm = useForm({ return_to: page.url });
 
     const filters: CrudFilterDef[] = [
         {
@@ -158,7 +159,9 @@ export default function PermissionsIndex() {
             return;
         }
 
-        deleteForm.delete(`/permissions/${deleteTarget.uuid}`, {
+        deleteForm.transform((data) => ({ ...data, return_to: page.url }));
+
+        deleteForm.delete(accessControlUrls.permission(deleteTarget.uuid), {
             preserveScroll: true,
             onSuccess: () => {
                 setDeleteTarget(null);
@@ -208,7 +211,11 @@ export default function PermissionsIndex() {
                                 disabled={resetting}
                             >
                                 <RefreshCw
-                                    className={resetting ? 'size-3.5 animate-spin' : 'size-3.5'}
+                                    className={
+                                        resetting
+                                            ? 'size-3.5 animate-spin motion-reduce:animate-none'
+                                            : 'size-3.5'
+                                    }
                                     aria-hidden="true"
                                 />
                                 Flush cache
@@ -270,6 +277,7 @@ export default function PermissionsIndex() {
                 <PermissionDialog
                     key={dialogKey}
                     open
+                    returnTo={page.url}
                     onOpenChange={(open) => {
                         if (!open) {
                             setDialog(null);

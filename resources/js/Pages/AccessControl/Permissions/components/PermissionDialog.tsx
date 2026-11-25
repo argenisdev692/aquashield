@@ -9,20 +9,27 @@
 import { FormDialog } from '@/Components/Forms';
 import TextField from '@/Components/Forms/TextField';
 import { useZodForm } from '@/lib/forms';
+import { accessControlUrls } from '@/Modules/AccessControl/endpoints';
 import { permissionSchema, type PermissionForm } from '@/Modules/AccessControl/schemas/permission';
 
 interface PermissionDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     permission?: Modules.AccessControl.Data.PermissionData;
+    /** The filtered index to return to after a successful write. */
+    returnTo?: string | null;
 }
 
 export default function PermissionDialog({
     open,
     onOpenChange,
     permission,
+    returnTo = null,
 }: PermissionDialogProps) {
-    const initial: PermissionForm = { name: permission?.name ?? '' };
+    const initial: PermissionForm = {
+        name: permission?.name ?? '',
+        return_to: returnTo ?? '',
+    };
     const { form, errors, submit, touch, clearError } = useZodForm({
         initial,
         schema: permissionSchema,
@@ -33,12 +40,12 @@ export default function PermissionDialog({
             const options = { preserveScroll: true, onSuccess: () => onOpenChange(false) };
 
             if (permission) {
-                form.put(`/permissions/${permission.uuid}`, options);
+                form.put(accessControlUrls.permission(permission.uuid), options);
 
                 return;
             }
 
-            form.post('/permissions', options);
+            form.post(accessControlUrls.permissions, options);
         });
     };
 

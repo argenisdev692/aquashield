@@ -5,9 +5,10 @@ import RoleForm from './components/RoleForm';
 interface RolesEditProps {
     role: Modules.AccessControl.Data.RoleDetailData;
     catalog: Modules.AccessControl.Data.PermissionCatalogData;
+    returnTo?: string | null;
 }
 
-export default function RolesEdit({ role, catalog }: RolesEditProps) {
+export default function RolesEdit({ role, catalog, returnTo }: RolesEditProps) {
     return (
         <AppLayout title={`Edit ${role.name}`}>
             <Head title={`Edit ${role.name}`} />
@@ -26,7 +27,7 @@ export default function RolesEdit({ role, catalog }: RolesEditProps) {
                 </p>
             </div>
 
-            <RoleForm role={role} catalog={catalog} />
+            <RoleForm role={role} catalog={catalog} returnTo={returnTo} />
         </AppLayout>
     );
 }

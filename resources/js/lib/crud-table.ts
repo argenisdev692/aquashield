@@ -10,7 +10,7 @@
  * each other. `exportUrl` reuses the same serialiser with `paginate: false`,
  * so an export always covers exactly what the screen shows.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { requestJson } from '@/lib/http';
 import {
@@ -41,8 +41,10 @@ export interface CrudTableSort {
 }
 
 export interface CrudTable {
-    /** The current state, read from the URL. Feed it to `CrudFilters`. */
+    /** The current state, read from the URL (or the latest pending commit). */
     state: TableState;
+    /** True while a visit this hook started is in flight. */
+    pending: boolean;
     activeFilterCount: number;
     hasActiveFilters: boolean;
     /** Merge one filter; a blank value removes the key. Resets to page 1. */
@@ -90,31 +92,79 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
     const defaultSortField = defaults?.sort?.field ?? null;
     const defaultSortOrder = defaults?.sort?.order ?? null;
 
-    const state = parseTableParams(url, {
-        perPage: defaultPerPage,
-        sort:
-            defaultSortField === null || defaultSortOrder === null
-                ? null
-                : {
-                      field: defaultSortField,
-                      order: defaultSortOrder === -1 ? -1 : 1,
-                  },
-    });
+    const defaultSort: TableSort | null =
+        defaultSortField === null || defaultSortOrder === null
+            ? null
+            : { field: defaultSortField, order: defaultSortOrder === -1 ? -1 : 1 };
 
-    const visit = (next: TableState, replace = false): void => {
-        router.visit(buildTableUrl(endpoint, next), {
+    /*
+     * The URL is still the source of truth, but it only changes when the server
+     * answers. A second commit made while the first visit is in flight used to
+     * rebase on the old URL and silently drop the first change (apply a filter,
+     * then type in the search box). `desiredRef` is the synchronous view of what
+     * the next response should contain; each setter updates it before calling
+     * Inertia, so overlapping commits compose instead of overwriting.
+     */
+    const desiredRef = useRef<TableState | null>(null);
+    const pendingCount = useRef(0);
+    const [desired, setDesired] = useState<TableState | null>(null);
+    const [pending, setPending] = useState(false);
+
+    const urlState = parseTableParams(url, { perPage: defaultPerPage, sort: defaultSort });
+    const state = desired ?? urlState;
+
+    const currentState = (): TableState => desiredRef.current ?? urlState;
+
+    const begin = (): void => {
+        pendingCount.current += 1;
+        setPending(true);
+    };
+
+    const end = (): void => {
+        pendingCount.current = Math.max(0, pendingCount.current - 1);
+
+        if (pendingCount.current === 0) {
+            desiredRef.current = null;
+            setDesired(null);
+            setPending(false);
+        }
+    };
+
+    /*
+     * A back/forward navigation (or another component's visit) replaces the URL
+     * without passing through `end`. Drop a leftover desired state only when no
+     * visit this hook started is still in flight.
+     */
+    useEffect(() => {
+        if (pendingCount.current === 0 && desiredRef.current !== null) {
+            desiredRef.current = null;
+            setDesired(null);
+        }
+    }, [url]);
+
+    const visitUrl = (target: string, next: TableState, replace = false): void => {
+        desiredRef.current = next;
+        setDesired(next);
+        begin();
+
+        router.visit(target, {
             preserveScroll: true,
             preserveState: true,
             replace,
+            onFinish: end,
         });
     };
 
+    const visit = (next: TableState, replace = false): void => {
+        visitUrl(buildTableUrl(endpoint, next), next, replace);
+    };
+
     const commit = (patch: Partial<TableState>, replace = false): void => {
-        visit({ ...state, ...patch }, replace);
+        visit({ ...currentState(), ...patch }, replace);
     };
 
     const setFilters = (patch: TableFilters): void => {
-        const filters: TableFilters = { ...state.filters };
+        const filters: TableFilters = { ...currentState().filters };
 
         for (const [key, value] of Object.entries(patch)) {
             if (isBlankFilter(value)) {
@@ -136,7 +186,7 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
     const setSearch = (value: string): void => {
         const search = value.trim();
 
-        if (search === state.search) {
+        if (search === currentState().search) {
             return;
         }
 
@@ -168,7 +218,11 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
     };
 
     const reset = (): void => {
-        router.visit(endpoint, { preserveScroll: true, preserveState: true, replace: true });
+        visitUrl(
+            endpoint,
+            parseTableParams(endpoint, { perPage: defaultPerPage, sort: defaultSort }),
+            true,
+        );
     };
 
     const exportUrl = (format: string): string =>
@@ -178,6 +232,7 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
 
     return {
         state,
+        pending,
         activeFilterCount,
         hasActiveFilters: activeFilterCount > 0 || state.search.trim() !== '',
         setFilter,

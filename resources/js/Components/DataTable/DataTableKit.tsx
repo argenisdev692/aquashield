@@ -324,8 +324,16 @@ export default function DataTableKit<TData extends RowData>({
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
     const [exporting, setExporting] = useState<string | null>(null);
+    const exportAbort = useRef<AbortController | null>(null);
     const rowsPerPageId = useId();
     const searchId = useId();
+
+    useEffect(() => {
+        return () => {
+            exportAbort.current?.abort();
+            exportAbort.current = null;
+        };
+    }, []);
 
     /*
      * Persist on a derived signature rather than the state object: `table.state`
@@ -507,7 +515,11 @@ export default function DataTableKit<TData extends RowData>({
         setExportError(null);
         setExporting(format);
 
-        void downloadFile(href)
+        const controller = new AbortController();
+        exportAbort.current?.abort();
+        exportAbort.current = controller;
+
+        void downloadFile(href, controller.signal)
             .then(({ blob, filename }) => {
                 // A real anchor keeps the SPA mounted and lets the browser treat
                 // the blob as a download. The URL is revoked after the click.
@@ -522,13 +534,22 @@ export default function DataTableKit<TData extends RowData>({
                 window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
             })
             .catch((cause: unknown) => {
+                if (cause instanceof DOMException && cause.name === 'AbortError') {
+                    return;
+                }
+
                 setExportError(
                     cause instanceof HttpRequestError
                         ? cause.message
                         : 'The export could not be generated. Try again.',
                 );
             })
-            .finally(() => setExporting(null));
+            .finally(() => {
+                if (exportAbort.current === controller) {
+                    exportAbort.current = null;
+                    setExporting(null);
+                }
+            });
     };
 
     const handleBulkDelete = (): void => {

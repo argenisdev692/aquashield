@@ -124,12 +124,20 @@ export default function PermissionMatrix({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                            onChange(permissions.map((permission) => permission.name).sort())
+                        onClick={() => {
+                            const next = new Set(value);
+
+                            for (const permission of visible) {
+                                next.add(permission.name);
+                            }
+
+                            onChange([...next].sort());
+                        }}
+                        disabled={
+                            disabled || visible.every((permission) => selected.has(permission.name))
                         }
-                        disabled={disabled || value.length === permissions.length}
                     >
-                        Select all
+                        {term === '' ? 'Select all' : `Select all shown (${visible.length})`}
                     </Button>
                     <Button
                         type="button"
@@ -218,7 +226,7 @@ export default function PermissionMatrix({
             </div>
 
             {error ? (
-                <p id={errorId} role="alert" className="text-sm font-medium text-aq-danger-strong">
+                <p id={errorId} className="text-sm font-medium text-aq-danger-strong">
                     {error}
                 </p>
             ) : null}

@@ -9,7 +9,12 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
  * asserted on the URL it produces, not on local state.
  */
 const { visit, reload, requestJson } = vi.hoisted(() => ({
-    visit: vi.fn<(url: string, options?: { replace?: boolean; preserveState?: boolean }) => void>(),
+    visit: vi.fn<
+        (
+            url: string,
+            options?: { replace?: boolean; preserveState?: boolean; onFinish?: () => void },
+        ) => void
+    >(),
     reload: vi.fn<(options?: unknown) => void>(),
     requestJson: vi.fn<(path: string, options?: unknown) => Promise<unknown>>(),
 }));
@@ -30,8 +35,16 @@ vi.mock('@/lib/http', async (importOriginal) => {
 import { useBulkActions, useCrudTable } from './crud-table';
 
 const lastUrl = (): URL => new URL(String(visit.mock.calls.at(-1)?.[0]), 'http://localhost');
-const lastOptions = (): { replace?: boolean; preserveState?: boolean } =>
-    (visit.mock.calls.at(-1)?.[1] ?? {}) as { replace?: boolean; preserveState?: boolean };
+const lastOptions = (): {
+    replace?: boolean;
+    preserveState?: boolean;
+    onFinish?: () => void;
+} =>
+    (visit.mock.calls.at(-1)?.[1] ?? {}) as {
+        replace?: boolean;
+        preserveState?: boolean;
+        onFinish?: () => void;
+    };
 
 beforeEach(() => {
     visit.mockReset();
@@ -88,6 +101,39 @@ describe('useCrudTable', () => {
         // A filter change always returns to the first page.
         expect(url.searchParams.has('page')).toBe(false);
         expect(lastOptions().preserveState).toBe(true);
+    });
+
+    it('composes two commits made before the server responds', () => {
+        const { result } = renderHook(() => useCrudTable({ endpoint: '/users' }));
+
+        act(() => {
+            result.current.setFilters({ status: 'active' });
+            result.current.setSearch('acme');
+        });
+
+        const url = lastUrl();
+
+        expect(url.searchParams.get('filter[status]')).toBe('active');
+        expect(url.searchParams.get('search')).toBe('acme');
+        expect(url.searchParams.has('page')).toBe(false);
+    });
+
+    it('tracks only the visits it started and clears pending on finish', () => {
+        const { result } = renderHook(() => useCrudTable({ endpoint: '/users' }));
+
+        expect(result.current.pending).toBe(false);
+
+        act(() => {
+            result.current.setFilters({ status: 'active' });
+        });
+
+        expect(result.current.pending).toBe(true);
+
+        act(() => {
+            lastOptions().onFinish?.();
+        });
+
+        expect(result.current.pending).toBe(false);
     });
 
     it('removes a filter when its value is blank', () => {

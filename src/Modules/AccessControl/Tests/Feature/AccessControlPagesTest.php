@@ -69,6 +69,7 @@ it('renders the permission index with its filter options', function (): void {
             ->component('AccessControl/Permissions/Index')
             ->has('filterOptions.groups')
             ->has('filterOptions.roles')
+            ->where('filterOptions.permissions', [])
             ->where('filterOptions.groups', fn ($groups) => collect($groups)->contains('ROLE'))
             ->where('filterOptions.roles', fn ($roles) => collect($roles)->contains('SUPER_ADMIN'))
             ->where('canCreate', true)

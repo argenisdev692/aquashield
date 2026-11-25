@@ -18,5 +18,5 @@ export const accessNameSchema = z
         'Use uppercase letters, digits and underscores, starting with a letter.',
     );
 
-/** Hard ceiling shared with the role requests (`max:600` on the server). */
-export const ACCESS_PERMISSION_LIMIT = 600;
+/** Hard ceiling shared with the role requests (`max:1000` on the server). */
+export const ACCESS_PERMISSION_LIMIT = 1000;

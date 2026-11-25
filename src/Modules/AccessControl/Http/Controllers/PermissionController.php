@@ -22,6 +22,7 @@ use Modules\AccessControl\Http\Requests\UpdatePermissionRequest;
 use Modules\AccessControl\Queries\FilterOptionsQuery;
 use Modules\AccessControl\Queries\PermissionListQuery;
 use Shared\Domain\Enums\Permission as PermissionEnum;
+use Shared\Support\ReturnPath;
 
 /**
  * Admin CRUD for the permission catalogue. Permissions are one field, so the
@@ -60,7 +61,7 @@ final readonly class PermissionController
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
             'filters' => $filters,
-            'filterOptions' => $this->filterOptions->execute(),
+            'filterOptions' => $this->filterOptions->forPermissions(),
             'canCreate' => $actor->can(PermissionEnum::CreatePermission->value),
             'canUpdate' => $actor->can(PermissionEnum::UpdatePermission->value),
             'canDelete' => $actor->can(PermissionEnum::DeletePermission->value),
@@ -80,7 +81,7 @@ final readonly class PermissionController
             return response()->json(['permission' => PermissionData::fromModel($permission)], 201);
         }
 
-        return to_route('permissions.index')->with('status', 'Permission created.');
+        return $this->redirectToIndex($request, 'Permission created.');
     }
 
     public function update(UpdatePermissionRequest $request, Permission $permission): JsonResponse|RedirectResponse
@@ -95,7 +96,7 @@ final readonly class PermissionController
             return response()->json(['permission' => PermissionData::fromModel($updated)]);
         }
 
-        return to_route('permissions.index')->with('status', 'Permission updated.');
+        return $this->redirectToIndex($request, 'Permission updated.');
     }
 
     public function destroy(Request $request, Permission $permission): RedirectResponse|Response
@@ -106,7 +107,18 @@ final readonly class PermissionController
             return response()->noContent();
         }
 
-        return to_route('permissions.index')->with('status', 'Permission deleted.');
+        return $this->redirectToIndex($request, 'Permission deleted.');
+    }
+
+    private function redirectToIndex(Request $request, string $status): RedirectResponse
+    {
+        $returnTo = ReturnPath::sanitize($request->input('return_to'), ['/permissions']);
+
+        if ($returnTo !== null) {
+            return redirect()->to($returnTo)->with('status', $status);
+        }
+
+        return to_route('permissions.index')->with('status', $status);
     }
 
     private function actor(Request $request): User

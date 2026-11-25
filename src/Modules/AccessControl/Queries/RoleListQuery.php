@@ -6,6 +6,7 @@ namespace Modules\AccessControl\Queries;
 
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Modules\AccessControl\Data\RoleData;
@@ -29,7 +30,15 @@ final class RoleListQuery
         $search = (string) $filters->search;
 
         $query = Role::query()
-            ->withCount(['permissions', 'users'])
+            ->withCount([
+                'permissions',
+                /*
+                 * The delete guard counts soft-deleted assignees too (the pivot
+                 * row survives the soft delete), so the list must show the same
+                 * number or the row says "0 users" and the delete still fails.
+                 */
+                'users' => static fn (Builder $query): Builder => $query->withoutGlobalScope(SoftDeletingScope::class),
+            ])
             ->when(
                 $search !== '',
                 static function (Builder $query) use ($search): Builder {

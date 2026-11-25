@@ -24,6 +24,7 @@ use Modules\AccessControl\Queries\FilterOptionsQuery;
 use Modules\AccessControl\Queries\PermissionCatalogQuery;
 use Modules\AccessControl\Queries\RoleListQuery;
 use Shared\Domain\Enums\Permission as PermissionEnum;
+use Shared\Support\ReturnPath;
 
 /**
  * Admin CRUD for roles. Transport only: validate, invoke one action/query, map
@@ -64,7 +65,7 @@ final readonly class RoleController
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
             'filters' => $filters,
-            'filterOptions' => $this->filterOptions->execute(),
+            'filterOptions' => $this->filterOptions->forRoles(),
             'canCreate' => $actor->can(PermissionEnum::CreateRole->value),
             'canUpdate' => $actor->can(PermissionEnum::UpdateRole->value),
             'canDelete' => $actor->can(PermissionEnum::DeleteRole->value),
@@ -73,10 +74,11 @@ final readonly class RoleController
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         return inertia('AccessControl/Roles/Create', [
             'catalog' => $this->catalog->execute(),
+            'returnTo' => ReturnPath::sanitize($request->query('return_to'), ['/roles']),
         ]);
     }
 
@@ -91,7 +93,7 @@ final readonly class RoleController
             return response()->json(['role' => RoleData::fromModel($role)], 201);
         }
 
-        return to_route('roles.index')->with('status', 'Role created.');
+        return $this->redirectToIndex($request, 'Role created.');
     }
 
     public function edit(Request $request, Role $role): JsonResponse|InertiaResponse
@@ -106,6 +108,7 @@ final readonly class RoleController
         return inertia('AccessControl/Roles/Edit', [
             'role' => $detail,
             'catalog' => $this->catalog->execute(),
+            'returnTo' => ReturnPath::sanitize($request->query('return_to'), ['/roles']),
         ]);
     }
 
@@ -121,7 +124,7 @@ final readonly class RoleController
             return response()->json(['role' => RoleData::fromModel($updated)]);
         }
 
-        return to_route('roles.index')->with('status', 'Role updated.');
+        return $this->redirectToIndex($request, 'Role updated.');
     }
 
     public function destroy(Request $request, Role $role): RedirectResponse|Response
@@ -132,7 +135,22 @@ final readonly class RoleController
             return response()->noContent();
         }
 
-        return to_route('roles.index')->with('status', 'Role deleted.');
+        return $this->redirectToIndex($request, 'Role deleted.');
+    }
+
+    /**
+     * A filtered index is the operator's working context; keep it when the
+     * form returns a safe local path, otherwise fall back to the bare index.
+     */
+    private function redirectToIndex(Request $request, string $status): RedirectResponse
+    {
+        $returnTo = ReturnPath::sanitize($request->input('return_to'), ['/roles']);
+
+        if ($returnTo !== null) {
+            return redirect()->to($returnTo)->with('status', $status);
+        }
+
+        return to_route('roles.index')->with('status', $status);
     }
 
     private function actor(Request $request): User

@@ -7,13 +7,14 @@
  */
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
+import { accessControlUrls } from '@/Modules/AccessControl/endpoints';
 
 export interface PermissionCacheReset {
     reset: () => void;
     resetting: boolean;
 }
 
-const CACHE_RESET_URL = '/access-control/cache-reset';
+const CACHE_RESET_URL = accessControlUrls.cacheReset;
 
 export function usePermissionCacheReset(): PermissionCacheReset {
     const [resetting, setResetting] = useState(false);

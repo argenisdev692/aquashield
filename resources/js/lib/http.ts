@@ -189,12 +189,18 @@ const DOWNLOAD_TIMEOUT_MS = 60_000;
  * a top-level error page. Fetching the bytes keeps the table mounted; the
  * caller renders the message in its own alert region.
  */
-export async function downloadFile(path: string): Promise<DownloadedFile> {
+export async function downloadFile(path: string, signal?: AbortSignal): Promise<DownloadedFile> {
+    /*
+     * The caller can abort a download when it unmounts or starts a newer one;
+     * the timeout still guards a stream that never answers.
+     */
+    const timeout = AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS);
+    const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
     const response = await fetch(path, {
         method: 'GET',
         credentials: 'same-origin',
         headers: { Accept: 'application/json, application/octet-stream' },
-        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+        signal: combined,
     });
 
     if (response.redirected) {

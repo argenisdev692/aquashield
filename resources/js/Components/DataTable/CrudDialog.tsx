@@ -41,8 +41,21 @@ export default function CrudDialog({
     cancelLabel = 'Cancel',
     confirmVariant = 'default',
 }: CrudDialogProps) {
+    /*
+     * A dialog that can be dismissed mid-request turns a later 422 (an
+     * assigned role/permission cannot be deleted) into a message nobody sees,
+     * because the page clears the target and the error on close.
+     */
+    const handleOpenChange = (next: boolean): void => {
+        if (loading && !next) {
+            return;
+        }
+
+        onOpenChange(next);
+    };
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
@@ -50,7 +63,12 @@ export default function CrudDialog({
                 </DialogHeader>
                 <div className="py-4">{children}</div>
                 <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleOpenChange(false)}
+                        disabled={loading}
+                    >
                         {cancelLabel}
                     </Button>
                     {confirmHidden ? null : (

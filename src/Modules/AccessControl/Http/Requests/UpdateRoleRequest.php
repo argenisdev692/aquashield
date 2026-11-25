@@ -43,10 +43,12 @@ final class UpdateRoleRequest extends FormRequest
                 Rule::unique('roles', 'name')->where('guard_name', 'web')->ignore($roleId),
             ],
             /*
-             * Required: the edit form sends the whole matrix. A partial request
-             * must not silently revoke every permission.
+             * Present, not required: the edit form always sends the whole
+             * matrix, so a partial request must not silently revoke every
+             * permission — but an explicit `[]` is a valid "revoke all" and
+             * Laravel's `required` rejects it as empty.
              */
-            'permissions' => ['required', 'array', 'max:1000', new ExistingPermissionNames],
+            'permissions' => ['present', 'array', 'max:1000', new ExistingPermissionNames],
             'permissions.*' => ['string', 'max:64', 'distinct'],
         ];
     }

@@ -6,7 +6,7 @@
  * goes through a Base UI dialog and the server re-checks system/assigned guards.
  */
 import { useState } from 'react';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Tag } from '@/Components/ui/tag';
@@ -22,7 +22,7 @@ import {
 import AppLayout from '@/Layouts/AppLayout';
 import { useCrudTable } from '@/lib/crud-table';
 import { formatDateTime } from '@/lib/date';
-import { useVisitPending } from '@/lib/visits';
+import { accessControlUrls, withReturnTo } from '@/Modules/AccessControl/endpoints';
 import { usePermissionCacheReset } from '@/Modules/AccessControl/hooks/usePermissionCacheReset';
 
 type Role = Modules.AccessControl.Data.RoleData;
@@ -47,6 +47,7 @@ const roleColumns: SimpleColumn<Role>[] = [
     {
         accessorKey: 'name',
         header: 'Role',
+        hidable: false,
         cell: ({ row }) => (
             <div className="flex min-w-0 flex-col gap-1">
                 <span className="truncate font-mono text-sm font-medium text-surface-900 dark:text-surface-0">
@@ -96,16 +97,20 @@ export default function RolesIndex() {
         canResetCache,
     } = page.props;
 
-    const visitsPending = useVisitPending();
     const table = useCrudTable({
-        endpoint: '/roles',
+        endpoint: accessControlUrls.roles,
         defaults: { sort: { field: 'name', order: 1 } },
     });
+    const visitsPending = table.pending;
 
     const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const { reset: resetCache, resetting } = usePermissionCacheReset();
-    const deleteForm = useForm({});
+    const deleteForm = useForm({ return_to: page.url });
+
+    const createHref = withReturnTo(accessControlUrls.roleCreate, page.url);
+    const editHref = (uuid: string): string =>
+        withReturnTo(accessControlUrls.roleEdit(uuid), page.url);
 
     const filters: CrudFilterDef[] = [
         {
@@ -139,7 +144,12 @@ export default function RolesIndex() {
             return;
         }
 
-        deleteForm.delete(`/roles/${deleteTarget.uuid}`, {
+        // The form's initial data is captured on mount; a filter/search visit can
+        // change the URL afterwards. Transform at submit time so the delete
+        // returns to the view the user is actually looking at.
+        deleteForm.transform((data) => ({ ...data, return_to: page.url }));
+
+        deleteForm.delete(accessControlUrls.role(deleteTarget.uuid), {
             preserveScroll: true,
             onSuccess: () => {
                 setDeleteTarget(null);
@@ -187,7 +197,11 @@ export default function RolesIndex() {
                                 disabled={resetting}
                             >
                                 <RefreshCw
-                                    className={resetting ? 'size-3.5 animate-spin' : 'size-3.5'}
+                                    className={
+                                        resetting
+                                            ? 'size-3.5 animate-spin motion-reduce:animate-none'
+                                            : 'size-3.5'
+                                    }
                                     aria-hidden="true"
                                 />
                                 Flush cache
@@ -195,9 +209,9 @@ export default function RolesIndex() {
                         ) : null}
                         {canCreate ? (
                             <Button
-                                type="button"
+                                render={<Link href={createHref} />}
+                                nativeButton={false}
                                 size="toolbar"
-                                onClick={() => router.visit('/roles/create')}
                             >
                                 <Plus className="size-3.5" aria-hidden="true" />
                                 New role
@@ -214,7 +228,7 @@ export default function RolesIndex() {
                                       {
                                           label: 'Edit',
                                           icon: <Pencil className="size-4" aria-hidden="true" />,
-                                          onClick: () => router.visit(`/roles/${row.uuid}/edit`),
+                                          href: editHref(row.uuid),
                                       },
                                   ]
                                 : []),
@@ -236,7 +250,7 @@ export default function RolesIndex() {
                 )}
                 emptyAction={
                     canCreate ? (
-                        <Button size="sm" onClick={() => router.visit('/roles/create')}>
+                        <Button size="sm" render={<Link href={createHref} />} nativeButton={false}>
                             <Plus className="mr-1.5 size-3.5" aria-hidden="true" />
                             New role
                         </Button>

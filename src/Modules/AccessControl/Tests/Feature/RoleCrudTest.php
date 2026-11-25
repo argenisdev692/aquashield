@@ -50,6 +50,8 @@ it('renders the role index with filters, counts and abilities', function (): voi
             ->where('filters.sort_field', 'permissions_count')
             ->where('filters.sort_order', -1)
             ->has('filterOptions.permissions')
+            ->where('filterOptions.roles', [])
+            ->where('filterOptions.groups', [])
             ->where('canCreate', true)
             ->where('canUpdate', true)
             ->where('canDelete', true)
@@ -86,6 +88,26 @@ it('creates a role with a synced permission set and audits it', function (): voi
         'event' => 'role.created',
         'log_name' => 'access-control',
     ]);
+});
+
+it('returns to a safe filtered index after a role write', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/roles', [
+            'name' => 'CLAIMS_REVIEWER',
+            'permissions' => [],
+            'return_to' => '/roles?search=CLAIMS&filter[type]=custom',
+        ])
+        ->assertRedirect('/roles?search=CLAIMS&filter[type]=custom');
+});
+
+it('drops an unsafe return path and falls back to the index', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/roles', [
+            'name' => 'CLAIMS_REVIEWER',
+            'permissions' => [],
+            'return_to' => '//evil.example/roles',
+        ])
+        ->assertRedirect('/roles');
 });
 
 it('rejects a duplicate role name', function (): void {
@@ -162,12 +184,48 @@ it('refuses to rename a system role but still syncs its permissions', function (
     $this->actingAs($this->admin)
         ->putJson('/roles/'.$role->uuid, [
             'name' => 'SUPER_ADMIN',
-            'permissions' => [PermissionName::ViewAnyRole->value],
+            'permissions' => array_values(array_diff(
+                AccessControlFixtures::PERMISSIONS,
+                [PermissionName::ExportRole->value, PermissionName::ExportPermission->value],
+            )),
         ])
         ->assertOk();
 
     app(PermissionRegistrar::class)->forgetCachedPermissions();
-    expect($role->fresh()->hasPermissionTo(PermissionName::ViewAnyRole->value))->toBeTrue();
+    expect($role->fresh()->hasPermissionTo(PermissionName::ViewAnyRole->value))->toBeTrue()
+        ->and($role->fresh()->hasPermissionTo(PermissionName::ExportRole->value))->toBeFalse();
+});
+
+it('revokes every permission with an explicit empty set', function (): void {
+    $role = AccessControlFixtures::customRole(
+        'CLAIMS_REVIEWER',
+        [PermissionName::ViewAnyRole->value, PermissionName::UpdateRole->value],
+    );
+
+    $this->actingAs($this->admin)
+        ->putJson('/roles/'.$role->uuid, [
+            'name' => 'CLAIMS_REVIEWER',
+            'permissions' => [],
+        ])
+        ->assertOk()
+        ->assertJsonPath('role.permissions_count', 0);
+
+    expect($role->fresh()->permissions)->toHaveCount(0);
+});
+
+it('refuses to strip the SUPER_ADMIN role of its access-management permissions', function (): void {
+    $role = Role::findByName('SUPER_ADMIN', 'web');
+
+    $this->actingAs($this->admin)
+        ->putJson('/roles/'.$role->uuid, [
+            'name' => 'SUPER_ADMIN',
+            'permissions' => [PermissionName::ViewAnyRole->value],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['permissions']);
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    expect($role->fresh()->hasPermissionTo(PermissionName::UpdateRole->value))->toBeTrue();
 });
 
 it('records the permission names a role update added and removed', function (): void {
@@ -275,6 +333,11 @@ it('refuses to delete a role assigned only to a soft-deleted user', function ():
         ->deleteJson('/roles/'.$role->uuid)
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['role']);
+
+    $this->actingAs($this->admin)
+        ->getJson('/roles?search=CLAIMS_REVIEWER')
+        ->assertOk()
+        ->assertJsonPath('rows.0.users_count', 1);
 
     expect(Role::query()->whereKey($role->id)->exists())->toBeTrue();
 });

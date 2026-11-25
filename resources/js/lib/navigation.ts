@@ -102,6 +102,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: ShieldCheck,
         keywords: 'roles rbac access control permission matrix catalogue grants',
         capability: 'manageAccess',
+        permission: 'VIEW_ANY_ROLE',
     },
     {
         label: 'Permissions',
@@ -109,6 +110,7 @@ export const PRIMARY_NAV: readonly NavItem[] = [
         icon: LockKeyhole,
         keywords: 'permissions capabilities catalogue access control system custom groups',
         capability: 'manageAccess',
+        permission: 'VIEW_ANY_PERMISSION',
     },
     {
         label: 'Backups',
@@ -157,12 +159,12 @@ export const visiblePrimaryNav = (
     const granted = new Set(permissions);
 
     return PRIMARY_NAV.filter((item) => {
-        if (item.capability === 'manageStaff') {
-            return capabilities.manageStaff;
+        if (item.capability === 'manageStaff' && !capabilities.manageStaff) {
+            return false;
         }
 
-        if (item.capability === 'manageAccess') {
-            return capabilities.manageAccess;
+        if (item.capability === 'manageAccess' && !capabilities.manageAccess) {
+            return false;
         }
 
         return item.permission === undefined || granted.has(item.permission);

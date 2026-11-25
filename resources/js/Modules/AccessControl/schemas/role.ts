@@ -17,6 +17,12 @@ export const roleSchema = z.object({
             ACCESS_PERMISSION_LIMIT,
             `A role cannot hold more than ${ACCESS_PERMISSION_LIMIT} permissions.`,
         ),
+    /*
+     * Where to go after a successful write. The server sanitises it and falls
+     * back to the index; keeping it in the form data means the filtered view
+     * survives a create or an edit.
+     */
+    return_to: z.string().max(2048),
 });
 
 export type RoleForm = z.infer<typeof roleSchema>;

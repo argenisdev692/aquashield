@@ -79,6 +79,15 @@ it('creates a custom permission and flushes the registry', function (): void {
     ]);
 });
 
+it('returns to a safe filtered index after a permission write', function (): void {
+    $this->actingAs($this->admin)
+        ->post('/permissions', [
+            'name' => 'APPROVE_CLAIM',
+            'return_to' => '/permissions?search=APPROVE&filter[type]=custom',
+        ])
+        ->assertRedirect('/permissions?search=APPROVE&filter[type]=custom');
+});
+
 it('rejects a duplicate permission name', function (): void {
     AccessControlFixtures::customPermission('APPROVE_CLAIM');
 
@@ -189,6 +198,11 @@ it('refuses to delete a permission assigned only to a soft-deleted user', functi
         ->deleteJson('/permissions/'.$permission->uuid)
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['permission']);
+
+    $this->actingAs($this->admin)
+        ->getJson('/permissions?search=APPROVE_CLAIM')
+        ->assertOk()
+        ->assertJsonPath('rows.0.users_count', 1);
 
     expect(Permission::query()->whereKey($permission->id)->exists())->toBeTrue();
 });

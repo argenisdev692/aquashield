@@ -6,6 +6,7 @@ namespace Modules\AccessControl\Queries;
 
 use App\Models\Permission;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Modules\AccessControl\Data\PermissionFilterData;
@@ -28,7 +29,10 @@ final class PermissionListQuery
         $search = (string) $filters->search;
 
         $query = Permission::query()
-            ->withCount(['roles', 'users'])
+            ->withCount([
+                'roles',
+                'users' => static fn (Builder $query): Builder => $query->withoutGlobalScope(SoftDeletingScope::class),
+            ])
             ->when(
                 $search !== '',
                 static function (Builder $query) use ($search): Builder {

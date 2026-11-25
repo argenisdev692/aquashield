@@ -4,9 +4,10 @@ import RoleForm from './components/RoleForm';
 
 interface RolesCreateProps {
     catalog: Modules.AccessControl.Data.PermissionCatalogData;
+    returnTo?: string | null;
 }
 
-export default function RolesCreate({ catalog }: RolesCreateProps) {
+export default function RolesCreate({ catalog, returnTo }: RolesCreateProps) {
     return (
         <AppLayout title="Create role">
             <Head title="Create role" />
@@ -21,7 +22,7 @@ export default function RolesCreate({ catalog }: RolesCreateProps) {
                 </p>
             </div>
 
-            <RoleForm catalog={catalog} />
+            <RoleForm catalog={catalog} returnTo={returnTo} />
         </AppLayout>
     );
 }

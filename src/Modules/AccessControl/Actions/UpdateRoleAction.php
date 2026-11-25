@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\AccessControl\Data\RoleData;
 use Modules\AccessControl\Data\RoleInputData;
+use Shared\Domain\Enums\Permission as PermissionName;
+use Shared\Domain\Enums\Role as RoleName;
 use Shared\Domain\Ports\AuditPort;
 use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 use Spatie\Permission\PermissionRegistrar;
@@ -23,6 +25,26 @@ use Spatie\Permission\PermissionRegistrar;
  */
 final readonly class UpdateRoleAction
 {
+    /**
+     * The capabilities the installation owner needs to keep using this screen.
+     *
+     * A SUPER_ADMIN can otherwise remove UPDATE_ROLE from their own role and
+     * lose the only UI that could restore it; provisioning is first-install
+     * only, so there is no seeder path back.
+     *
+     * @var list<string>
+     */
+    private const array SUPER_ADMIN_REQUIRED_PERMISSIONS = [
+        PermissionName::ViewAnyRole->value,
+        PermissionName::CreateRole->value,
+        PermissionName::UpdateRole->value,
+        PermissionName::DeleteRole->value,
+        PermissionName::ViewAnyPermission->value,
+        PermissionName::CreatePermission->value,
+        PermissionName::UpdatePermission->value,
+        PermissionName::DeletePermission->value,
+    ];
+
     public function __construct(
         private AuditPort $audit,
         private PermissionRegistrar $registrar,
@@ -47,6 +69,24 @@ final readonly class UpdateRoleAction
                 throw ValidationException::withMessages([
                     'name' => 'System role names are reserved.',
                 ]);
+            }
+
+            /*
+             * Keep the installation owner able to repair itself. This is a
+             * server invariant, not a UI courtesy: the role gate admits the
+             * SUPER_ADMIN, but the route middleware also needs these names.
+             */
+            if ($previousName === RoleName::SuperAdmin->value) {
+                $missing = array_values(array_diff(
+                    self::SUPER_ADMIN_REQUIRED_PERMISSIONS,
+                    $data->permissions,
+                ));
+
+                if ($missing !== []) {
+                    throw ValidationException::withMessages([
+                        'permissions' => 'The SUPER_ADMIN role must keep the access-management permissions: '.implode(', ', $missing).'.',
+                    ]);
+                }
             }
 
             try {
