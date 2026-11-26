@@ -22,11 +22,11 @@ final class SavedViewCatalog
      * @var array<string, list<string>>
      */
     private const array FILTERS = [
-        'users' => ['status', 'role', 'permission', 'date_from', 'date_to'],
+        'users' => ['account_status', 'status', 'role', 'permission', 'date_from', 'date_to'],
         'leads' => ['status', 'record_state', 'source', 'region', 'owner_uuid', 'emergency', 'spam', 'date_from', 'date_to'],
         'appointments' => ['status', 'record_state', 'kind', 'region', 'date_from', 'date_to'],
         'backups' => ['status', 'disk', 'date_from', 'date_to'],
-        'activity' => ['log_name', 'event', 'date_from', 'date_to'],
+        'activity' => ['log_name', 'event', 'date_from', 'date_to', 'timezone'],
     ];
 
     /**

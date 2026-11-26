@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { xsrfToken } from '@/lib/http';
 
 /**
@@ -72,7 +72,9 @@ const isCompanyAssets = (value: unknown): value is CompanyAssets =>
     isNullableString(value.signature_url);
 
 function messageFrom(payload: unknown, status: number): string {
-    if (isRecord(payload)) {
+    // A 5xx body may carry an exception message; never surface it (same rule
+    // as lib/http.ts). Field errors and 4xx copy are app-authored.
+    if (status < 500 && isRecord(payload)) {
         const errors = payload.errors;
 
         if (isRecord(errors) && Array.isArray(errors.file) && typeof errors.file[0] === 'string') {
@@ -91,11 +93,16 @@ function messageFrom(payload: unknown, status: number): string {
 
 export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsController {
     /**
-     * The upload response *is* the new server state: it carries every resolved
-     * URL after the write, so the panel swaps previews without a page visit.
-     * `initial` seeds the first render from the Inertia props.
+     * The upload response is the freshest server state: it carries every
+     * resolved URL after the write, so the panel swaps previews without a page
+     * visit. `initial` seeds the first render, and a later prop (a page visit
+     * that re-signs the URLs) re-seeds it instead of leaving an expired URL.
      */
     const [assets, setAssets] = useState<CompanyAssets>(initial);
+
+    useEffect(() => {
+        setAssets(initial);
+    }, [initial]);
 
     /** The kind currently in flight, so one upload disables the rest. */
     const [pending, setPending] = useState<CompanyAssetKind | null>(null);

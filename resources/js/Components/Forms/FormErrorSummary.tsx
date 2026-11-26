@@ -25,6 +25,13 @@ interface FormErrorSummaryProps {
     labels?: Record<string, string>;
     /** Defaults to focusing the control by its `name` attribute. */
     onFieldFocus?: (field: string) => void;
+    /**
+     * The `submitAttempts` counter from `useZodForm`. The summary focuses itself
+     * only when this counter advances and errors exist — never when a blur
+     * validation adds a first error, which used to steal focus from the field
+     * the user was tabbing into. Defaults to 0 (no automatic focus).
+     */
+    submitAttempts?: number;
 }
 
 const humanize = (field: string): string =>
@@ -37,20 +44,23 @@ export default function FormErrorSummary({
     errors,
     labels,
     onFieldFocus = focusFieldByName,
+    submitAttempts = 0,
 }: FormErrorSummaryProps) {
     const keys = Object.keys(errors);
     const containerRef = useRef<HTMLDivElement>(null);
-    const hadErrors = useRef(false);
+    const lastSubmitAttempt = useRef(0);
 
     useEffect(() => {
-        const hasErrors = keys.length > 0;
-
-        if (hasErrors && !hadErrors.current) {
-            containerRef.current?.focus();
+        if (submitAttempts <= lastSubmitAttempt.current) {
+            return;
         }
 
-        hadErrors.current = hasErrors;
-    }, [keys.length]);
+        lastSubmitAttempt.current = submitAttempts;
+
+        if (keys.length > 0) {
+            containerRef.current?.focus();
+        }
+    }, [submitAttempts, keys.length]);
 
     if (keys.length === 0) {
         return null;

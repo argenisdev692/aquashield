@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Database\Seeders\CompanyDataSeeder;
+use Database\Seeders\UserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\CompanyData\Models\CompanyData;
 use Shared\Infrastructure\Company\CompanyProfile;
@@ -78,7 +79,7 @@ it('falls back to the app branding when no company row exists', function (): voi
 });
 
 it('seeds the branding fields used by the welcome page', function (): void {
-    User::factory()->create(['email' => 'info@aquashieldrestorationusa.com']);
+    User::factory()->create(['email' => UserSeeder::DEMO_OWNER_EMAIL]);
 
     $this->seed(CompanyDataSeeder::class);
 

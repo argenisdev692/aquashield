@@ -7,7 +7,7 @@
  * `requestJson` themselves — this hook owns the request, the pending state and
  * the user-facing copy.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { HttpRequestError, requestJson } from '@/lib/http';
 
@@ -51,8 +51,19 @@ export function useRunBackup(): RunBackup {
     const [pending, setPending] = useState(false);
     const [status, setStatus] = useState<RunBackupStatus>('idle');
     const [error, setError] = useState<string | null>(null);
+    /*
+     * `pending` only disables the button after the next render; a same-tick
+     * double invocation could queue two dumps. The ref is the synchronous guard
+     * (the bulk-actions hook uses the same pattern).
+     */
+    const inFlight = useRef(false);
 
     const run = async (): Promise<boolean> => {
+        if (inFlight.current) {
+            return false;
+        }
+
+        inFlight.current = true;
         setPending(true);
         setError(null);
 
@@ -75,6 +86,7 @@ export function useRunBackup(): RunBackup {
 
             return false;
         } finally {
+            inFlight.current = false;
             setPending(false);
         }
     };

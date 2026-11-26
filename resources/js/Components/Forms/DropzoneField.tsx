@@ -49,9 +49,10 @@ export default function DropzoneField({
 
     const message = error ?? localError ?? undefined;
 
-    const describedByIds = [hint ? hintId : undefined, message ? errorId : undefined].filter(
-        (value): value is string => value !== undefined,
-    );
+    const describedByIds = [
+        hint && !message ? hintId : undefined,
+        message ? errorId : undefined,
+    ].filter((value): value is string => value !== undefined);
     const describedBy = describedByIds.length > 0 ? describedByIds.join(' ') : undefined;
 
     const acceptFiles = (files: File[]): void => {

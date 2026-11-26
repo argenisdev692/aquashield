@@ -40,7 +40,7 @@ final readonly class ProvisionCompanyDataAction
                 'name' => 'Victor Lara',
                 'company_name' => 'AquaShield Restoration USA',
                 'description' => 'Water damage restoration, mold remediation, and reconstruction services in Houston, Texas.',
-                'email' => 'info@aquashieldrestorationusa.com',
+                'email' => 'aquashieldrestoration@gmail.com',
                 'phone' => '+17135876423',
                 'address' => '3733 Westheimer Rd. Ste 1-4583, Houston, TX 77027',
                 'country' => 'United States',

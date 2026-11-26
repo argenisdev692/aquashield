@@ -170,31 +170,34 @@ export default function SignatureField({
 
     return (
         <FieldShell id={id} label={label} name={name} error={error} hint={hint} required={required}>
-            <div className="flex flex-col gap-2">
-                <canvas
-                    ref={canvasRef}
-                    id={id}
-                    role="img"
-                    aria-label={`${label} drawing area`}
-                    tabIndex={0}
-                    className="h-48 w-full cursor-crosshair touch-none rounded-lg border border-aq-shell-line bg-surface-0 text-surface-900"
-                    onBlur={onBlur}
-                />
+            {({ describedBy }) => (
+                <div className="flex flex-col gap-2">
+                    <canvas
+                        ref={canvasRef}
+                        id={id}
+                        role="img"
+                        aria-label={`${label} drawing area`}
+                        aria-describedby={describedBy}
+                        tabIndex={0}
+                        className="h-48 w-full cursor-crosshair touch-none rounded-lg border border-aq-shell-line bg-surface-0 text-surface-900"
+                        onBlur={onBlur}
+                    />
 
-                <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={clear} disabled={disabled}>
-                        <Eraser className="mr-2 size-4" aria-hidden="true" />
-                        Clear
-                    </Button>
-
-                    {value !== null && (
+                    <div className="flex items-center gap-2">
                         <Button size="sm" variant="outline" onClick={clear} disabled={disabled}>
-                            <PenLine className="mr-2 size-4" aria-hidden="true" />
-                            Redraw
+                            <Eraser className="mr-2 size-4" aria-hidden="true" />
+                            Clear
                         </Button>
-                    )}
+
+                        {value !== null && (
+                            <Button size="sm" variant="outline" onClick={clear} disabled={disabled}>
+                                <PenLine className="mr-2 size-4" aria-hidden="true" />
+                                Redraw
+                            </Button>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </FieldShell>
     );
 }

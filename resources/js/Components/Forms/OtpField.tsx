@@ -106,8 +106,6 @@ export default function OtpField({
                         }
                     }}
                 >
-                    <input type="hidden" name={name} value={digits.join('')} />
-
                     {/* One row, always. `flex-wrap` used to break the sixth slot
                         onto a second line on a 360px phone — five boxes above,
                         one orphan below — and because the group was flush left
@@ -122,6 +120,7 @@ export default function OtpField({
                                     inputs.current[index] = element;
                                 }}
                                 id={index === 0 ? id : `${id}-${index}`}
+                                name={index === 0 ? name : undefined}
                                 type="text"
                                 inputMode="numeric"
                                 autoComplete={index === 0 ? 'one-time-code' : 'off'}

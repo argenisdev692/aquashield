@@ -72,6 +72,8 @@ export default function LeadsShow({
     canRestore,
 }: ShowProps) {
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [stageError, setStageError] = useState<string | null>(null);
     const [stage, setStage] = useState<string | null>(null);
     const pageErrors = usePage<{ errors: Record<string, string> }>().props.errors;
@@ -107,11 +109,49 @@ export default function LeadsShow({
 
     const phoneHref = lead.phone === null ? null : `tel:${lead.phone.replace(/[^\d+]/g, '')}`;
 
+    const restore = (): void => {
+        setActionError(null);
+
+        router.patch(
+            `/leads/${lead.uuid}/restore`,
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors) => {
+                    setActionError(errors.lead ?? 'The lead could not be restored. Try again.');
+                },
+            },
+        );
+    };
+
+    const destroy = (): void => {
+        setDeleting(true);
+        setActionError(null);
+
+        router.delete(`/leads/${lead.uuid}`, {
+            preserveScroll: true,
+            onSuccess: () => setDeleteOpen(false),
+            onError: (errors) => {
+                setActionError(errors.lead ?? 'The lead could not be deleted. Try again.');
+            },
+            onFinish: () => setDeleting(false),
+        });
+    };
+
     return (
         <AppLayout title={lead.full_name}>
             <Head title={lead.full_name} />
 
             <div className="flex flex-col gap-6">
+                {actionError !== null && (
+                    <p
+                        role="alert"
+                        className="rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm font-medium text-aq-danger-strong"
+                    >
+                        {actionError}
+                    </p>
+                )}
+
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -145,7 +185,7 @@ export default function LeadsShow({
                                 type="button"
                                 variant="outline"
                                 className="h-9 gap-2"
-                                onClick={() => router.patch(`/leads/${lead.uuid}/restore`)}
+                                onClick={restore}
                             >
                                 <RotateCcw className="size-4" aria-hidden="true" />
                                 Restore
@@ -470,7 +510,16 @@ export default function LeadsShow({
                 </p>
             </div>
 
-            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <Dialog
+                open={deleteOpen}
+                onOpenChange={(open) => {
+                    setDeleteOpen(open);
+
+                    if (open) {
+                        setActionError(null);
+                    }
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Delete this lead?</DialogTitle>
@@ -480,17 +529,15 @@ export default function LeadsShow({
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                        <Button
+                            variant="outline"
+                            onClick={() => setDeleteOpen(false)}
+                            disabled={deleting}
+                        >
                             Cancel
                         </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => {
-                                setDeleteOpen(false);
-                                router.delete(`/leads/${lead.uuid}`);
-                            }}
-                        >
-                            Delete lead
+                        <Button variant="destructive" onClick={destroy} disabled={deleting}>
+                            {deleting ? 'Deleting…' : 'Delete lead'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

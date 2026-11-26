@@ -25,7 +25,7 @@ interface EditUserPageProps {
 }
 
 export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps) {
-    const { form, errors, submit, touch, setField, setFields } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch, setField, setFields } = useZodForm({
         initial: toUserProfileForm(user),
         schema: updateUserSchema,
     });
@@ -91,7 +91,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
                     <UserStatusBadge status={user.status} label={user.status_label} />
                 </div>
 
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <Card>
                     <CardHeader>

@@ -43,7 +43,7 @@ export default function SessionIdleWarning({
     keepAliveEndpoint = '/auth/keep-alive',
     logoutEndpoint = '/logout',
 }: SessionIdleWarningProps) {
-    const { visible, remainingSeconds, keeping, keepSession, logout } = useIdleSession(
+    const { visible, remainingSeconds, keeping, keepError, keepSession, logout } = useIdleSession(
         warnAfterSeconds,
         graceSeconds,
         keepAliveEndpoint,
@@ -57,6 +57,7 @@ export default function SessionIdleWarning({
             <DialogContent
                 role="alertdialog"
                 aria-modal="true"
+                data-session-idle
                 showCloseButton={false}
                 overlayClassName="bg-aq-overlay/50 backdrop-blur-sm"
                 className="z-[60] sm:max-w-md"
@@ -78,6 +79,12 @@ export default function SessionIdleWarning({
                         </div>
                     </div>
                 </DialogHeader>
+
+                {keepError !== null && (
+                    <p role="alert" className="text-xs font-medium text-aq-danger-strong">
+                        {keepError}
+                    </p>
+                )}
 
                 <div className="flex items-center justify-between gap-2 pt-2">
                     <Button onClick={() => void keepSession()} disabled={keeping}>

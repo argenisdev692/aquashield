@@ -90,6 +90,17 @@ export default function LeadPicker({
 
     const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
         if (event.key === 'Escape') {
+            /*
+             * Base UI's Dialog closes on Escape without checking
+             * `defaultPrevented`, so a panel dismissal inside a modal would
+             * also trigger the dialog's dirty-close guard. Stop the event at
+             * the input while the panel is open; let it through when closed.
+             */
+            if (open) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
             setOpen(false);
             setActiveIndex(-1);
 
@@ -228,7 +239,7 @@ export default function LeadPicker({
                             id={listboxId}
                             role="listbox"
                             aria-label="Lead suggestions"
-                            className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-aq-shell-line bg-surface-0 shadow-lg dark:bg-surface-900"
+                            className="absolute inset-x-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-aq-shell-line bg-surface-0 shadow-lg dark:bg-surface-900"
                         >
                             {leads.isPending ? (
                                 <p
@@ -263,6 +274,7 @@ export default function LeadPicker({
                                                 id={`${listboxId}-option-${index}`}
                                                 role="option"
                                                 aria-selected={index === activeIndex}
+                                                tabIndex={-1}
                                                 onMouseDown={(event) => event.preventDefault()}
                                                 onMouseEnter={() => setActiveIndex(index)}
                                                 onClick={() => select(lead)}

@@ -57,6 +57,19 @@ const serializeFilters = (filters: TableFilters): Record<string, string | string
             continue;
         }
 
+        /*
+         * `false` is an inactive toggle under `isBlankFilter`, so it stays out
+         * of the saved payload. A real `true` must survive the round-trip; the
+         * table convention for a boolean filter is the string `'1'`/`'0'`.
+         */
+        if (typeof value === 'boolean') {
+            if (value) {
+                serialized[key] = '1';
+            }
+
+            continue;
+        }
+
         if (Array.isArray(value) && value.length > 0) {
             serialized[key] = value.map(String);
         }

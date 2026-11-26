@@ -461,6 +461,7 @@ export default function DataTableKit<TData extends RowData>({
     // A stale deep link can point past the last page; derive the range from what
     // the server actually returned so the footer never reads "41–30 of 30".
     const shownPage = Math.min(page, pageCount);
+    const pageOutOfRange = data.length === 0 && total > 0 && page > pageCount;
     const firstRow = data.length === 0 ? 0 : (shownPage - 1) * perPage + 1;
     const lastRow = firstRow === 0 ? 0 : Math.min(firstRow + data.length - 1, total);
 
@@ -947,6 +948,30 @@ export default function DataTableKit<TData extends RowData>({
                                     ) : null}
                                 </td>
                             </tr>
+                        ) : pageOutOfRange ? (
+                            <tr>
+                                <td
+                                    colSpan={columnCount}
+                                    className={cn('px-4 text-center', emptyPadding)}
+                                >
+                                    <p className="text-sm font-medium text-surface-900 dark:text-surface-0">
+                                        This page is empty
+                                    </p>
+                                    <p className="mt-1 text-sm text-surface-600 dark:text-surface-300">
+                                        The list shrank while you were here.{' '}
+                                        <span className="font-medium tabular-nums">{total}</span>{' '}
+                                        {total === 1 ? 'record remains' : 'records remain'}.
+                                    </p>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-4"
+                                        onClick={() => setPage(pageCount)}
+                                    >
+                                        Go to page {pageCount}
+                                    </Button>
+                                </td>
+                            </tr>
                         ) : data.length === 0 ? (
                             <tr>
                                 <td
@@ -1059,10 +1084,11 @@ export default function DataTableKit<TData extends RowData>({
                     >
                         {firstRow === 0 ? (
                             <>
-                                Showing 0 of{' '}
+                                This page is empty ·{' '}
                                 <span className="font-medium text-surface-900 tabular-nums dark:text-surface-0">
                                     {total}
-                                </span>
+                                </span>{' '}
+                                {total === 1 ? 'record' : 'records'}
                             </>
                         ) : (
                             <>

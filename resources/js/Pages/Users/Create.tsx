@@ -41,7 +41,7 @@ const initialValues = (): CreateUserForm => ({
 });
 
 export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPageProps) {
-    const { form, errors, submit, touch, clearError, setFields } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch, clearError, setFields } = useZodForm({
         initial: initialValues(),
         schema: createUserSchema,
     });
@@ -92,7 +92,7 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
             <Head title="Create user" />
 
             <form onSubmit={onSubmit} className="mx-auto flex max-w-4xl flex-col gap-6" noValidate>
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <Card>
                     <CardHeader>

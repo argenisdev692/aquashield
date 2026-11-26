@@ -142,6 +142,31 @@ describe('DataTableKit accessibility', () => {
     }, 15_000);
 });
 
+describe('DataTableKit pagination', () => {
+    it('offers a way back when the current page is empty', () => {
+        const props = createProps();
+        const setPage = vi.fn<(page: number) => void>();
+
+        render(
+            <DataTableKit
+                {...props}
+                data={[]}
+                total={15}
+                page={2}
+                perPage={15}
+                setPage={setPage}
+            />,
+        );
+
+        expect(screen.getByText('This page is empty')).toBeTruthy();
+        expect(screen.queryByText('No records yet')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Go to page 1' }));
+
+        expect(setPage).toHaveBeenCalledWith(1);
+    });
+});
+
 describe('DataTableKit selection', () => {
     it('clears the page selection when the server replaces the rows', () => {
         const props = createProps();

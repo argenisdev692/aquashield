@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { xsrfToken } from '@/lib/http';
 import { isWebAuthnSupported, parseVerificationOptions, serialiseAssertion } from '@/lib/webauthn';
 
@@ -41,7 +41,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const NETWORK_ERROR = 'The network request failed. Check your connection and try again.';
 
 const errorMessage = (payload: unknown, status: number): string => {
-    if (isRecord(payload)) {
+    /*
+     * A 5xx body can carry an exception message (and, with APP_DEBUG, paths or
+     * SQL). `lib/http.ts` never surfaces it; this transport must not either.
+     */
+    if (status < 500 && isRecord(payload)) {
         const errors = payload.errors;
 
         if (isRecord(errors)) {
@@ -119,6 +123,17 @@ export function usePasskeyLogin() {
      */
     const ceremony = useRef<AbortController | null>(null);
 
+    /** The explicit button's ceremony; aborted when the card unmounts. */
+    const signInController = useRef<AbortController | null>(null);
+
+    useEffect(
+        () => () => {
+            signInController.current?.abort();
+            signInController.current = null;
+        },
+        [],
+    );
+
     const clearError = (): void => setError(null);
 
     const cancelAutofill = (): void => {
@@ -160,7 +175,14 @@ export function usePasskeyLogin() {
     };
 
     /** Post the assertion and let the controller decide where the visitor lands. */
-    const complete = async (credential: Credential | null): Promise<PasskeyLoginResult | null> => {
+    const complete = async (
+        credential: Credential | null,
+        signal?: AbortSignal,
+    ): Promise<PasskeyLoginResult | null> => {
+        if (signal?.aborted) {
+            return null;
+        }
+
         if (!(credential instanceof PublicKeyCredential)) {
             setError('The authenticator did not return a passkey.');
 
@@ -193,10 +215,24 @@ export function usePasskeyLogin() {
                     credential: serialised,
                     remember: false,
                 }),
+                /*
+                 * The POST is part of the ceremony: unmounting or stepping
+                 * back from the card must not leave an authentication request
+                 * in flight that the page will ignore.
+                 */
+                signal,
             });
         } catch {
+            if (signal?.aborted) {
+                return null;
+            }
+
             setError(NETWORK_ERROR);
 
+            return null;
+        }
+
+        if (signal?.aborted) {
             return null;
         }
 
@@ -217,6 +253,12 @@ export function usePasskeyLogin() {
         cancelAutofill();
         setError(null);
 
+        // A previous click's ceremony (or the unmount) must not leave a login
+        // POST running after this card has moved on.
+        const controller = new AbortController();
+        signInController.current?.abort();
+        signInController.current = controller;
+
         // `PublicKeyCredential` is only exposed in a secure context, so a
         // plain-HTTP host hides it. Say so instead of failing silently.
         if (!isWebAuthnSupported()) {
@@ -230,7 +272,11 @@ export function usePasskeyLogin() {
         setAuthenticating(true);
 
         try {
-            const options = await loadOptions();
+            const options = await loadOptions(controller.signal);
+
+            if (controller.signal.aborted) {
+                return null;
+            }
 
             if (!options.ok) {
                 setError(options.message);
@@ -241,20 +287,38 @@ export function usePasskeyLogin() {
             let credential: Credential | null;
 
             try {
-                credential = await navigator.credentials.get({ publicKey: options.publicKey });
+                credential = await navigator.credentials.get({
+                    publicKey: options.publicKey,
+                    signal: controller.signal,
+                });
             } catch (caught) {
+                if (controller.signal.aborted) {
+                    return null;
+                }
+
                 setError(describe(caught));
 
                 return null;
             }
 
-            return await complete(credential);
+            if (controller.signal.aborted) {
+                return null;
+            }
+
+            return await complete(credential, controller.signal);
         } catch (caught) {
+            if (controller.signal.aborted) {
+                return null;
+            }
+
             setError(describe(caught));
 
             return null;
         } finally {
-            setAuthenticating(false);
+            if (signInController.current === controller) {
+                signInController.current = null;
+                setAuthenticating(false);
+            }
         }
     };
 
@@ -297,7 +361,7 @@ export function usePasskeyLogin() {
                 return null;
             }
 
-            return await complete(credential);
+            return await complete(credential, controller.signal);
         } catch (caught) {
             if (controller.signal.aborted) {
                 return null;

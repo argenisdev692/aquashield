@@ -34,7 +34,8 @@ export default function CheckboxField({
     const hintId = `${inputId}-hint`;
     const errorId = `${inputId}-error`;
 
-    const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined;
+    const describedBy =
+        [hint && !error && hintId, error && errorId].filter(Boolean).join(' ') || undefined;
 
     return (
         <div className="flex flex-col gap-1">

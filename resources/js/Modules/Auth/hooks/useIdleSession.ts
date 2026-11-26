@@ -22,6 +22,8 @@ export interface IdleSession {
     visible: boolean;
     remainingSeconds: number;
     keeping: boolean;
+    /** A failed "keep working" attempt; the dialog stays open so it can be retried. */
+    keepError: string | null;
     keepSession: () => Promise<void>;
     logout: () => void;
 }
@@ -39,6 +41,7 @@ export function useIdleSession(
     const [visible, setVisible] = useState(false);
     const [remainingSeconds, setRemainingSeconds] = useState(graceSeconds);
     const [keeping, setKeeping] = useState(false);
+    const [keepError, setKeepError] = useState<string | null>(null);
 
     const visibleRef = useRef(false);
     /*
@@ -62,12 +65,25 @@ export function useIdleSession(
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-XSRF-TOKEN': xsrfToken(),
             },
+            // A hung keep-alive must not leave the dialog "keeping" forever.
+            signal: AbortSignal.timeout(10_000),
         });
 
         if (response.status === 401 || response.status === 419) {
             // The server already invalidated the session (or the CSRF token
             // rotated). A hard visit is the only clean recovery.
             window.location.assign('/login');
+
+            throw new Error('Your session expired.');
+        }
+
+        /*
+         * Every other non-2xx is a real failure. Returning normally here made
+         * a 5xx look like a successful keep-alive: the dialog closed and the
+         * local clock restarted while the server deadline stayed put.
+         */
+        if (!response.ok) {
+            throw new Error('The keep-alive request was rejected.');
         }
     };
 
@@ -97,16 +113,29 @@ export function useIdleSession(
         lastHeartbeatRef.current = now;
         deadlineRef.current = 0;
         setRemainingSeconds(graceSeconds);
+        setKeepError(null);
         setVisible(false);
         visibleRef.current = false;
     };
 
     const keepSession = async (): Promise<void> => {
         setKeeping(true);
+        setKeepError(null);
 
         try {
             await post(keepAliveEndpoint);
             reset();
+        } catch {
+            /*
+             * Keep the dialog open and re-arm the grace window. Closing it on
+             * failure told the user the session was extended, then signed them
+             * out on the next request.
+             */
+            deadlineRef.current = Date.now() + graceSeconds * 1_000;
+            setRemainingSeconds(graceSeconds);
+            setKeepError(
+                'The session could not be kept alive. Check your connection and try again.',
+            );
         } finally {
             setKeeping(false);
         }
@@ -126,9 +155,13 @@ export function useIdleSession(
             setVisible(true);
             setRemainingSeconds(graceSeconds);
 
-            // Align the server clock at warning time. The server still keeps
-            // its own deadline, so ignoring the dialog ends in the same place.
-            void heartbeat();
+            /*
+             * Do NOT heartbeat here. EnforceIdleSession writes
+             * `auth.last_activity_at` on every authenticated request, so a
+             * warning-time ping would restart the server window without the
+             * user's consent. Only the explicit "Keep working" click may
+             * extend the session.
+             */
 
             return;
         }
@@ -179,5 +212,5 @@ export function useIdleSession(
         };
     }, []);
 
-    return { visible, remainingSeconds, keeping, keepSession, logout };
+    return { visible, remainingSeconds, keeping, keepError, keepSession, logout };
 }

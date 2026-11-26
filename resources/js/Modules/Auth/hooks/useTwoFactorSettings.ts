@@ -174,7 +174,7 @@ interface UseTwoFactorSettingsOptions {
 const reloadSecurityProps = (): void => {
     // Inertia v3's reload always preserves scroll and component state; the
     // options type deliberately omits both flags.
-    router.reload({ only: ['twoFactorEnabled', 'twoFactorConfirmed', 'status'] });
+    router.reload({ only: ['user', 'twoFactorEnabled', 'twoFactorConfirmed', 'status'] });
 };
 
 export function useTwoFactorSettings({

@@ -11,59 +11,17 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/Components/ui/popover';
 import { CrudDialog } from '@/Components/DataTable';
-import type { TableFilters, TableState } from '@/lib/table';
+import type { TableState } from '@/lib/table';
 import { cn } from '@/lib/utils';
 import { useSavedViews } from '../hooks/useSavedViews';
 import type { SavedView } from '../hooks/useSavedViews';
+import { isViewActive, viewToState } from '../view-state';
 
 interface SavedViewsMenuProps {
     resource: 'users' | 'leads' | 'appointments' | 'backups' | 'activity';
     state: TableState;
     onApply: (state: Partial<Omit<TableState, 'page'>>) => void;
 }
-
-const viewToState = (view: SavedView): Partial<Omit<TableState, 'page'>> => ({
-    search: view.search ?? '',
-    perPage: view.per_page,
-    sort:
-        view.sort_field === null
-            ? null
-            : { field: view.sort_field, order: view.sort_order === -1 ? -1 : 1 },
-    filters: view.filters,
-});
-
-const normalizeFilterMap = (filters: TableFilters): Record<string, string> => {
-    const out: Record<string, string> = {};
-
-    for (const [key, value] of Object.entries(filters)) {
-        if (typeof value === 'string' && value.trim() !== '') {
-            out[key] = value.trim();
-        } else if (typeof value === 'number') {
-            out[key] = String(value);
-        } else if (Array.isArray(value) && value.length > 0) {
-            out[key] = value.map(String).join(',');
-        }
-    }
-
-    return out;
-};
-
-const isViewActive = (view: SavedView, state: TableState): boolean => {
-    if ((view.search ?? '').trim() !== state.search.trim()) {
-        return false;
-    }
-
-    const viewFilters = normalizeFilterMap(view.filters);
-    const stateFilters = normalizeFilterMap(state.filters);
-    const viewKeys = Object.keys(viewFilters);
-    const stateKeys = Object.keys(stateFilters);
-
-    if (viewKeys.length !== stateKeys.length) {
-        return false;
-    }
-
-    return viewKeys.every((key) => viewFilters[key] === stateFilters[key]);
-};
 
 export default function SavedViewsMenu({ resource, state, onApply }: SavedViewsMenuProps) {
     const uid = useId();

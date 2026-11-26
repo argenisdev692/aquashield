@@ -40,12 +40,16 @@ export default function FlashBanner({ className }: FlashBannerProps) {
         <div
             role={isError ? 'alert' : 'status'}
             aria-live={isError ? 'assertive' : 'polite'}
+            aria-atomic="true"
             className={cn(
                 'flex items-start gap-3 rounded-xl border px-4 py-3 text-sm',
-                !visible && 'hidden',
-                isError
-                    ? 'border-aq-danger/30 bg-aq-danger/5 text-aq-danger-strong'
-                    : 'border-aq-success/30 bg-aq-success/5 text-aq-success-strong',
+                // Keep the live region in the tree when empty; `hidden` removes
+                // it from the accessibility tree and can suppress the announce.
+                !visible && 'border-transparent p-0',
+                visible &&
+                    (isError
+                        ? 'border-aq-danger/30 bg-aq-danger/5 text-aq-danger-strong'
+                        : 'border-aq-success/30 bg-aq-success/5 text-aq-success-strong'),
                 className,
             )}
         >

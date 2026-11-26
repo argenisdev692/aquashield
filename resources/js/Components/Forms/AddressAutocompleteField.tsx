@@ -183,6 +183,16 @@ export default function AddressAutocompleteField({
 
     const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
         if (event.key === 'Escape') {
+            /*
+             * Base UI's Dialog closes on Escape without checking
+             * `defaultPrevented`. Stop the event while the suggestion panel is
+             * open so Escape dismisses the list, not a surrounding form.
+             */
+            if (open) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
             setOpen(false);
             setActiveIndex(-1);
 
@@ -303,7 +313,7 @@ export default function AddressAutocompleteField({
                             id={listboxId}
                             role="listbox"
                             aria-label={`${label} suggestions`}
-                            className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-aq-shell-line bg-surface-0 shadow-lg dark:bg-surface-900"
+                            className="absolute inset-x-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-aq-shell-line bg-surface-0 shadow-lg dark:bg-surface-900"
                         >
                             {loading && (
                                 <div
@@ -343,6 +353,7 @@ export default function AddressAutocompleteField({
                                         type="button"
                                         role="option"
                                         aria-selected={index === activeIndex}
+                                        tabIndex={-1}
                                         onMouseDown={(event) => event.preventDefault()}
                                         onMouseEnter={() => setActiveIndex(index)}
                                         onClick={() => void selectSuggestion(suggestion)}

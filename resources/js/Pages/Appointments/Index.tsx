@@ -171,6 +171,7 @@ export default function AppointmentsIndex() {
 
     const [pendingDelete, setPendingDelete] = useState<AppointmentRow | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const filters: CrudFilterDef[] = [
         {
@@ -215,11 +216,23 @@ export default function AppointmentsIndex() {
         }
 
         setDeleting(true);
+        setDeleteError(null);
         router.delete(`/appointments/${pendingDelete.uuid}`, {
             preserveScroll: true,
+            onSuccess: () => {
+                setPendingDelete(null);
+            },
+            onError: (errors) => {
+                setDeleteError(
+                    errors.date ??
+                        errors.appointment ??
+                        'The appointment could not be deleted. Try again.',
+                );
+            },
+            // Keep the dialog open on failure: the message below the copy is
+            // the only explanation the operator gets.
             onFinish: () => {
                 setDeleting(false);
-                setPendingDelete(null);
             },
         });
     };
@@ -268,7 +281,9 @@ export default function AppointmentsIndex() {
                                           },
                                       ]
                                     : []),
-                                ...(canUpdate && canReschedule(row.status)
+                                ...(canUpdate &&
+                                row.deleted_at === null &&
+                                canReschedule(row.status)
                                     ? [
                                           {
                                               label: 'Reschedule',
@@ -354,6 +369,7 @@ export default function AppointmentsIndex() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setPendingDelete(null);
+                        setDeleteError(null);
                     }
                 }}
                 title="Delete this appointment?"
@@ -370,6 +386,11 @@ export default function AppointmentsIndex() {
                 <p className="text-sm text-surface-600 dark:text-surface-300">
                     The calendar slot is freed and the lead's status is not changed.
                 </p>
+                {deleteError !== null && (
+                    <p role="alert" className="mt-2 text-sm font-medium text-aq-danger-strong">
+                        {deleteError}
+                    </p>
+                )}
             </CrudDialog>
         </AppLayout>
     );

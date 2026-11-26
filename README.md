@@ -13,6 +13,10 @@ composer setup
 php artisan db:seed
 ```
 
+`SEED_COMPANY_OWNER_EMAIL` (example: `aquashieldrestoration@gmail.com`) controls
+the first demo `SUPER_ADMIN` in `UserSeeder` and the owner of the `CompanyData`
+profile. The second `SUPER_ADMIN` remains hardcoded in `UserSeeder`.
+
 Production/reference provisioning:
 
 ```bash

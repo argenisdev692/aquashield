@@ -51,6 +51,12 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
     const inertiaForm = useInertiaForm<T>(initial);
 
     const [clientErrors, setClientErrors] = useState<FormErrorMap>({});
+    /*
+     * Increments on every `submit()` call. `FormErrorSummary` uses the counter
+     * to focus itself only after a real submit, never after a blur validation
+     * (which used to steal focus from the field the user was tabbing into).
+     */
+    const [submitAttempts, setSubmitAttempts] = useState(0);
 
     const errors: FormErrorMap = {};
 
@@ -261,6 +267,8 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
      * `focusFieldByName`.
      */
     const submit = (action: () => void) => {
+        setSubmitAttempts((attempts) => attempts + 1);
+
         if (!validate()) {
             return;
         }
@@ -272,6 +280,7 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         errors,
         hasErrors,
         clientErrors,
+        submitAttempts,
         validate,
         validateField,
         touch,

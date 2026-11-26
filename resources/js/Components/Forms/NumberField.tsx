@@ -54,7 +54,7 @@ export default function NumberField({
                     id,
                     name,
                     type: 'number' as const,
-                    value: value ?? 0,
+                    value: value === null ? '' : value,
                     onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
                         const next = event.target.value === '' ? null : Number(event.target.value);
                         onChange(Number.isNaN(next) ? null : next);

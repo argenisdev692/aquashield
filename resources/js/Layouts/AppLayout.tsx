@@ -132,10 +132,27 @@ export default function AppLayout({ title, subtitle, actions, children }: AppLay
 
     useEffect(() => {
         const onKeydown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-                event.preventDefault();
-                setPaletteOpen((prev) => !prev);
+            if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') {
+                return;
             }
+
+            /*
+             * Do not hijack the shortcut while typing, while a key is
+             * repeating, or while the blocking idle dialog is up (the palette
+             * would mount underneath it and steal focus).
+             */
+            const target = event.target;
+            const editing =
+                target instanceof HTMLElement &&
+                (target.isContentEditable ||
+                    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+            if (event.repeat || editing || document.querySelector('[data-session-idle]') !== null) {
+                return;
+            }
+
+            event.preventDefault();
+            setPaletteOpen((prev) => !prev);
         };
         window.addEventListener('keydown', onKeydown);
         return () => window.removeEventListener('keydown', onKeydown);

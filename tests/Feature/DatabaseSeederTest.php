@@ -11,11 +11,14 @@ use Modules\CompanyData\Models\CompanyData;
 uses(RefreshDatabase::class);
 
 it('seeds roles, demo users and the company singleton with a demo password', function (): void {
-    config(['seed.user_password' => 'AuditOnly-Temp-Password-123!']);
+    config([
+        'seed.user_password' => 'AuditOnly-Temp-Password-123!',
+        'seed.company_owner_email' => 'owner@aquashield.test',
+    ]);
 
     $this->seed();
 
-    $owner = User::query()->where('email', 'info@aquashieldrestorationusa.com')->first();
+    $owner = User::query()->where('email', 'owner@aquashield.test')->first();
     $company = CompanyData::query()->first();
 
     expect($owner)->not->toBeNull()

@@ -55,7 +55,7 @@ export default function ScheduleAppointmentDialog({
         notes: '',
     };
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial,
         schema: appointmentFormSchema,
     });
@@ -106,7 +106,11 @@ export default function ScheduleAppointmentDialog({
             onOpenChange={onOpenChange}
             title={lead === null ? 'Schedule a visit' : `Schedule a visit for ${lead.name}`}
             description="The office availability window, the travel buffer and the single-crew daily cap are checked on the server."
-            form={{ processing: form.processing || schedule.isPending, isDirty: form.isDirty }}
+            form={{
+                processing: form.processing || schedule.isPending,
+                isDirty: form.isDirty,
+                submitAttempts,
+            }}
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel="Schedule appointment"
@@ -124,7 +128,12 @@ export default function ScheduleAppointmentDialog({
                 values={form.data}
                 errors={mergedErrors}
                 options={options}
-                onChange={(values) => form.setData(values)}
+                onChange={(values) => {
+                    form.setData(values);
+                    // A 422 bag from the previous payload is stale; clear it as
+                    // soon as the user corrects anything.
+                    setFieldErrors({});
+                }}
                 onBlur={(key) => touch(key)}
                 disabled={schedule.isPending}
                 timezone={timezone}

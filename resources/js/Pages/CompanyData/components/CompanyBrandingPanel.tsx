@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { ImageOff, Info, PenLine, Trash2 } from 'lucide-react';
 import AppButton from '@/Components/Forms/AppButton';
-import ImageDropzone from '@/Components/Forms/ImageDropzone';
+import FileDropzone from '@/Components/Forms/FileDropzone';
 import SignatureField from '@/Components/Forms/SignatureField';
 import { Button } from '@/Components/ui/button';
 import {
@@ -234,13 +234,15 @@ function AssetCard({
 
             {canUpdate && !drawing && (
                 <>
-                    <ImageDropzone
+                    <FileDropzone
                         label={`Replace ${definition.label.toLowerCase()}`}
                         name={definition.kind}
                         files={files}
                         onFilesChange={setFiles}
                         accept="image/png,image/jpeg,image/webp"
-                        hint="PNG, JPEG or WebP. Maximum 2 MB, 16–4096 px per side."
+                        maxSizeMbByType={{ image: 10 }}
+                        hint="PNG, JPEG or WebP. 16–4096 px per side."
+                        onReject={() => setFiles([])}
                         disabled={busy}
                     />
 

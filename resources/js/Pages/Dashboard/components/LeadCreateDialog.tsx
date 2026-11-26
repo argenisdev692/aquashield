@@ -34,7 +34,7 @@ export default function LeadCreateDialog({
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [serverError, setServerError] = useState<string | null>(null);
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial: { ...emptyLeadFormValues },
         schema: leadFormSchema,
     });
@@ -77,7 +77,11 @@ export default function LeadCreateDialog({
             onOpenChange={onOpenChange}
             title="New lead"
             description="Log a lead the office took by phone, referral or walk-in. Meta Ads leads arrive through the ingest endpoint."
-            form={{ processing: form.processing || create.isPending, isDirty: form.isDirty }}
+            form={{
+                processing: form.processing || create.isPending,
+                isDirty: form.isDirty,
+                submitAttempts,
+            }}
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel="Create lead"
@@ -98,7 +102,12 @@ export default function LeadCreateDialog({
                 options={options}
                 mode="create"
                 googleMapsApiKey={googleMapsApiKey}
-                onChange={(values) => form.setData(values)}
+                onChange={(values) => {
+                    form.setData(values);
+                    // The server bag described the previous payload; a
+                    // corrected field must not keep its old 422.
+                    setFieldErrors({});
+                }}
                 onBlur={(key) => touch(key)}
                 showPreferredLanguage={false}
                 showCompany={false}

@@ -26,13 +26,20 @@ use Shared\Domain\Enums\Role as RoleName;
  */
 final class UserSeeder extends Seeder
 {
+    /**
+     * Fallback demo SUPER_ADMIN. `SEED_COMPANY_OWNER_EMAIL` overrides this at
+     * runtime for both this seeder and CompanyDataSeeder. The second
+     * SUPER_ADMIN (Argenis) remains hardcoded in the list below.
+     */
+    public const string DEMO_OWNER_EMAIL = 'aquashieldrestoration@gmail.com';
+
     /** @var list<array{first_name: string, username: string, email: string, role: string}> */
     private const array USERS = [
         // SUPER ADMINS
         [
             'first_name' => 'Victor Lara',
             'username' => 'victor.lara',
-            'email' => 'aquashieldrestoration@gmail.com',
+            'email' => self::DEMO_OWNER_EMAIL,
             'role' => RoleName::SuperAdmin->value,
         ],
         [
@@ -211,7 +218,17 @@ final class UserSeeder extends Seeder
         // production credential set. Hashing once avoids 26 Argon2 runs.
         $passwordHash = Hash::make($password);
 
-        foreach (self::USERS as $userData) {
+        // The first entry is the SUPER_ADMIN demo account. Let the local
+        // environment point it at the operator's real admin email without
+        // editing the committed demo list.
+        $users = self::USERS;
+        $ownerEmail = trim((string) config('seed.company_owner_email', ''));
+
+        if ($ownerEmail !== '') {
+            $users[0]['email'] = $ownerEmail;
+        }
+
+        foreach ($users as $userData) {
             $role = $userData['role'];
             unset($userData['role']);
 

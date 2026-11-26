@@ -17,7 +17,6 @@ import {
     CrudFilters,
     DataTableKit,
     DataTableRowActions,
-    TableButton,
     type CrudFilterDef,
     type ExportFormat,
     type SimpleColumn,
@@ -175,9 +174,9 @@ export default function BackupsIndex() {
     ) : null;
 
     const emptyActionContent = table.hasActiveFilters ? (
-        <TableButton variant="outline" onClick={table.reset}>
+        <Button variant="outline" onClick={table.reset}>
             Clear filters
-        </TableButton>
+        </Button>
     ) : can.create ? (
         <Button onClick={openRunDialog} variant="outline">
             Run the first backup

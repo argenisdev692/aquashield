@@ -20,7 +20,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
 
 function messageFrom(payload: unknown, status: number): string {
-    if (isRecord(payload)) {
+    // A 5xx body may carry an exception message; never surface it (same rule
+    // as lib/http.ts). Field errors and 4xx copy are app-authored.
+    if (status < 500 && isRecord(payload)) {
         const errors = payload.errors;
 
         if (

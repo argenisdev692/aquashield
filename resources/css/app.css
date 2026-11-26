@@ -130,15 +130,14 @@
   The follow is animated with `translate` rather than `left`/`top` so it runs
   on the compositor — no layout or repaint per frame.
 
-  z-index 60 rides above the app chrome (headers sit at z-40/z-50) and stays
-  below every PrimeVue overlay — dialogs, dropdowns and toasts mount at
-  z-1000+, managed by the ZIndex service — so the glow never lands on a modal.
+  z-index 30 sits above the page content but below the sticky header (z-40)
+  and every Base UI overlay (z-50), so the glow never lands on a dialog.
 */
 .cursor-orb {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 60;
+    z-index: 30;
     width: var(--cursor-orb-size);
     height: var(--cursor-orb-size);
     border-radius: 50%;

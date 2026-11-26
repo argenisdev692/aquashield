@@ -22,7 +22,9 @@ vi.mock('@/lib/http', async (importOriginal) => {
 
 import { useIdleSession } from './useIdleSession';
 
-const fetchMock = vi.fn<() => Promise<{ status: number }>>(() => Promise.resolve({ status: 204 }));
+const fetchMock = vi.fn<() => Promise<{ status: number; ok: boolean }>>(() =>
+    Promise.resolve({ status: 204, ok: true }),
+);
 
 const mount = () => renderHook(() => useIdleSession(3, 2, '/auth/keep-alive', '/logout'));
 
@@ -122,6 +124,25 @@ describe('useIdleSession', () => {
 
         expect(fetchMock).toHaveBeenCalledWith('/auth/keep-alive', expect.anything());
         expect(result.current.visible).toBe(false);
+        expect(performLogout).not.toHaveBeenCalled();
+    });
+
+    it('keeps the warning open when the keep-alive request fails', async () => {
+        fetchMock.mockResolvedValueOnce({ status: 500, ok: false });
+
+        const { result } = mount();
+
+        act(() => {
+            vi.advanceTimersByTime(3_000);
+        });
+
+        await act(async () => {
+            await result.current.keepSession();
+        });
+
+        expect(result.current.visible).toBe(true);
+        expect(result.current.keepError).not.toBeNull();
+        expect(result.current.remainingSeconds).toBe(2);
         expect(performLogout).not.toHaveBeenCalled();
     });
 

@@ -18,6 +18,8 @@ import FormErrorSummary from './FormErrorSummary';
 export interface FormOverlayState {
     processing: boolean;
     isDirty: boolean;
+    /** `useZodForm`'s submit counter; focuses the error summary on submit only. */
+    submitAttempts?: number;
 }
 
 export interface FormOverlayProps {
@@ -76,7 +78,9 @@ function FormBody({
                 )}
             </div>
 
-            {errors && <FormErrorSummary errors={errors} />}
+            {errors && (
+                <FormErrorSummary errors={errors} submitAttempts={form.submitAttempts ?? 0} />
+            )}
 
             <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">{children}</div>
 

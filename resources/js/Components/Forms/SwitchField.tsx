@@ -40,7 +40,7 @@ export default function SwitchField({
     const errorId = `${inputId}-error`;
     const descriptionId = `${inputId}-description`;
     const describedBy =
-        [description && descriptionId, hint && hintId, error && errorId]
+        [description && descriptionId, hint && !error && hintId, error && errorId]
             .filter(Boolean)
             .join(' ') || undefined;
 

@@ -31,7 +31,7 @@ final class StoreCompanyAssetRequest extends FormRequest
                 'file',
                 'image',
                 'mimes:png,jpg,jpeg,webp',
-                'max:2048',
+                'max:10240',
                 'dimensions:min_width=16,min_height=16,max_width=4096,max_height=4096',
             ],
         ];

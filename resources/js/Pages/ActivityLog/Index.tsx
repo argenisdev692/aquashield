@@ -6,12 +6,12 @@
  */
 import { Head, router, usePage } from '@inertiajs/react';
 import { Eye } from 'lucide-react';
+import { Button } from '@/Components/ui/button';
 import { Tag } from '@/Components/ui/tag';
 import {
     CrudFilters,
     DataTableKit,
     DataTableRowActions,
-    TableButton,
     type CrudFilterDef,
     type ExportFormat,
     type SimpleColumn,
@@ -129,9 +129,9 @@ export default function ActivityLogIndex() {
     const exportFormats: ExportFormat[] = canExport ? ['csv', 'xlsx', 'pdf'] : [];
 
     const emptyActionContent = table.hasActiveFilters ? (
-        <TableButton variant="outline" onClick={table.reset}>
+        <Button type="button" variant="outline" onClick={table.reset}>
             Clear filters
-        </TableButton>
+        </Button>
     ) : null;
 
     return (

@@ -327,6 +327,7 @@ export default function FilterSelectField(props: FilterSelectFieldProps) {
                             <Command shouldFilter={!hasFetcher}>
                                 <CommandInput
                                     placeholder={searchPlaceholder}
+                                    aria-label={`Search ${label}`}
                                     value={search}
                                     onValueChange={setSearch}
                                 />

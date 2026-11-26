@@ -86,6 +86,7 @@ export default function DatePickerField({
                     >
                         <PopoverTrigger
                             id={id}
+                            name={name}
                             disabled={disabled}
                             aria-invalid={invalid || undefined}
                             aria-describedby={describedBy}
@@ -141,8 +142,6 @@ export default function DatePickerField({
                             <X className="size-4" aria-hidden="true" />
                         </button>
                     )}
-
-                    <input type="hidden" name={name} value={value ?? ''} />
                 </div>
             )}
         </FieldShell>

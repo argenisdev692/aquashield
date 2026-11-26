@@ -286,7 +286,7 @@ export default function LeadsIndex() {
                                           },
                                       ]
                                     : []),
-                                ...(canUpdate
+                                ...(canUpdate && row.deleted_at === null
                                     ? [
                                           {
                                               label: 'Edit',

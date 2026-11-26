@@ -105,6 +105,12 @@ export interface ServerTableOptions<TData extends RowData> {
  * Only the slices this kit uses. No row models: the server already applied
  * filtering, sorting and pagination to `data`. Column visibility is a
  * presentation slice, so it needs no row model either.
+ *
+ * v9.3.1 scopes `manualFiltering` to `columnFilteringFeature`. This kit does
+ * not register that feature (nor a filtered row model), so there is no
+ * browser-side filter to disable: the `data` prop is rendered as received.
+ * Registering the feature only to set the flag would add the machinery the
+ * server-first contract exists to avoid.
  */
 const features = tableFeatures({
     columnVisibilityFeature,

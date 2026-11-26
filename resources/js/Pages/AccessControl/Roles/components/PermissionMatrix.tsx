@@ -98,6 +98,28 @@ export default function PermissionMatrix({
         onChange([...next].sort());
     };
 
+    /*
+     * "Clear all" must not silently mean "clear every permission, including
+     * the ones the filter hid". With a term active it becomes "Clear shown",
+     * matching the adjacent "Select all shown" control.
+     */
+    const visibleSelectionCount = visible.filter((permission) =>
+        selected.has(permission.name),
+    ).length;
+    const canClear = term === '' ? value.length > 0 : visibleSelectionCount > 0;
+
+    const clearVisible = (): void => {
+        if (term === '') {
+            onChange([]);
+
+            return;
+        }
+
+        const visibleNames = new Set(visible.map((permission) => permission.name));
+
+        onChange(value.filter((name) => !visibleNames.has(name)));
+    };
+
     return (
         <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -143,10 +165,10 @@ export default function PermissionMatrix({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => onChange([])}
-                        disabled={disabled || value.length === 0}
+                        onClick={clearVisible}
+                        disabled={disabled || !canClear}
                     >
-                        Clear all
+                        {term === '' ? 'Clear all' : `Clear shown (${visibleSelectionCount})`}
                     </Button>
                 </div>
             </div>

@@ -26,7 +26,8 @@ const SURFACES: readonly WorkspaceSurface[] = [
         title: 'Jobs & work orders',
         body: "Today's crews, the next visit and the work that is already on the calendar.",
         action: 'Open schedule',
-        href: '/dashboard#schedule',
+        // The schedule lives in the dashboard pipeline section (calendar view).
+        href: '/dashboard#pipeline',
         path: 'M7 4.5v3M17 4.5v3M4.5 9.5h15M5.5 6.5h13a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z',
     },
     {
@@ -40,7 +41,8 @@ const SURFACES: readonly WorkspaceSurface[] = [
         title: 'Invoices & claims',
         body: 'Revenue, outstanding balances and insurance claims in the same view.',
         action: 'Open revenue',
-        href: '/dashboard#revenue',
+        // Won work and its month-over-month delta live in the KPI section.
+        href: '/dashboard#kpis',
         path: 'M7 3.5h10v17l-2.5-1.5L12 20.5 9.5 19 7 20.5zM9.5 8h5M9.5 11.5h5M9.5 15h3',
     },
 ];

@@ -31,6 +31,10 @@ interface UserBulkActionsProps {
     canAssignRoles: boolean;
     canDelete: boolean;
     canRestore: boolean;
+    /** Hides Activate/Suspend for a viewer who cannot change status. */
+    canManageStatus?: boolean;
+    /** Hides invite resends for a viewer who cannot send them. */
+    canInvite?: boolean;
 }
 
 export default function UserBulkActions({
@@ -42,6 +46,8 @@ export default function UserBulkActions({
     canAssignRoles,
     canDelete,
     canRestore,
+    canManageStatus = true,
+    canInvite = true,
 }: UserBulkActionsProps) {
     const bulk = useUserBulkActions({ onFeedback });
     const [confirmSuspend, setConfirmSuspend] = useState(false);
@@ -59,35 +65,39 @@ export default function UserBulkActions({
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8"
-                disabled={bulk.processing}
-                onClick={() => {
-                    bulk.changeStatus(rows, 'active');
-                }}
-            >
-                <ShieldCheck className="mr-1.5 size-3.5" aria-hidden="true" />
-                Activate
-            </Button>
-            <Button
-                type="button"
-                size="sm"
-                variant="warning"
-                className="h-8"
-                disabled={bulk.processing || selectionIncludesProtected}
-                title={
-                    selectionIncludesProtected
-                        ? 'Deselect your own account or the last active super administrator.'
-                        : undefined
-                }
-                onClick={() => setConfirmSuspend(true)}
-            >
-                <ShieldOff className="mr-1.5 size-3.5" aria-hidden="true" />
-                Suspend
-            </Button>
+            {canManageStatus ? (
+                <>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                        disabled={bulk.processing}
+                        onClick={() => {
+                            bulk.changeStatus(rows, 'active');
+                        }}
+                    >
+                        <ShieldCheck className="mr-1.5 size-3.5" aria-hidden="true" />
+                        Activate
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="warning"
+                        className="h-8"
+                        disabled={bulk.processing || selectionIncludesProtected}
+                        title={
+                            selectionIncludesProtected
+                                ? 'Deselect your own account or the last active super administrator.'
+                                : undefined
+                        }
+                        onClick={() => setConfirmSuspend(true)}
+                    >
+                        <ShieldOff className="mr-1.5 size-3.5" aria-hidden="true" />
+                        Suspend
+                    </Button>
+                </>
+            ) : null}
 
             {canAssignRoles ? (
                 <Button
@@ -108,22 +118,26 @@ export default function UserBulkActions({
                 </Button>
             ) : null}
 
-            <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8"
-                disabled={bulk.processing || invitedRows.length === 0}
-                title={
-                    invitedRows.length === 0 ? 'Select at least one invited account.' : undefined
-                }
-                onClick={() => {
-                    bulk.resendInvitations(invitedRows);
-                }}
-            >
-                <KeyRound className="mr-1.5 size-3.5" aria-hidden="true" />
-                Resend invites
-            </Button>
+            {canInvite ? (
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={bulk.processing || invitedRows.length === 0}
+                    title={
+                        invitedRows.length === 0
+                            ? 'Select at least one invited account.'
+                            : undefined
+                    }
+                    onClick={() => {
+                        bulk.resendInvitations(invitedRows);
+                    }}
+                >
+                    <KeyRound className="mr-1.5 size-3.5" aria-hidden="true" />
+                    Resend invites
+                </Button>
+            ) : null}
 
             {canRestore && deletedRows.length > 0 ? (
                 <Button

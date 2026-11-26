@@ -137,7 +137,12 @@ export function useUserAvailability(
     const probeable = enabled && formatValid && !reserved;
 
     const query = useQuery(
-        userAvailabilityQuery(field, probeable ? debounced : '', ignoreUserUuid),
+        // A debounce that has not caught up yet would query the previous word.
+        userAvailabilityQuery(
+            field,
+            probeable && debounced === normalized ? debounced : '',
+            ignoreUserUuid,
+        ),
     );
 
     if (!enabled || !hasValue || !formatValid) {
@@ -152,7 +157,6 @@ export function useUserAvailability(
     if (debounced !== normalized) {
         return IDLE;
     }
-
     if (query.data !== undefined) {
         return {
             state: query.data.available ? 'available' : 'unavailable',

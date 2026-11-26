@@ -75,7 +75,7 @@ export default function SidebarNav({
         if (activeSectionLabel !== undefined) {
             expandSection(activeSectionLabel);
         }
-    }, [activeSectionLabel, expandSection]);
+    }, [activeSectionLabel, currentPath, expandSection]);
 
     const onActivate = (item: NavItem, event: React.MouseEvent): void => {
         if (item.anchor === true) {

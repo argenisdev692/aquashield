@@ -7,6 +7,36 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 const STORAGE_KEY = 'app:theme';
 const NAV_COLLAPSED_STORAGE_KEY = 'aq:nav:collapsed';
 
+/*
+ * Storage is a convenience, never a requirement. Safari private mode, ITP,
+ * embedded webviews and a full quota can all throw on read or write; an
+ * uncaught throw in a mount effect replaces the whole shell with the error
+ * boundary, and at module scope it prevents the app from booting at all.
+ */
+const readStorage = (key: string): string | null => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+};
+
+const writeStorage = (key: string, value: string): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Persistence is optional; the in-memory store still works this session.
+    }
+};
+
 type ThemeMode = 'light' | 'dark';
 
 /**
@@ -18,7 +48,7 @@ const getInitialMode = (): ThemeMode => {
         return 'dark';
     }
 
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = readStorage(STORAGE_KEY);
 
     return stored === 'light' || stored === 'dark' ? stored : 'dark';
 };
@@ -31,7 +61,15 @@ const applyTheme = (mode: ThemeMode): void => {
 
     root.classList.toggle('dark', mode === 'dark');
     root.style.colorScheme = mode;
-    localStorage.setItem(STORAGE_KEY, mode);
+
+    /*
+     * Only write when the persisted value actually differs. `useTheme` runs
+     * this on every AppLayout mount, and an unconditional write clobbered a
+     * newer choice made in another tab.
+     */
+    if (readStorage(STORAGE_KEY) !== mode) {
+        writeStorage(STORAGE_KEY, mode);
+    }
 
     const token = mode === 'dark' ? '--color-aq-void' : '--p-surface-50';
     const chrome = getComputedStyle(root).getPropertyValue(token).trim();
@@ -41,7 +79,40 @@ const applyTheme = (mode: ThemeMode): void => {
     }
 };
 
+let storageBound = false;
+
+/**
+ * One cross-tab listener for the app. Storage events do not fire in the tab
+ * that wrote the value, so this cannot loop with `applyTheme`.
+ */
+const bindStorage = (): void => {
+    if (storageBound || typeof window === 'undefined') {
+        return;
+    }
+
+    storageBound = true;
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== STORAGE_KEY || event.newValue === null) {
+            return;
+        }
+
+        if (event.newValue !== 'light' && event.newValue !== 'dark') {
+            return;
+        }
+
+        if (event.newValue === currentMode) {
+            return;
+        }
+
+        currentMode = event.newValue;
+        applyTheme(currentMode);
+        listeners.forEach((listener) => listener());
+    });
+};
+
 const subscribe = (listener: () => void): (() => void) => {
+    bindStorage();
     listeners.add(listener);
 
     return () => {
@@ -101,7 +172,7 @@ const getInitialCollapsed = (): boolean => {
         return false;
     }
 
-    return localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === 'true';
+    return readStorage(NAV_COLLAPSED_STORAGE_KEY) === 'true';
 };
 
 const useMediaQuery = (query: string): boolean => {
@@ -133,8 +204,23 @@ export const useSidebar = (): SidebarState => {
     const isDesktop = useMediaQuery('(min-width: 64rem)');
 
     useEffect(() => {
-        localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, String(collapsed));
+        writeStorage(NAV_COLLAPSED_STORAGE_KEY, String(collapsed));
     }, [collapsed]);
+
+    // Keep the rail in sync when another tab collapses or expands it.
+    useEffect(() => {
+        const onStorage = (event: StorageEvent): void => {
+            if (event.key !== NAV_COLLAPSED_STORAGE_KEY) {
+                return;
+            }
+
+            setCollapsed(event.newValue === 'true');
+        };
+
+        window.addEventListener('storage', onStorage);
+
+        return () => window.removeEventListener('storage', onStorage);
+    }, []);
 
     const setCollapsedState = (value: boolean): void => setCollapsed(value);
     const toggleCollapsed = (): void => setCollapsed((prev) => !prev);
@@ -204,7 +290,7 @@ const getSectionsServerSnapshot = (): CollapsedSections => NO_COLLAPSED_SECTIONS
 
 const commitSections = (next: CollapsedSections): void => {
     collapsedSections = next;
-    localStorage.setItem(
+    writeStorage(
         NAV_SECTIONS_STORAGE_KEY,
         JSON.stringify(Object.keys(next).filter((label) => next[label] === true)),
     );

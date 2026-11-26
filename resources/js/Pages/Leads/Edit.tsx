@@ -78,7 +78,7 @@ export default function LeadsEdit({
     options: LeadOptions;
     googleMapsApiKey: string;
 }) {
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial: valuesFrom(lead),
         schema: leadFormSchema,
     });
@@ -112,7 +112,7 @@ export default function LeadsEdit({
                     </div>
                 </div>
 
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <form
                     onSubmit={(event) => {

@@ -34,9 +34,12 @@ export default function BackupsShow() {
 
     const [confirmQuarantineOpen, setConfirmQuarantineOpen] = useState(false);
     const [restoring, setRestoring] = useState(false);
+    const [quarantining, setQuarantining] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const restore = () => {
         setRestoring(true);
+        setActionError(null);
 
         // The web route is PATCH /backups/{uuid}/restore; PUT answers 405.
         router.patch(
@@ -47,22 +50,35 @@ export default function BackupsShow() {
                 onSuccess: () => {
                     router.visit('/backups');
                 },
+                onError: (errors) => {
+                    setActionError(
+                        errors.backup ?? 'The archive could not be restored. Try again.',
+                    );
+                },
                 onFinish: () => setRestoring(false),
             },
         );
     };
 
     const quarantine = () => {
+        setActionError(null);
         setConfirmQuarantineOpen(true);
     };
 
     const confirmQuarantine = () => {
+        setQuarantining(true);
+        setActionError(null);
+
         router.delete(`/backups/${backup.uuid}`, {
             preserveScroll: true,
             onSuccess: () => {
                 setConfirmQuarantineOpen(false);
                 router.visit('/backups');
             },
+            onError: (errors) => {
+                setActionError(errors.backup ?? 'The archive could not be quarantined. Try again.');
+            },
+            onFinish: () => setQuarantining(false),
         });
     };
 
@@ -107,6 +123,15 @@ export default function BackupsShow() {
                             {restoring ? 'Restoring…' : 'Restore archive'}
                         </Button>
                     )}
+                </div>
+            )}
+
+            {actionError !== null && (
+                <div
+                    role="alert"
+                    className="mt-4 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm font-medium text-aq-danger-strong"
+                >
+                    {actionError}
                 </div>
             )}
 
@@ -326,11 +351,17 @@ export default function BackupsShow() {
                 description={`${backup.filename} (${backup.disk}) stays restorable for ${quarantineDays} days, then the retention command deletes it.`}
                 confirmLabel="Quarantine"
                 onConfirm={confirmQuarantine}
+                loading={quarantining}
             >
                 <p className="text-sm text-surface-600 dark:text-surface-300">
                     Quarantine is reversible from this page. The archive is not offered for download
                     while it is quarantined.
                 </p>
+                {actionError !== null && (
+                    <p role="alert" className="mt-2 text-sm font-medium text-aq-danger-strong">
+                        {actionError}
+                    </p>
+                )}
             </CrudDialog>
         </AppLayout>
     );

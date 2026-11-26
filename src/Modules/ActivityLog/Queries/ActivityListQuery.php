@@ -33,8 +33,9 @@ final class ActivityListQuery
     ];
 
     /**
-     * The export never reads `properties` or `uuid`; hydrating them for up to
-     * 10,000 rows is wasted memory.
+     * The export reads `properties` for the write-time causer snapshot and
+     * never `uuid`; rows stream in 500-row chunks, so the JSON cell is bounded
+     * by the chunk rather than the whole file.
      *
      * @var list<string>
      */
@@ -45,6 +46,7 @@ final class ActivityListQuery
         'subject_type',
         'causer_type',
         'causer_id',
+        'properties',
         'created_at',
     ];
 

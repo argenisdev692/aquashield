@@ -17,7 +17,7 @@
  * accessible name, `aria-expanded` and `aria-controls`, so the hover is
  * enhancement rather than the only affordance.
  */
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 import { usePage } from '@inertiajs/react';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import BrandLockup from '@/Components/BrandLockup';
@@ -134,6 +134,15 @@ export default function AppSidebar({ open, onOpenChange, currentPath, panelId }:
         }
     };
 
+    /*
+     * The drawer state lives in the shell. Crossing to the desktop breakpoint
+     * while it is open would leave a modal sheet over the rail, and the
+     * drawer's own `closeDrawer` no longer fires there.
+     */
+    useEffect(() => {
+        onOpenChange(false);
+    }, [currentPath, isDesktop, onOpenChange]);
+
     const toggleCollapsed = (): void => setCollapsed(!collapsed);
 
     return (
@@ -226,7 +235,14 @@ export default function AppSidebar({ open, onOpenChange, currentPath, panelId }:
                         </div>
                     </SheetContent>
                 </Sheet>
-            ) : null}
+            ) : (
+                /*
+                 * Keep the id the header trigger points at in the DOM while the
+                 * drawer is closed; `aria-controls` must never be a dangling
+                 * IDREF (the section panels use the same pattern).
+                 */
+                <div id={panelId} hidden />
+            )}
         </>
     );
 }

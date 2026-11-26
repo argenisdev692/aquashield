@@ -7,6 +7,7 @@ namespace Modules\ActivityLog\Exports;
 use App\Models\User;
 use Modules\ActivityLog\Data\ActivityFilterData;
 use Modules\ActivityLog\Queries\ActivityListQuery;
+use Shared\Support\ActivityProperties;
 use Shared\Support\SpreadsheetCell;
 
 /**
@@ -77,13 +78,19 @@ final readonly class ActivityExportTransformer
 
         foreach ($entries->lazy(500) as $entry) {
             $causer = $entry->causer;
+            $properties = $entry->properties?->all() ?? [];
 
             yield [
                 'created_at' => SpreadsheetCell::sanitise($entry->created_at?->toIso8601String() ?? ''),
                 'log_name' => SpreadsheetCell::sanitise((string) ($entry->log_name ?? 'default')),
                 'event' => SpreadsheetCell::sanitise((string) ($entry->event ?? '')),
                 'description' => SpreadsheetCell::sanitise((string) $entry->description),
-                'causer' => SpreadsheetCell::sanitise($causer instanceof User ? $causer->name : 'System'),
+                'causer' => SpreadsheetCell::sanitise(
+                    ActivityProperties::causerName(
+                        $properties,
+                        $causer instanceof User ? $causer->name : null,
+                    ) ?? 'System',
+                ),
                 'subject' => SpreadsheetCell::sanitise(
                     $entry->subject_type === null ? '' : class_basename($entry->subject_type),
                 ),

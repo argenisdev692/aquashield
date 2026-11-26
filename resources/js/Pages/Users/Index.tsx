@@ -463,6 +463,8 @@ export default function UsersIndex() {
                             canAssignRoles={canAssignRoles}
                             canDelete={canBulkDelete}
                             canRestore={canBulkRestore}
+                            canManageStatus={canManageStatus}
+                            canInvite={canManageStatus}
                         />
                     )}
                     emptyTitle="No users match your filters"

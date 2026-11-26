@@ -124,6 +124,48 @@ it('accepts the appointment filter allowlist', function (): void {
         ->assertJsonPath('view.filters.kind', 'inspection');
 });
 
+it('accepts the activity filter allowlist including the viewer timezone', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/saved-views', savedViewPayload([
+            'resource' => 'activity',
+            'name' => 'November backups',
+            'query' => [
+                'sort_field' => 'created_at',
+                'sort_order' => -1,
+                'per_page' => 15,
+                'filters' => [
+                    'log_name' => 'backups',
+                    'event' => 'backup.quarantined',
+                    'date_from' => '2026-11-01',
+                    'date_to' => '2026-11-30',
+                    'timezone' => 'America/Chicago',
+                ],
+            ],
+        ]))
+        ->assertCreated()
+        ->assertJsonPath('view.resource', 'activity')
+        ->assertJsonPath('view.filters.timezone', 'America/Chicago');
+});
+
+it('accepts the users account-status filter', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/saved-views', savedViewPayload([
+            'name' => 'Invited staff',
+            'query' => [
+                'sort_field' => 'created_at',
+                'sort_order' => -1,
+                'per_page' => 15,
+                'filters' => ['account_status' => 'invited'],
+            ],
+        ]))
+        ->assertCreated()
+        ->assertJsonPath('view.filters.account_status', 'invited');
+});
+
 it('rejects an unknown resource', function (): void {
     $user = User::factory()->create();
 

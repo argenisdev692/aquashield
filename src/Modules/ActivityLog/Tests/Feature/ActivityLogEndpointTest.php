@@ -364,6 +364,24 @@ it('neutralises spreadsheet formula injection in the CSV export', function (): v
     expect($csv)->toContain("'=HYPERLINK");
 });
 
+it('exports the same causer snapshot the list shows', function (): void {
+    $actor = User::factory()->create();
+    $actor->forceFill(['first_name' => 'Ada', 'last_name' => 'Lovelace'])->save();
+
+    app(AuditPort::class)->log('user.updated', $actor, [], $actor, 'users');
+
+    $actor->forceFill(['first_name' => 'Grace', 'last_name' => 'Hopper'])->save();
+
+    $csv = $this->actingAs($this->admin)
+        ->get('/activity/export/csv')
+        ->assertOk()
+        ->streamedContent();
+
+    expect($csv)
+        ->toContain('Ada Lovelace')
+        ->not->toContain('Grace Hopper');
+});
+
 it('forbids an export without EXPORT_ACTIVITY_LOGS', function (): void {
     $user = User::factory()->create();
     $user->givePermissionTo(['VIEW_ANY_ACTIVITY_LOGS', 'VIEW_ACTIVITY_LOGS']);

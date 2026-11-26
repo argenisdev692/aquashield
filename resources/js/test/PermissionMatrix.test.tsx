@@ -47,4 +47,24 @@ describe('PermissionMatrix selection scope', () => {
 
         expect(onChange).toHaveBeenCalledWith([]);
     });
+
+    it('clears only the permissions shown when a filter is active', () => {
+        const onChange = vi.fn<(next: string[]) => void>();
+
+        render(
+            <PermissionMatrix
+                permissions={permissions}
+                value={['APPROVE_CLAIM', 'CREATE_ROLE']}
+                onChange={onChange}
+            />,
+        );
+
+        fireEvent.change(screen.getByRole('textbox', { name: 'Filter permissions' }), {
+            target: { value: 'APPROVE' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Clear shown (1)' }));
+
+        expect(onChange).toHaveBeenCalledWith(['CREATE_ROLE']);
+    });
 });

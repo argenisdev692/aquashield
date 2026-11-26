@@ -195,6 +195,7 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
                                 </p>
                                 {group.items.map(({ command, index }) => {
                                     const isActive = index === active;
+                                    const Icon = command.icon;
 
                                     return (
                                         <div
@@ -212,7 +213,7 @@ export default function CommandPalette({ open, onOpenChange, commands }: Command
                                             onMouseEnter={() => setActive(index)}
                                             onClick={() => run(command)}
                                         >
-                                            <Search
+                                            <Icon
                                                 className="size-4 shrink-0 text-aq-accent"
                                                 aria-hidden="true"
                                             />

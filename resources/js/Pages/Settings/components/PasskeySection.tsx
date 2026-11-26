@@ -94,6 +94,12 @@ export default function PasskeySection({
         } catch (caught) {
             const error = caught instanceof PasskeyError ? caught : toPasskeyError(caught);
 
+            if (error.code === 'cancelled') {
+                // Dismissing the authenticator prompt is a routine "not now",
+                // not a failure worth a red alert.
+                return;
+            }
+
             if (error.code === 'password-required') {
                 // Close the mutation dialog first: two stacked dialogs leave
                 // focus on a panel the gate is about to cover.

@@ -48,7 +48,8 @@ export default function RadioGroupField({
     const baseId = `${name.replace(/[^a-zA-Z0-9_-]/g, '-')}-${uid}`;
     const hintId = `${baseId}-hint`;
     const errorId = `${baseId}-error`;
-    const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined;
+    const describedBy =
+        [hint && !error && hintId, error && errorId].filter(Boolean).join(' ') || undefined;
     const invalid = Boolean(error);
 
     return (

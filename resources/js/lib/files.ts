@@ -5,9 +5,17 @@
  * by a page's Zod schema if it needs to validate the same `File[]` again.
  */
 
+export interface FileSizeLimits {
+    image?: number;
+    pdf?: number;
+}
+
 export interface FileValidationOptions {
     accept?: string;
+    /** Fallback ceiling for every file, in MB. */
     maxSizeMb?: number;
+    /** Per-category ceiling, in MB; overrides `maxSizeMb` for that category. */
+    maxSizeMbByType?: FileSizeLimits;
     maxFiles?: number;
 }
 
@@ -46,6 +54,14 @@ function matchesAccept(file: File, accept: string): boolean {
         });
 }
 
+const fileCategory = (file: File): keyof FileSizeLimits | null => {
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        return 'pdf';
+    }
+
+    return file.type.startsWith('image/') ? 'image' : null;
+};
+
 export function validateFiles(files: File[], options: FileValidationOptions = {}): string | null {
     if (files.length === 0) {
         return 'Choose a file first.';
@@ -62,11 +78,16 @@ export function validateFiles(files: File[], options: FileValidationOptions = {}
             }
         }
 
-        if (options.maxSizeMb !== undefined) {
-            const limit = options.maxSizeMb * 1024 * 1024;
+        const category = fileCategory(file);
+        const limit =
+            (category !== null ? options.maxSizeMbByType?.[category] : undefined) ??
+            options.maxSizeMb;
 
-            if (file.size > limit) {
-                return `${file.name} is larger than ${options.maxSizeMb} MB.`;
+        if (limit !== undefined) {
+            const bytes = limit * 1024 * 1024;
+
+            if (file.size > bytes) {
+                return `${file.name} is larger than ${limit} MB.`;
             }
         }
     }
