@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -14,8 +15,20 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    /**
+     * An index build must not hold a transaction open around it; each
+     * statement commits on its own.
+     */
+    public $withinTransaction = false;
+
     public function up(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('CREATE INDEX CONCURRENTLY IF NOT EXISTS activity_log_created_at_index ON activity_log (created_at)');
+
+            return;
+        }
+
         Schema::table('activity_log', function (Blueprint $table): void {
             $table->index('created_at');
         });

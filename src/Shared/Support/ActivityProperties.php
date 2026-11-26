@@ -11,6 +11,10 @@ namespace Shared\Support;
  * safe fields for the same event; a second copy of this list is a security
  * rule duplicated, not a style choice. Unknown events expose nothing (fail
  * closed), and PII/secret keys are absent from every arm.
+ *
+ * The write adapter also snapshots the causer's display name under
+ * `causer_name`; it is read separately and never projected as an event
+ * property.
  */
 final class ActivityProperties
 {
@@ -28,7 +32,7 @@ final class ActivityProperties
             $event === 'role.created', $event === 'role.deleted' => ['name', 'permissions_count'],
             str_starts_with($event, 'permission.') => ['name', 'previous_name'],
             $event === 'user.created' => ['roles', 'permissions', 'onboarding'],
-            $event === 'user.roles.assigned' => ['roles'],
+            $event === 'user.roles.assigned' => ['roles', 'bulk'],
             $event === 'user.permissions.assigned' => ['permissions'],
             $event === 'user.updated' => ['changed'],
             $event === 'user.status.changed' => ['from', 'to'],
@@ -64,6 +68,19 @@ final class ActivityProperties
     }
 
     /**
+     * Prefer the write-time causer snapshot; fall back to the live relation for
+     * rows written before the snapshot existed or by the model-event logger.
+     *
+     * @param array<string, mixed> $properties
+     */
+    public static function causerName(array $properties, ?string $liveName): ?string
+    {
+        $snapshot = $properties['causer_name'] ?? null;
+
+        return is_string($snapshot) && $snapshot !== '' ? $snapshot : $liveName;
+    }
+
+    /**
      * @param list<string> $allowed
      * @param array<string, mixed> $properties
      * @return array<string, string|int|list<string>>
@@ -75,6 +92,12 @@ final class ActivityProperties
 
         foreach ($allowed as $key) {
             $value = $properties[$key] ?? null;
+
+            if (is_bool($value)) {
+                $safe[$key] = $value ? 'true' : 'false';
+
+                continue;
+            }
 
             if (is_string($value) || is_int($value)) {
                 $safe[$key] = $value;

@@ -44,3 +44,23 @@ it('rejects a page beyond the hard cap', function (): void {
         'page' => 10001,
     ]));
 })->throws(ValidationException::class);
+
+it('rejects a non-numeric subject id before it reaches the bigint column', function (): void {
+    ActivityFilterData::fromRequest(Request::create('/activity', 'GET', [
+        'filter' => ['subject_id' => 'abc'],
+    ]));
+})->throws(ValidationException::class);
+
+it('accepts an IANA timezone for the date window', function (): void {
+    $filters = ActivityFilterData::fromRequest(Request::create('/activity', 'GET', [
+        'filter' => ['timezone' => 'America/Chicago'],
+    ]));
+
+    expect($filters->timezone)->toBe('America/Chicago');
+});
+
+it('rejects an invalid timezone', function (): void {
+    ActivityFilterData::fromRequest(Request::create('/activity', 'GET', [
+        'filter' => ['timezone' => 'Mars/Olympus'],
+    ]));
+})->throws(ValidationException::class);

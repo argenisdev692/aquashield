@@ -20,3 +20,18 @@ it('rejects the buffer while the uuid column is required', function (): void {
     expect(fn () => ActivityLogServiceProvider::assertValidConfiguration())
         ->toThrow(RuntimeException::class);
 });
+
+it('refuses to boot in production with the audit trail disabled', function (): void {
+    config()->set('activitylog.enabled', false);
+
+    expect(fn () => ActivityLogServiceProvider::assertValidConfiguration(true))
+        ->toThrow(RuntimeException::class);
+});
+
+it('allows the audit switch to be off outside production', function (): void {
+    config()->set('activitylog.enabled', false);
+
+    ActivityLogServiceProvider::assertValidConfiguration(false);
+
+    expect(true)->toBeTrue();
+});

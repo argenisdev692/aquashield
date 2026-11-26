@@ -28,3 +28,29 @@ it('deletes only rows older than the retention window in chunks', function (): v
         ->and(ActivityEntry::query()->count())->toBe(1)
         ->and(ActivityEntry::query()->firstOrFail()->description)->toBe('recent');
 });
+
+it('deletes every expired row across multiple chunks', function (): void {
+    $rows = [];
+
+    foreach (range(1, 1_200) as $i) {
+        $rows[] = [
+            'uuid' => (string) Str::uuid7(),
+            'log_name' => 'backups',
+            'description' => 'old '.$i,
+            'created_at' => now()->subYears(10),
+            'updated_at' => now()->subYears(10),
+        ];
+    }
+
+    foreach (array_chunk($rows, 100) as $chunk) {
+        DB::table('activity_log')->insert($chunk);
+    }
+
+    activity('backups')->log('recent');
+
+    $deleted = app(ChunkedCleanActivityLogAction::class)->execute(3650);
+
+    expect($deleted)->toBe(1_200)
+        ->and(ActivityEntry::query()->count())->toBe(1)
+        ->and(ActivityEntry::query()->firstOrFail()->description)->toBe('recent');
+});

@@ -59,13 +59,17 @@ final readonly class SpatieBackupActivityLog implements BackupActivityLog
     private function toData(ActivityEntry $activity): BackupActivityData
     {
         $causer = $activity->causer;
+        $properties = $activity->properties?->all() ?? [];
 
         return new BackupActivityData(
             uuid: (string) $activity->uuid,
             event: (string) $activity->event,
             description: (string) $activity->description,
-            causerName: $causer instanceof User ? $causer->name : null,
-            properties: ActivityProperties::forBackupEvent($activity->properties?->all() ?? []),
+            causerName: ActivityProperties::causerName(
+                $properties,
+                $causer instanceof User ? $causer->name : null,
+            ),
+            properties: ActivityProperties::forBackupEvent($properties),
             createdAt: $activity->created_at?->toIso8601String() ?? '',
         );
     }

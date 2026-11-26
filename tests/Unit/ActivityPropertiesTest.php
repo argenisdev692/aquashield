@@ -36,6 +36,23 @@ it('exposes nothing for an unknown event', function (): void {
     expect(ActivityProperties::forEvent('some.unknown', ['x' => 'y']))->toBe([]);
 });
 
+it('keeps the bulk marker on role assignments', function (): void {
+    expect(ActivityProperties::forEvent('user.roles.assigned', [
+        'roles' => ['Manager'],
+        'bulk' => true,
+    ]))->toBe([
+        'roles' => ['Manager'],
+        'bulk' => 'true',
+    ]);
+});
+
+it('prefers the write-time causer snapshot over the live label', function (): void {
+    expect(ActivityProperties::causerName(['causer_name' => 'Ada Lovelace'], 'Grace Hopper'))
+        ->toBe('Ada Lovelace')
+        ->and(ActivityProperties::causerName([], 'Grace Hopper'))->toBe('Grace Hopper')
+        ->and(ActivityProperties::causerName(['causer_name' => ''], null))->toBeNull();
+});
+
 it('shares the backup key list but keeps the Backups read model scalar-only', function (): void {
     $properties = [
         'disk' => 'local',

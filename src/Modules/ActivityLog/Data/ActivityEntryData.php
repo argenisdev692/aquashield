@@ -8,6 +8,7 @@ use App\Models\User;
 use Modules\ActivityLog\Models\ActivityEntry;
 use Shared\Support\ActivityProperties;
 use Spatie\LaravelData\Attributes\MapOutputName;
+use Spatie\LaravelData\Attributes\WithTransformer;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
@@ -31,6 +32,7 @@ final class ActivityEntryData extends Data
         public readonly string $description,
         public readonly ?string $causerName,
         public readonly ?string $subjectType,
+        #[WithTransformer(ActivityPropertiesTransformer::class)]
         public readonly array $properties,
         public readonly string $createdAt,
     ) {}
@@ -38,15 +40,19 @@ final class ActivityEntryData extends Data
     public static function fromModel(ActivityEntry $entry): self
     {
         $causer = $entry->causer;
+        $properties = $entry->properties?->all() ?? [];
 
         return new self(
             uuid: (string) $entry->uuid,
             logName: (string) ($entry->log_name ?? 'default'),
             event: (string) ($entry->event ?? ''),
             description: (string) $entry->description,
-            causerName: $causer instanceof User ? $causer->name : null,
+            causerName: ActivityProperties::causerName(
+                $properties,
+                $causer instanceof User ? $causer->name : null,
+            ),
             subjectType: self::subjectType($entry->subject_type),
-            properties: ActivityProperties::forEvent((string) ($entry->event ?? ''), $entry->properties?->all() ?? []),
+            properties: ActivityProperties::forEvent((string) ($entry->event ?? ''), $properties),
             createdAt: $entry->created_at?->toIso8601String() ?? '',
         );
     }

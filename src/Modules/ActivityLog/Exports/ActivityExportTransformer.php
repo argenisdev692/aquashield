@@ -55,13 +55,25 @@ final readonly class ActivityExportTransformer
     }
 
     /**
+     * The max id is captured before the first row is read so rows inserted
+     * during the export cannot shift the offset window; the limit is a hard
+     * cap, not only the controller's pre-count.
+     *
      * @return iterable<int, array<string, string|int|float>>
      */
-    public function rows(): iterable
+    public function rows(int $limit = self::MAX_ROWS): iterable
     {
+        $maxId = $this->query->maxId($this->filters);
+
+        if ($maxId === null) {
+            return;
+        }
+
         $entries = $this->query
-            ->builder($this->filters)
-            ->withCauser();
+            ->exportBuilder($this->filters)
+            ->withCauser()
+            ->where('id', '<=', $maxId)
+            ->limit($limit);
 
         foreach ($entries->lazy(500) as $entry) {
             $causer = $entry->causer;

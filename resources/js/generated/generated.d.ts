@@ -215,6 +215,7 @@ declare namespace Modules {
                 readonly subject_id: string | null;
                 readonly date_from: string | null;
                 readonly date_to: string | null;
+                readonly timezone: string | null;
                 readonly sort_field: string;
                 readonly sort_order: number;
                 readonly page: number;

@@ -36,6 +36,12 @@ says it is never a DDD candidate. The panel is a read-only projection.
   (`toIso8601String()`); the browser converts them to the viewer's timezone.
 - Causers are eager-loaded with the soft-delete global scope removed: a deleted
   actor still resolves to a name instead of “System”.
+- Causer attribution prefers a write-time snapshot: the audit adapter stores
+  the actor's display name under `properties.causer_name`; rows written before
+  the snapshot (or by the model-event logger) fall back to the live relation.
+  The snapshot is never projected as a raw event property.
+- `properties` serializes as a JSON object (`{}` when empty), matching the
+  generated `Record<...>` type.
 - `page` is capped at 10 000; `per_page` at 100.
 - The read/export model selects explicit columns; `attribute_changes` and
   `subject_id` are never hydrated.
@@ -105,11 +111,40 @@ dedicated migration, after confirming the plan. The date window is already
 index-friendly: `ActivityListQuery` uses `>=` / `<` on the bare `created_at`
 column, not `whereDate()`.
 
+## Operational bounds (2026-11-26)
+
+- The list and detail routes are throttled at 60 requests/minute per actor;
+  export stays at 10/minute.
+- The unfiltered total is cached for 30 s and may be served stale for up to
+  5 minutes while it refreshes. The rows are never cached; filtered totals are
+  exact and uncached, so a date or search filter always counts its own set.
+- A date window without `filter[timezone]` (an old link or saved view) is
+  interpreted in the app timezone (UTC); the date picker sends the viewer's
+  IANA zone on every date change.
+- A failed monthly retention run emails `activitylog.alert_email`; the value
+  falls back to `BACKUP_NOTIFICATION_MAIL_TO`, then `MAIL_FROM_ADDRESS`.
+- Free-text search and the event substring filter compare `LOWER(column)` so
+  the result is case-insensitive on PostgreSQL, not only on the SQLite test
+  engine.
+- `filter[subject_id]` is validated as an integer before it reaches the
+  bigint column; a malformed value is 422, not a database 500.
+- The export snapshots the maximum `id` when it starts and hard-caps the file
+  at 10,000 rows (500 for PDF). Concurrent inserts cannot shift the offset
+  window or exceed the renderer bound.
+- Retention orders by `(created_at, id)` so the monthly clean can use
+  `activity_log_created_at_index` instead of scanning the primary key; a
+  batch that deletes zero rows stops the loop.
+- The UUID migrations opt out of the migration transaction so the
+  `ADD COLUMN` lock is not held for the whole per-row backfill. A concurrent
+  unique index and `CHECK ... NOT VALID` + `VALIDATE CONSTRAINT` for
+  `SET NOT NULL` remain the follow-up for a large production table.
+
 ## Tests holding the module up
 
 - `Tests/Feature/ActivityLogEndpointTest.php` — 401 / 403 / 422, list filters,
   pagination, UUID show, 404, event-keyed property projection, ISO timestamps,
-  soft-deleted causer, export audit.
+  soft-deleted causer, causer snapshot, viewer-timezone window, cached total,
+  export audit.
 - `Tests/Feature/ActivityLogSchemaTest.php` — `uuid` is required and unique at
   the schema level, and the model refuses update/delete.
 - `Tests/Feature/ActivityLogCleanTest.php` — the chunked retention action.

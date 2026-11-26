@@ -32,6 +32,10 @@ final class ChunkedCleanActivityLogAction extends CleanActivityLogAction
                     $logName !== null,
                     static fn (Builder $query): Builder => $query->where('log_name', $logName),
                 )
+                // The predicate is on created_at, so order by it: the planner
+                // can use activity_log_created_at_index instead of scanning the
+                // primary key and sorting.
+                ->orderBy('created_at')
                 ->orderBy('id')
                 ->limit(self::CHUNK)
                 ->pluck('id');
@@ -40,9 +44,17 @@ final class ChunkedCleanActivityLogAction extends CleanActivityLogAction
                 break;
             }
 
-            $deleted += ActivityEntry::query()
+            $deletedInBatch = ActivityEntry::query()
                 ->whereIn('id', $ids)
                 ->delete();
+
+            $deleted += $deletedInBatch;
+
+            // A trigger, constraint or partition that removes fewer rows than
+            // the batch would otherwise re-select the same ids forever.
+            if ($deletedInBatch === 0) {
+                break;
+            }
         } while ($ids->count() === self::CHUNK);
 
         return $deleted;

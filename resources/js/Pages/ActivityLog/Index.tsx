@@ -19,6 +19,7 @@ import {
 import AppLayout from '@/Layouts/AppLayout';
 import { useCrudTable } from '@/lib/crud-table';
 import { formatDateTime } from '@/lib/date';
+import type { TableFilters } from '@/lib/table';
 import { useVisitPending } from '@/lib/visits';
 import SavedViewsMenu from '@/Modules/SavedViews/components/SavedViewsMenu';
 
@@ -94,6 +95,21 @@ export default function ActivityLogIndex() {
         defaults: { sort: { field: 'created_at', order: -1 } },
     });
 
+    /*
+     * The date inputs are calendar dates in the viewer's zone. Send the zone
+     * with them so the server can turn the local day into UTC instants; the
+     * key is transport metadata, not a user-visible filter.
+     */
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const setFilters = (patch: TableFilters): void => {
+        const nextFrom = 'date_from' in patch ? patch.date_from : table.state.filters.date_from;
+        const nextTo = 'date_to' in patch ? patch.date_to : table.state.filters.date_to;
+        const hasDate = Boolean(nextFrom) || Boolean(nextTo);
+
+        table.setFilters({ ...patch, timezone: hasDate ? timezone : null });
+    };
+
     const filters: CrudFilterDef[] = [
         {
             key: 'log_name',
@@ -153,7 +169,7 @@ export default function ActivityLogIndex() {
                     <CrudFilters
                         defs={filters}
                         state={table.state}
-                        onChange={table.setFilters}
+                        onChange={setFilters}
                         disabled={visitsPending}
                     />
                 }

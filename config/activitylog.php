@@ -87,4 +87,10 @@ return [
      * compliance question is "who viewed this entry"; list views stay unaudited.
      */
     'audit_views' => env('ACTIVITYLOG_AUDIT_VIEWS', false),
+
+    /*
+     * Where a failed monthly retention run is reported. Falls back to the
+     * backup notification recipient, then the application's from address.
+     */
+    'alert_email' => env('ACTIVITYLOG_ALERT_EMAIL', env('BACKUP_NOTIFICATION_MAIL_TO')),
 ];

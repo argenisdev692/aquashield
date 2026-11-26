@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\ActivityLog\Exports\ActivityExportTransformer;
 use Modules\ActivityLog\Models\ActivityEntry;
+use Shared\Domain\Ports\AuditPort;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -396,4 +398,98 @@ it('audits an activity export without storing free-text filter values', function
         ->and($entry->properties->toArray()['filters'])->not->toHaveKey('search')
         ->and($entry->properties->toArray()['filters'])->not->toHaveKey('event')
         ->and($entry->properties->toArray()['filters'])->not->toHaveKey('log_name');
+});
+
+it('rejects a non-numeric subject id with 422', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/activity?filter[subject_id]=abc')
+        ->assertStatus(422);
+});
+
+it('searches case-insensitively on the production database engine', function (): void {
+    activity('backups')->event('backup.quarantined')->log('Quarantined by operator');
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity?search=BACKUP.QUARANTINED')
+        ->assertOk()
+        ->assertJsonPath('total', 1);
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity?filter[event]=QUARANTINED')
+        ->assertOk()
+        ->assertJsonPath('total', 1);
+});
+
+it('applies the date window in the viewer timezone', function (): void {
+    DB::table('activity_log')->insert([
+        'uuid' => (string) Str::uuid7(),
+        'log_name' => 'backups',
+        'event' => 'backup.quarantined',
+        'description' => 'boundary',
+        'created_at' => '2026-11-26 02:00:00',
+        'updated_at' => '2026-11-26 02:00:00',
+    ]);
+
+    // 2026-11-26 02:00 UTC is 2026-11-25 20:00 in America/Chicago.
+    $this->actingAs($this->admin)
+        ->getJson('/activity?'.http_build_query([
+            'filter' => [
+                'date_from' => '2026-11-25',
+                'date_to' => '2026-11-25',
+                'timezone' => 'America/Chicago',
+            ],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 1);
+
+    // The same calendar day without the zone is the UTC day, which excludes it.
+    $this->actingAs($this->admin)
+        ->getJson('/activity?'.http_build_query([
+            'filter' => [
+                'date_from' => '2026-11-25',
+                'date_to' => '2026-11-25',
+            ],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 0);
+});
+
+it('counts the unfiltered table once per cache window, not once per page', function (): void {
+    activity('backups')->log('one');
+
+    $counts = 0;
+
+    DB::listen(function ($query) use (&$counts): void {
+        if (str_contains($query->sql, 'count(*)')) {
+            $counts++;
+        }
+    });
+
+    $this->actingAs($this->admin)->getJson('/activity')->assertOk();
+    $this->actingAs($this->admin)->getJson('/activity')->assertOk();
+
+    expect($counts)->toBe(1);
+});
+
+it('snapshots the causer name so a later rename does not rewrite history', function (): void {
+    $actor = User::factory()->create();
+    $actor->forceFill(['first_name' => 'Ada', 'last_name' => 'Lovelace'])->save();
+
+    app(AuditPort::class)->log('user.updated', $actor, [], $actor, 'users');
+
+    $actor->forceFill(['first_name' => 'Grace', 'last_name' => 'Hopper'])->save();
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity')
+        ->assertOk()
+        ->assertJsonPath('rows.0.causer_name', 'Ada Lovelace')
+        ->assertJsonMissingPath('rows.0.properties.causer_name');
+});
+
+it('serializes empty properties as a JSON object, not an array', function (): void {
+    activity('backups')->event('backup.quarantined')->log('quarantined');
+
+    $response = $this->actingAs($this->admin)->getJson('/activity')->assertOk();
+
+    expect($response->getContent())->toContain('"properties":{}');
 });

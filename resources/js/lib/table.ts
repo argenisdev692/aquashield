@@ -203,5 +203,8 @@ export function parseTableParams(
 }
 
 export function countActiveFilters(filters: TableFilters): number {
-    return Object.values(filters).filter((value) => !isBlank(value)).length;
+    // `timezone` rides with the date range but is transport metadata, not a
+    // filter the user chose; counting it would inflate the filter badge.
+    return Object.entries(filters).filter(([key, value]) => key !== 'timezone' && !isBlank(value))
+        .length;
 }

@@ -59,7 +59,8 @@ Schedule::command('activitylog:clean --force')
     ->monthlyOn(1, '04:30')
     ->withoutOverlapping()
     ->onOneServer()
-    ->appendOutputTo(storage_path('logs/activitylog-clean.log'));
+    ->appendOutputTo(storage_path('logs/activitylog-clean.log'))
+    ->emailOutputOnFailure(config('activitylog.alert_email') ?: config('mail.from.address'));
 
 /*
 | LeadAppointment — US federal holidays are materialised as company availability

@@ -13,7 +13,10 @@ Route::middleware('web')->group(function (): void {
         ->name('activity.')
         ->group(function (): void {
             Route::get('/', [ActivityLogController::class, 'index'])
-                ->middleware('permission:'.PermissionName::ViewAnyActivityLog->value)
+                ->middleware([
+                    'permission:'.PermissionName::ViewAnyActivityLog->value,
+                    'throttle:60,1',
+                ])
                 ->name('index');
 
             // Static path before `{activity}`: the UUID constraint would make
@@ -29,7 +32,10 @@ Route::middleware('web')->group(function (): void {
 
             Route::get('/{activity}', [ActivityLogController::class, 'show'])
                 ->whereUuid('activity')
-                ->middleware('permission:'.PermissionName::ViewActivityLog->value)
+                ->middleware([
+                    'permission:'.PermissionName::ViewActivityLog->value,
+                    'throttle:60,1',
+                ])
                 ->name('show');
         });
 });

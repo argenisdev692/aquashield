@@ -21,7 +21,7 @@ final class ActivityFilterData extends Data
     use DateRangeFilterRules;
 
     /** @var list<string> */
-    private const array ALLOWED_FILTERS = ['log_name', 'event', 'subject_type', 'subject_id', 'date_from', 'date_to'];
+    private const array ALLOWED_FILTERS = ['log_name', 'event', 'subject_type', 'subject_id', 'date_from', 'date_to', 'timezone'];
 
     /** @var list<string> */
     private const array SORTABLE = ['created_at', 'event', 'log_name'];
@@ -34,6 +34,8 @@ final class ActivityFilterData extends Data
         public readonly ?string $subjectId = null,
         public readonly ?string $dateFrom = null,
         public readonly ?string $dateTo = null,
+        /** Viewer IANA zone used to turn the local date window into UTC instants. */
+        public readonly ?string $timezone = null,
         public readonly string $sortField = 'created_at',
         public readonly int $sortOrder = -1,
         public readonly int $page = 1,
@@ -85,6 +87,7 @@ final class ActivityFilterData extends Data
             'subject_id' => $filter['subject_id'] ?? null,
             'date_from' => $filter['date_from'] ?? null,
             'date_to' => $filter['date_to'] ?? null,
+            'timezone' => $filter['timezone'] ?? null,
             'sort_field' => ltrim($sort, '-'),
             'sort_order' => str_starts_with($sort, '-') ? -1 : 1,
             'page' => self::integerQuery($request, 'page', 1),
@@ -99,10 +102,13 @@ final class ActivityFilterData extends Data
     {
         return [
             ...self::dateRangeRules(),
+            'timezone' => ['nullable', 'timezone'],
             'log_name' => ['nullable', 'string', 'max:255'],
             'event' => ['nullable', 'string', 'max:255'],
             'subject_type' => ['nullable', 'string', 'max:255'],
-            'subject_id' => ['nullable', 'string', 'max:255'],
+            // The column is bigint. A string rule lets 'abc' reach Postgres,
+            // whose cast fails with SQLSTATE 22P02 (a 500 instead of a 422).
+            'subject_id' => ['nullable', 'integer', 'min:1'],
             'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
             'sort_order' => ['required', 'integer', 'in:-1,1'],
             'page' => ['required', 'integer', 'min:1', 'max:10000'],

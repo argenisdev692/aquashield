@@ -16,6 +16,12 @@ use Illuminate\Support\Str;
  */
 return new class extends Migration
 {
+    /**
+     * The defensive backfill and SET NOT NULL must not share one transaction
+     * with the column change; each statement commits on its own.
+     */
+    public $withinTransaction = false;
+
     public function up(): void
     {
         // Defensive: a row written outside the configured ActivityEntry model
@@ -30,6 +36,17 @@ return new class extends Migration
                         ->update(['uuid' => (string) Str::uuid7()]);
                 }
             });
+
+        if (DB::getDriverName() === 'pgsql') {
+            // A validated CHECK proves NOT NULL without the ACCESS EXCLUSIVE
+            // scan a bare SET NOT NULL would take on a large table.
+            DB::statement('ALTER TABLE activity_log ADD CONSTRAINT activity_log_uuid_not_null_check CHECK (uuid IS NOT NULL) NOT VALID');
+            DB::statement('ALTER TABLE activity_log VALIDATE CONSTRAINT activity_log_uuid_not_null_check');
+            DB::statement('ALTER TABLE activity_log ALTER COLUMN uuid SET NOT NULL');
+            DB::statement('ALTER TABLE activity_log DROP CONSTRAINT activity_log_uuid_not_null_check');
+
+            return;
+        }
 
         Schema::table('activity_log', function (Blueprint $table): void {
             $table->uuid('uuid')->nullable(false)->change();

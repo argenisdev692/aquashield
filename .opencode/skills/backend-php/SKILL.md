@@ -203,8 +203,10 @@ receives `permissions`, never `roles`, and hides UI accordingly.
 - **Web** is primary: Inertia + session. **API** is secondary: Sanctum only, mobile/external.
 - Every mutating verb carries a permission check.
 - UUID params: `->whereUuid('uuid')`.
-- Web requests: `FormRequest` validation. Never `$request->validate()` inline in a controller that
-  also does something else.
+- Web requests: `FormRequest` validation for **mutating** endpoints. A read-only list/export endpoint
+  validates through its shared `{Entity}FilterData` — the export must consume the same contract, so a
+  pass-through `FormRequest` around a filter DTO is ceremony, not a boundary. Never `$request->validate()`
+  inline in a controller that also does something else.
 
 ## 7. Exports (when in scope)
 

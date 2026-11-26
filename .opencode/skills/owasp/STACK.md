@@ -211,6 +211,7 @@ None open as of **2026-11-26**. The previous list is closed, verified through th
 3. `.env` is not readable from inside the agent sandbox. The §17 Red list is therefore verified through the framework (`config:show` / `about` / `doctor`), not by opening the file. This is a restriction, not a skipped check.
 4. `laravel/pao` changes tool output shape under an agent. Any check that reads a human-readable trace to decide pass/fail is a false negative here — the gate is exit codes.
 5. **Lead PII at rest is plaintext** (declared 2026-11-25, review due 2027-05-19). The lead list search, duplicate detection and exports use exact/`LIKE` predicates on email and phone; field-level encryption needs a blind-index design and a backfill. PII is excluded from `LogsActivity` and application logs. Recorded in `src/Modules/LeadAppointment/ARCHITECTURE.md`.
+6. **The audit trail snapshots the causer display name** (`properties.causer_name`, declared 2026-11-26). The panel never projects it as a raw property; it is retained with the audit row so a later rename cannot rewrite historical attribution. Review with the audit retention policy.
 
 ## The gate (this repo's closing pipeline)
 

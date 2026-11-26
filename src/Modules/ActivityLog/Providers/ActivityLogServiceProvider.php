@@ -11,7 +11,7 @@ final class ActivityLogServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        self::assertValidConfiguration();
+        self::assertValidConfiguration($this->app->isProduction());
     }
 
     public function boot(): void
@@ -20,12 +20,19 @@ final class ActivityLogServiceProvider extends ServiceProvider
     }
 
     /**
-     * Two configuration values can destroy audit data or break every audit
-     * write. Both fail closed at boot instead of at 04:30 on the first of the
-     * month.
+     * Three configuration values can destroy audit data, break every audit
+     * write or switch the trail off. All fail closed at boot instead of at
+     * 04:30 on the first of the month.
      */
-    public static function assertValidConfiguration(): void
+    public static function assertValidConfiguration(bool $isProduction = false): void
     {
+        if ($isProduction && ! filter_var(config('activitylog.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
+            throw new RuntimeException(
+                'activitylog.enabled must stay true in production; the audit trail is a compliance control, not a debug switch. '
+                .'Set ACTIVITYLOG_ENABLED=false only in local/testing environments.',
+            );
+        }
+
         $days = config('activitylog.clean_after_days');
 
         if (! is_int($days) || $days < 365) {

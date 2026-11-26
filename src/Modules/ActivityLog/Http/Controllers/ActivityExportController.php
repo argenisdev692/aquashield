@@ -37,15 +37,17 @@ final readonly class ActivityExportController
         $filename = 'activity-log.'.$format;
 
         // Build the response before auditing it: a renderer that cannot start
-        // must not leave an "exported" entry behind. The tabular adapter defers
-        // the write to the stream callback, but it opens the writer here.
+        // must not leave an "exported" entry behind. The PDF renderer runs
+        // synchronously here; the tabular adapter defers its writer to the
+        // stream callback. The audit row therefore records the authorized
+        // export attempt, not the bytes the client actually received.
         $response = $format === 'pdf'
             ? $this->exporter->pdf($filename, 'exports.activity-log', [
                 'title' => 'Activity log',
                 'columns' => $transformer->columns(),
-                'rows' => $transformer->rows(),
+                'rows' => $transformer->rows($maxRows),
             ])
-            : $this->exporter->tabular($filename, $transformer->headers(), $transformer->rows());
+            : $this->exporter->tabular($filename, $transformer->headers(), $transformer->rows($maxRows));
 
         // Audit-worthy egress (OWASP A09). The date window is operational; the
         // free-text filters are reduced to booleans so a typed email or name is
@@ -56,6 +58,7 @@ final readonly class ActivityExportController
             'filters' => [
                 'date_from' => $filters->dateFrom,
                 'date_to' => $filters->dateTo,
+                'timezone' => $filters->timezone,
                 'has_log_name_filter' => $filters->logName !== null && $filters->logName !== '',
                 'has_event_filter' => $filters->event !== null && $filters->event !== '',
                 'has_search' => $filters->search !== null && $filters->search !== '',
