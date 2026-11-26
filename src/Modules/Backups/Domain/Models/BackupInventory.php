@@ -61,15 +61,20 @@ final readonly class BackupInventory
         return null;
     }
 
-    public function containsFilename(string $disk, string $filename): bool
+    public function findByFilename(string $disk, string $filename): ?BackupArchive
     {
         foreach ($this->archives as $archive) {
             if ($archive->disk === $disk && $archive->filename === $filename) {
-                return true;
+                return $archive;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    public function containsFilename(string $disk, string $filename): bool
+    {
+        return $this->findByFilename($disk, $filename) !== null;
     }
 
     /**

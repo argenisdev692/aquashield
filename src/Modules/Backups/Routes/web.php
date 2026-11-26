@@ -7,6 +7,7 @@ use Modules\Backups\Http\Controllers\BackupActivityController;
 use Modules\Backups\Http\Controllers\BackupController;
 use Modules\Backups\Http\Controllers\BackupDownloadController;
 use Modules\Backups\Http\Controllers\BackupExportController;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 /*
  * `loadRoutesFrom()` only includes this file; it does not add the web group.
@@ -18,25 +19,25 @@ Route::middleware('web')->group(function (): void {
         ->name('backups.')
         ->group(function (): void {
             Route::get('/', [BackupController::class, 'index'])
-                ->middleware('permission:VIEW_ANY_BACKUPS')
+                ->middleware('permission:'.PermissionName::ViewAnyBackup->value)
                 ->name('index');
 
             Route::get('/activity', BackupActivityController::class)
-                ->middleware('permission:VIEW_ANY_BACKUPS')
+                ->middleware('permission:'.PermissionName::ViewAnyBackup->value)
                 ->name('activity');
 
             Route::post('/run', [BackupController::class, 'run'])
-                ->middleware(['permission:CREATE_BACKUPS', 'throttle:3,1'])
+                ->middleware(['permission:'.PermissionName::CreateBackup->value, 'throttle:3,1'])
                 ->name('run');
 
             // Static paths precede `{backup}` so the UUID constraint cannot
             // swallow `bulk-delete` or `export`.
             Route::post('/bulk-delete', [BackupController::class, 'bulkDelete'])
-                ->middleware('permission:BULK_DELETE_BACKUPS')
+                ->middleware('permission:'.PermissionName::BulkDeleteBackup->value)
                 ->name('bulk-delete');
 
             Route::post('/bulk-restore', [BackupController::class, 'bulkRestore'])
-                ->middleware('permission:BULK_RESTORE_BACKUPS')
+                ->middleware('permission:'.PermissionName::BulkRestoreBackup->value)
                 ->name('bulk-restore');
 
             Route::get('/export/{format}', BackupExportController::class)
@@ -44,30 +45,37 @@ Route::middleware('web')->group(function (): void {
                 // Same read capability as the index: EXPORT_BACKUPS alone must
                 // never widen an inventory the actor cannot list.
                 ->middleware([
-                    'permission:VIEW_ANY_BACKUPS',
-                    'permission:EXPORT_BACKUPS',
+                    'permission:'.PermissionName::ViewAnyBackup->value,
+                    'permission:'.PermissionName::ExportBackup->value,
                     'throttle:10,1',
                 ])
                 ->name('export');
 
             Route::get('/{backup}', [BackupController::class, 'show'])
                 ->whereUuid('backup')
-                ->middleware('permission:VIEW_BACKUPS')
+                ->middleware('permission:'.PermissionName::ViewBackup->value)
                 ->name('show');
 
+            // The archive is a full database copy: DOWNLOAD_BACKUPS must never
+            // widen an inventory the actor cannot see. Same pairing rule as
+            // the export route above.
             Route::get('/{backup}/download', BackupDownloadController::class)
                 ->whereUuid('backup')
-                ->middleware(['permission:DOWNLOAD_BACKUPS', 'throttle:10,1'])
+                ->middleware([
+                    'permission:'.PermissionName::ViewBackup->value,
+                    'permission:'.PermissionName::DownloadBackup->value,
+                    'throttle:10,1',
+                ])
                 ->name('download');
 
             Route::delete('/{backup}', [BackupController::class, 'destroy'])
                 ->whereUuid('backup')
-                ->middleware('permission:DELETE_BACKUPS')
+                ->middleware('permission:'.PermissionName::DeleteBackup->value)
                 ->name('destroy');
 
             Route::patch('/{backup}/restore', [BackupController::class, 'restore'])
                 ->whereUuid('backup')
-                ->middleware('permission:RESTORE_BACKUPS')
+                ->middleware('permission:'.PermissionName::RestoreBackup->value)
                 ->name('restore');
         });
 });

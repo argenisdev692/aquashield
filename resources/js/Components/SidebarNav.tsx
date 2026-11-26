@@ -4,11 +4,21 @@
  * route: the shell passes the groups in and listens for `navigate`, so the same
  * list cannot drift between the two surfaces.
  *
+ * Section headings are disclosures, not decoration: Workspace, Organization
+ * and System fold away with a real `<button aria-expanded>` that controls the
+ * `<ul>` of links (WAI-ARIA disclosure-navigation), so a long rail can be
+ * shortened without hiding a destination from the keyboard. The open/closed
+ * answer lives in `useSidebarSections`, shared by both surfaces and persisted.
+ * A single-destination group (Account) keeps a plain heading — an arrow that
+ * hides one row is noise.
+ *
  * Active state is never colour-only: a 2px accent bar, a tinted row and
  * `aria-current="page"` all fire together, and the row keeps its shape when the
  * rail collapses to icons (labels swap to `sr-only` and the tooltip takes over).
  */
+import { useEffect, useId } from 'react';
 import { Link } from '@inertiajs/react';
+import { ChevronDown } from 'lucide-react';
 import {
     isActivePath,
     jumpToSection,
@@ -16,6 +26,7 @@ import {
     type NavGroup,
     type NavItem,
 } from '@/lib/navigation';
+import { useSidebarSections } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/Components/ui/tooltip';
 
@@ -45,7 +56,26 @@ export default function SidebarNav({
     collapsed = false,
     onNavigate,
 }: SidebarNavProps) {
+    const baseId = useId();
+    const { collapsedSections, toggleSection, expandSection } = useSidebarSections();
+
     const active = (href: string): boolean => isActivePath(currentPath, href);
+
+    /*
+     * A folded section must never hide the page you are on. Every navigation
+     * opens the group that owns the active route; `expandSection` is a no-op
+     * when the group is already open, so this cannot fight a deliberate
+     * collapse on a re-render.
+     */
+    const activeSectionLabel = groups.find(
+        (group) => group.label !== undefined && group.items.some((item) => active(item.href)),
+    )?.label;
+
+    useEffect(() => {
+        if (activeSectionLabel !== undefined) {
+            expandSection(activeSectionLabel);
+        }
+    }, [activeSectionLabel, expandSection]);
 
     const onActivate = (item: NavItem, event: React.MouseEvent): void => {
         if (item.anchor === true) {
@@ -120,36 +150,105 @@ export default function SidebarNav({
 
     return (
         <nav aria-label="Primary" className="flex flex-col gap-3">
-            {groups.map((group, groupIndex) => (
+            {groups.map((group, groupIndex) => {
                 /*
                  * The index keeps the key unique even if a future group ships
                  * without a label. Every group gets a hairline separator except
                  * the first, so sections read as structure instead of as one
                  * long list with stray headings.
                  */
-                <div
-                    key={group.label ?? `group-${groupIndex}`}
-                    className={cn(
-                        groupIndex > 0 &&
-                            'border-t border-surface-100 pt-3 dark:border-surface-800/80',
-                    )}
-                >
-                    {group.label && (
-                        <p
-                            className={cn(
-                                'px-2.5 pb-1.5 text-[10px] font-semibold tracking-[0.16em] text-surface-600 uppercase dark:text-surface-300',
-                                collapsed && 'sr-only',
-                            )}
-                        >
-                            {group.label}
-                        </p>
-                    )}
+                const label = group.label;
+                const collapsible = label !== undefined && group.items.length > 1;
+                const panelId = `${baseId}-section-${groupIndex}`;
+                const hasActiveItem = group.items.some((item) => active(item.href));
 
-                    <ul className="flex flex-col gap-0.5">
-                        {group.items.map((item) => renderItem(item, `${groupIndex}-${item.href}`))}
-                    </ul>
-                </div>
-            ))}
+                /*
+                 * The icon rail has no room for a heading, let alone an arrow,
+                 * so every group stays open there: the toggle is a full-width
+                 * text affordance, not something a 72px column can carry.
+                 */
+                const isOpen = collapsed || !collapsible || collapsedSections[label ?? ''] !== true;
+
+                return (
+                    <div
+                        key={label ?? `group-${groupIndex}`}
+                        className={cn(
+                            groupIndex > 0 &&
+                                'border-t border-surface-100 pt-3 dark:border-surface-800/80',
+                        )}
+                    >
+                        {label !== undefined &&
+                            (collapsible && !collapsed ? (
+                                <button
+                                    type="button"
+                                    onClick={() => toggleSection(label)}
+                                    aria-expanded={isOpen}
+                                    aria-controls={panelId}
+                                    className="mb-0.5 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.16em] text-surface-600 uppercase transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"
+                                >
+                                    <span>{label}</span>
+
+                                    {/*
+                                     * Down when open, right when folded. The
+                                     * accent only appears while the group is
+                                     * closed over the current page, so the
+                                     * folded section still says "you are here".
+                                     */}
+                                    <ChevronDown
+                                        className={cn(
+                                            'size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none',
+                                            !isOpen && '-rotate-90',
+                                            hasActiveItem && !isOpen
+                                                ? 'text-aq-accent-deep dark:text-aq-accent'
+                                                : undefined,
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            ) : (
+                                <p
+                                    className={cn(
+                                        'px-2.5 pb-1.5 text-[10px] font-semibold tracking-[0.16em] text-surface-600 uppercase dark:text-surface-300',
+                                        collapsed && 'sr-only',
+                                    )}
+                                >
+                                    {label}
+                                </p>
+                            ))}
+
+                        {/*
+                         * The id stays on a wrapper that is always rendered, so
+                         * `aria-controls` never dangles while the section is
+                         * folded — a broken IDREF is an axe violation and some
+                         * screen readers announce the control as invalid.
+                         */}
+                        <div id={panelId}>
+                            {isOpen ? (
+                                <ul
+                                    className={cn(
+                                        'flex flex-col gap-0.5',
+                                        /*
+                                         * Mounted only while open: a height
+                                         * animation would have to keep the rows
+                                         * in the DOM, where `overflow-hidden`
+                                         * clips the focus ring and `inert` hides
+                                         * them from AT for no benefit. A short
+                                         * reveal is enough.
+                                         */
+                                        collapsible &&
+                                            !collapsed &&
+                                            'animate-in fade-in-0 slide-in-from-top-1 motion-reduce:animate-none',
+                                    )}
+                                >
+                                    {group.items.map((item) =>
+                                        renderItem(item, `${groupIndex}-${item.href}`),
+                                    )}
+                                </ul>
+                            ) : null}
+                        </div>
+                    </div>
+                );
+            })}
         </nav>
     );
 }

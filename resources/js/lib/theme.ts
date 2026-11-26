@@ -141,3 +141,109 @@ export const useSidebar = (): SidebarState => {
 
     return { collapsed, setCollapsed: setCollapsedState, toggleCollapsed, isDesktop };
 };
+
+/**
+ * Collapsible navigation sections — which of Workspace / Organization / System
+ * the user has folded away.
+ *
+ * A module store rather than `useState` for the same reason the theme is one:
+ * the desktop rail and the mobile drawer mount the same list, and two private
+ * copies would disagree the moment the drawer opens after a rail toggle. The
+ * value is persisted as the list of *collapsed* labels under
+ * `aq:nav:collapsed-sections`, so a section added later starts expanded, which
+ * is the safe default — a hidden destination is a support ticket.
+ */
+const NAV_SECTIONS_STORAGE_KEY = 'aq:nav:collapsed-sections';
+
+export type CollapsedSections = Readonly<Record<string, boolean>>;
+
+const NO_COLLAPSED_SECTIONS: CollapsedSections = {};
+
+const readCollapsedSections = (): CollapsedSections => {
+    if (typeof window === 'undefined') {
+        return NO_COLLAPSED_SECTIONS;
+    }
+
+    try {
+        const stored = localStorage.getItem(NAV_SECTIONS_STORAGE_KEY);
+
+        if (stored === null) {
+            return NO_COLLAPSED_SECTIONS;
+        }
+
+        const parsed: unknown = JSON.parse(stored);
+
+        if (!Array.isArray(parsed)) {
+            return NO_COLLAPSED_SECTIONS;
+        }
+
+        return Object.fromEntries(
+            parsed
+                .filter((label): label is string => typeof label === 'string')
+                .map((label) => [label, true]),
+        );
+    } catch {
+        // A corrupt value or a storage-denied context must not blank the rail.
+        return NO_COLLAPSED_SECTIONS;
+    }
+};
+
+let collapsedSections: CollapsedSections = readCollapsedSections();
+const sectionListeners = new Set<() => void>();
+
+const subscribeSections = (listener: () => void): (() => void) => {
+    sectionListeners.add(listener);
+
+    return () => {
+        sectionListeners.delete(listener);
+    };
+};
+
+const getSectionsSnapshot = (): CollapsedSections => collapsedSections;
+const getSectionsServerSnapshot = (): CollapsedSections => NO_COLLAPSED_SECTIONS;
+
+const commitSections = (next: CollapsedSections): void => {
+    collapsedSections = next;
+    localStorage.setItem(
+        NAV_SECTIONS_STORAGE_KEY,
+        JSON.stringify(Object.keys(next).filter((label) => next[label] === true)),
+    );
+    sectionListeners.forEach((listener) => listener());
+};
+
+const toggleSection = (label: string): void => {
+    commitSections({ ...collapsedSections, [label]: collapsedSections[label] !== true });
+};
+
+/** No-op when already open, so an effect may call it on every navigation. */
+const expandSection = (label: string): void => {
+    if (collapsedSections[label] !== true) {
+        return;
+    }
+
+    const next: Record<string, boolean> = {};
+
+    for (const [key, value] of Object.entries(collapsedSections)) {
+        if (key !== label) {
+            next[key] = value;
+        }
+    }
+
+    commitSections(next);
+};
+
+export interface SidebarSectionsState {
+    collapsedSections: CollapsedSections;
+    toggleSection: (label: string) => void;
+    expandSection: (label: string) => void;
+}
+
+export const useSidebarSections = (): SidebarSectionsState => {
+    const sections = useSyncExternalStore(
+        subscribeSections,
+        getSectionsSnapshot,
+        getSectionsServerSnapshot,
+    );
+
+    return { collapsedSections: sections, toggleSection, expandSection };
+};

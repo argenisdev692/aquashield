@@ -13,11 +13,30 @@ use Modules\ActivityLog\Models\ActivityEntry;
 final class ActivityListQuery
 {
     /**
+     * Explicit read model: `attribute_changes` and `subject_id` never cross
+     * this module's boundary, so they are not hydrated.
+     *
+     * @var list<string>
+     */
+    private const array COLUMNS = [
+        'uuid',
+        'log_name',
+        'event',
+        'description',
+        'subject_type',
+        'causer_type',
+        'causer_id',
+        'properties',
+        'created_at',
+    ];
+
+    /**
      * @return Builder<ActivityEntry>
      */
     public function builder(ActivityFilterData $filters): Builder
     {
         return ActivityEntry::query()
+            ->select(self::COLUMNS)
             ->when(
                 $filters->search !== null && $filters->search !== '',
                 static function (Builder $query) use ($filters): void {
@@ -74,9 +93,7 @@ final class ActivityListQuery
     public function paginate(ActivityFilterData $filters): LengthAwarePaginator
     {
         return $this->builder($filters)
-            // Explicit columns: an eager load without them pulls the whole
-            // causer row on every audit page.
-            ->with('causer:id,first_name,last_name')
+            ->withCauser()
             ->paginate(perPage: $filters->perPage, page: $filters->page)
             ->withQueryString();
     }
@@ -84,5 +101,14 @@ final class ActivityListQuery
     public function count(ActivityFilterData $filters): int
     {
         return $this->builder($filters)->count();
+    }
+
+    public function findByUuid(string $uuid): ?ActivityEntry
+    {
+        return ActivityEntry::query()
+            ->select(self::COLUMNS)
+            ->withCauser()
+            ->where('uuid', $uuid)
+            ->first();
     }
 }

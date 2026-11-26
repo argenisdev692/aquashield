@@ -28,8 +28,6 @@ interface BackupArchiveStore
 
     public function findActive(string $uuid): ?BackupArchive;
 
-    public function findTrashed(string $uuid): ?BackupArchive;
-
     /**
      * The configured destination disks, for the filter select.
      *

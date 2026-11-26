@@ -6,6 +6,7 @@ namespace Modules\ActivityLog\Data;
 
 use App\Models\User;
 use Modules\ActivityLog\Models\ActivityEntry;
+use Shared\Support\ActivityProperties;
 use Spatie\LaravelData\Attributes\MapOutputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
@@ -21,7 +22,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 final class ActivityEntryData extends Data
 {
     /**
-     * @param array<string, string|int> $properties
+     * @param array<string, string|int|list<string>> $properties
      */
     public function __construct(
         public readonly string $uuid,
@@ -45,8 +46,8 @@ final class ActivityEntryData extends Data
             description: (string) $entry->description,
             causerName: $causer instanceof User ? $causer->name : null,
             subjectType: self::subjectType($entry->subject_type),
-            properties: self::safeProperties($entry->properties?->all() ?? []),
-            createdAt: $entry->created_at?->format('Y-m-d H:i:s') ?? '',
+            properties: ActivityProperties::forEvent((string) ($entry->event ?? ''), $entry->properties?->all() ?? []),
+            createdAt: $entry->created_at?->toIso8601String() ?? '',
         );
     }
 
@@ -59,26 +60,5 @@ final class ActivityEntryData extends Data
         $parts = explode('\\', $type);
 
         return end($parts) ?: null;
-    }
-
-    /**
-     * @param array<string, mixed> $properties
-     * @return array<string, string|int>
-     */
-    private static function safeProperties(array $properties): array
-    {
-        $safe = [];
-
-        // `requested_by` is an internal numeric user id; only UUIDs cross HTTP.
-        // The causer is already represented by `causerName`.
-        foreach (['disk', 'filename', 'size_bytes', 'reason', 'changed'] as $key) {
-            $value = $properties[$key] ?? null;
-
-            if (is_string($value) || is_int($value)) {
-                $safe[$key] = $value;
-            }
-        }
-
-        return $safe;
     }
 }

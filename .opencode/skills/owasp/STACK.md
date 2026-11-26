@@ -74,9 +74,9 @@ $middleware->alias([
 
 ## §6 — Supply chain
 
-- `composer.lock` + `package-lock.json` committed. CI: `composer audit` + `npm audit --omit=dev` on every PR.
+- `composer.lock` + `package-lock.json` committed. CI: `composer audit --no-dev` (wired into `composer check`) + `npm audit --omit=dev` on every PR.
 - Pin majors; changelog before upgrades; security patches ≤7 days.
-- `laravel/vet`: `vet.json` committed (219 packages trusted). `composer update:safe` for interactive vendor review; `--minimum-release-age` as fresh-release defense (OWASP A03).
+- Dependency review: `composer.lock` committed; `composer audit --no-dev` runs in `composer check`; read the changelog before any major/minor bump. `laravel/vet` is not installed in this project.
 - No unknown-maintainer packages without verification.
 
 ## §8 — Uploads, signed URLs, webhooks
@@ -188,7 +188,9 @@ Consequences for the gate:
 
 ### Red — fix before production
 
-None open as of **2026-11-24**. The previous list is closed, verified through the framework (`config:show session`, `doctor`):
+None open as of **2026-11-26**. The previous list is closed, verified through the framework
+(`config:show session`, `doctor`); the Symfony `8.1.12` patch closed the 2026-11-25 advisories and
+`composer audit --no-dev` now runs inside `composer check`:
 
 | Previously listed              | Closed by                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------------- |

@@ -37,6 +37,11 @@ final readonly class BackupDownloadController
                 fpassthru($stream);
                 fclose($stream);
             }
-        }, $archive->filename, ['Content-Type' => 'application/zip']);
+        }, $archive->filename, [
+            'Content-Type' => 'application/zip',
+            // A full database copy must not land in a shared or disk cache.
+            'Cache-Control' => 'private, no-store',
+            'Pragma' => 'no-cache',
+        ]);
     }
 }

@@ -6,12 +6,13 @@ namespace Modules\Backups\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Shared\Application\DTOs\BulkUuidsData;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 final class BulkRestoreBackupsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('BULK_RESTORE_BACKUPS') ?? false;
+        return $this->user()?->can(PermissionName::BulkRestoreBackup->value) ?? false;
     }
 
     /**

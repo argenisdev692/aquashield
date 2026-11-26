@@ -5,79 +5,73 @@ declare(strict_types=1);
 namespace Modules\Backups\Infrastructure\Persistence;
 
 use App\Models\User;
+use Modules\ActivityLog\Models\ActivityEntry;
 use Modules\Backups\Application\Ports\BackupActivityLog;
 use Modules\Backups\Data\BackupActivityData;
-use Spatie\Activitylog\Models\Activity;
+use Shared\Support\ActivityProperties;
 
 final readonly class SpatieBackupActivityLog implements BackupActivityLog
 {
     /**
-     * The audit write allowlist, mirrored on the read side. Even if another
-     * writer puts a password or a signed URL in `properties`, the panel cannot
-     * echo it back.
+     * `uuid` is the public identifier; the auto-increment `id` must never
+     * cross HTTP, and `attribute_changes`/`subject_*` are not part of this
+     * read model, so they are not selected.
+     *
+     * @var list<string>
      */
-    private const array SAFE_PROPERTIES = ['disk', 'filename', 'size_bytes', 'reason'];
+    private const array COLUMNS = [
+        'uuid',
+        'event',
+        'description',
+        'causer_type',
+        'causer_id',
+        'properties',
+        'created_at',
+    ];
 
     public function recent(int $limit = 50): array
     {
-        $rows = Activity::query()
-            ->with('causer:id,first_name,last_name')
+        $rows = ActivityEntry::query()
+            ->select(self::COLUMNS)
+            ->withCauser()
             ->where('log_name', 'backups')
             ->latest()
             ->limit($this->limit($limit))
             ->get();
 
-        return $rows->map(fn (Activity $activity): BackupActivityData => $this->toData($activity))->all();
+        return $rows->map(fn (ActivityEntry $activity): BackupActivityData => $this->toData($activity))->all();
     }
 
     public function forFilename(string $filename, int $limit = 20): array
     {
-        $rows = Activity::query()
-            ->with('causer:id,first_name,last_name')
+        $rows = ActivityEntry::query()
+            ->select(self::COLUMNS)
+            ->withCauser()
             ->where('log_name', 'backups')
             ->where('properties->filename', $filename)
             ->latest()
             ->limit($this->limit($limit))
             ->get();
 
-        return $rows->map(fn (Activity $activity): BackupActivityData => $this->toData($activity))->all();
+        return $rows->map(fn (ActivityEntry $activity): BackupActivityData => $this->toData($activity))->all();
     }
 
-    private function toData(Activity $activity): BackupActivityData
+    private function toData(ActivityEntry $activity): BackupActivityData
     {
         $causer = $activity->causer;
 
         return new BackupActivityData(
-            id: (string) $activity->getKey(),
+            uuid: (string) $activity->uuid,
             event: (string) $activity->event,
             description: (string) $activity->description,
             causerName: $causer instanceof User ? $causer->name : null,
-            properties: $this->safeProperties($activity->properties?->all() ?? []),
-            createdAt: $activity->created_at?->format('Y-m-d H:i') ?? '',
+            properties: ActivityProperties::forBackupEvent($activity->properties?->all() ?? []),
+            createdAt: $activity->created_at?->toIso8601String() ?? '',
         );
     }
 
     private function limit(int $limit): int
     {
         return max(1, min($limit, self::MAX_LIMIT));
-    }
-
-    /**
-     * @param array<string, mixed> $properties
-     * @return array<string, string|int>
-     */
-    private function safeProperties(array $properties): array
-    {
-        $safe = [];
-
-        foreach (self::SAFE_PROPERTIES as $key) {
-            $value = $properties[$key] ?? null;
-
-            if (is_string($value) || is_int($value)) {
-                $safe[$key] = $value;
-            }
-        }
-
-        return $safe;
     }
 }

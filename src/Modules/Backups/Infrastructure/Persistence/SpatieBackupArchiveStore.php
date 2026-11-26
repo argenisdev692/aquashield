@@ -27,9 +27,16 @@ use Spatie\Backup\Tasks\Backup\BackupJob;
  */
 final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 {
-    private const string ACTIVE_CACHE_KEY = 'backups.inventory.active.v1';
+    /*
+     * v2 caches scalar rows, not `BackupArchive` objects. The v1 keys held
+     * objects, and `config/cache.php` sets `serializable_classes => false`
+     * (Laravel 13's default), so a cache hit unserialized them as
+     * `__PHP_Incomplete_Class`. The version bump abandons any warm v1 entry;
+     * it expires on its own within the TTL.
+     */
+    private const string ACTIVE_CACHE_KEY = 'backups.inventory.active.v2';
 
-    private const string TRASHED_CACHE_KEY = 'backups.inventory.trashed.v1';
+    private const string TRASHED_CACHE_KEY = 'backups.inventory.trashed.v2';
 
     /**
      * S3 listing is a network round trip per destination. Thirty seconds is
@@ -44,26 +51,12 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 
     public function active(): array
     {
-        /** @var list<BackupArchive> $rows */
-        $rows = Cache::remember(
-            self::ACTIVE_CACHE_KEY,
-            self::CACHE_TTL_SECONDS,
-            fn (): array => $this->collect(trashed: false),
-        );
-
-        return $rows;
+        return $this->hydrated(self::ACTIVE_CACHE_KEY, trashed: false);
     }
 
     public function trashed(): array
     {
-        /** @var list<BackupArchive> $rows */
-        $rows = Cache::remember(
-            self::TRASHED_CACHE_KEY,
-            self::CACHE_TTL_SECONDS,
-            fn (): array => $this->collect(trashed: true),
-        );
-
-        return $rows;
+        return $this->hydrated(self::TRASHED_CACHE_KEY, trashed: true);
     }
 
     public function findActive(string $uuid): ?BackupArchive
@@ -71,14 +64,99 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
         return BackupInventory::fromList($this->active())->find($uuid);
     }
 
-    public function findTrashed(string $uuid): ?BackupArchive
-    {
-        return BackupInventory::fromList($this->trashed())->find($uuid);
-    }
-
     public function disks(): array
     {
         return $this->configuredDisks();
+    }
+
+    /**
+     * Read the inventory through the cache, degrading to a direct listing when
+     * the cache backend is unavailable.
+     *
+     * The cached value is a scalar payload (see `payload()`), never domain
+     * objects: the configured store unserializes with `allowed_classes => false`
+     * (`config/cache.php`), so caching `BackupArchive` instances would come back
+     * as `__PHP_Incomplete_Class` on a cache hit.
+     *
+     * @return list<BackupArchive>
+     */
+    private function hydrated(string $cacheKey, bool $trashed): array
+    {
+        $rows = $this->cachedPayload($cacheKey, $trashed);
+
+        if (! is_array($rows)) {
+            return $this->collect(trashed: $trashed);
+        }
+
+        $archives = [];
+
+        foreach ($rows as $row) {
+            // A payload this class did not write is a cache miss, not a reason
+            // to render a broken inventory.
+            if (! is_array($row)) {
+                return $this->collect(trashed: $trashed);
+            }
+
+            $archives[] = $this->hydrate($row);
+        }
+
+        return $archives;
+    }
+
+    /**
+     * A value read from an untyped cache store — `mixed` is the honest
+     * contract, because a warm entry is whatever the backend stored, not
+     * whatever this class hoped to read.
+     */
+    private function cachedPayload(string $cacheKey, bool $trashed): mixed
+    {
+        return rescue(
+            fn (): array => Cache::remember(
+                $cacheKey,
+                self::CACHE_TTL_SECONDS,
+                fn (): array => $this->payload($trashed),
+            ),
+            fn (): array => $this->payload($trashed),
+            report: false,
+        );
+    }
+
+    /**
+     * The cacheable shape: scalars only, so the value survives a store that
+     * refuses to unserialize classes.
+     *
+     * @return list<array{uuid: string, disk: string, path: string, filename: string, size_bytes: int, taken_at: string, trashed: bool}>
+     */
+    private function payload(bool $trashed): array
+    {
+        return array_map(
+            static fn (BackupArchive $archive): array => [
+                'uuid' => $archive->uuid,
+                'disk' => $archive->disk,
+                'path' => $archive->path,
+                'filename' => $archive->filename,
+                'size_bytes' => $archive->sizeBytes,
+                'taken_at' => $archive->takenAt->format(DATE_ATOM),
+                'trashed' => $archive->trashed,
+            ],
+            $this->collect(trashed: $trashed),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function hydrate(array $row): BackupArchive
+    {
+        return new BackupArchive(
+            uuid: (string) $row['uuid'],
+            disk: (string) $row['disk'],
+            path: (string) $row['path'],
+            filename: (string) $row['filename'],
+            sizeBytes: (int) $row['size_bytes'],
+            takenAt: new DateTimeImmutable((string) $row['taken_at']),
+            trashed: (bool) $row['trashed'],
+        );
     }
 
     public function quarantine(BackupArchive $archive): void

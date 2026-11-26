@@ -250,7 +250,7 @@ export default function BackupsShow() {
                             <ol className="mt-4 space-y-3">
                                 {entries.map((entry) => (
                                     <li
-                                        key={entry.id}
+                                        key={entry.uuid}
                                         className="rounded-lg border border-aq-shell-line px-3 py-2.5"
                                     >
                                         <div className="flex flex-wrap items-center gap-2">

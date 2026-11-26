@@ -38,3 +38,9 @@ it('rejects a date that is not Y-m-d', function (): void {
         'filter' => ['date_from' => '01/31/2026'],
     ]));
 })->throws(ValidationException::class);
+
+it('rejects a page beyond the hard cap', function (): void {
+    ActivityFilterData::fromRequest(Request::create('/activity', 'GET', [
+        'page' => 10001,
+    ]));
+})->throws(ValidationException::class);

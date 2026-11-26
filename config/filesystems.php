@@ -35,7 +35,10 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // This disk holds the database dumps. Serving it would create a
+            // signed-URL path to a full copy of the database; nothing in the
+            // app generates a local temporaryUrl(), so the route stays off.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

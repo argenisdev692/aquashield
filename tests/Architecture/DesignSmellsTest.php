@@ -202,7 +202,33 @@ it('declares no class that nothing else references', function () use ($modulePhp
     expect($orphans)->toBe([], "A class nothing references is a presumptive feature (Fowler) — delete it, or give it a consumer today. YAGNI, not a plan:\n  ".implode("\n  ", $orphans));
 })->skip(fn () => $modulePhp === [], 'src/Modules is empty — nothing to orphan yet.');
 
-/* ------------------------------------ 3. no raw model serialisation */
+/* ------------------- 3. LogsActivity must declare an explicit allowlist */
+
+it('requires every LogsActivity model to declare an explicit logOnly allowlist', function () use ($firstPartyPhp, $projectPath) {
+    $offenders = [];
+
+    foreach ($firstPartyPhp as $rel) {
+        $src = (string) file_get_contents("$projectPath/$rel");
+
+        if (! str_contains($src, 'Concerns\\LogsActivity')) {
+            continue;
+        }
+
+        if (! str_contains($src, 'function getActivitylogOptions')
+            || ! str_contains($src, 'logOnly(')) {
+            $offenders[] = $rel;
+        }
+    }
+
+    expect($offenders)->toBe(
+        [],
+        'Every LogsActivity model must define getActivitylogOptions() with an explicit '
+        ."logOnly([...]) allowlist; default logging can record passwords and PII:\n  "
+        .implode("\n  ", $offenders),
+    );
+});
+
+/* ------------------------------------ 4. no raw model serialisation */
 
 it('does not serialise a raw model from a controller', function () use ($firstPartyPhp, $projectPath) {
     // Invariant 14 in spirit: a response shape is a Data object, never the
@@ -235,7 +261,7 @@ it('does not serialise a raw model from a controller', function () use ($firstPa
     );
 });
 
-/* ------------------------------------------------- 4. no speculative folders */
+/* ------------------------------------------------- 5. no speculative folders */
 it('ships no speculative Contracts folder in a module', function () use ($moduleNames, $modulesPath) {
     $found = [];
 

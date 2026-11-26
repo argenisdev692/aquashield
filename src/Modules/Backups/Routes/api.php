@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Modules\Backups\Http\Controllers\Api\BackupController;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 /*
  * Read-only REST surface. Stateless (`api` middleware), Sanctum token,
@@ -21,11 +22,11 @@ Route::middleware(['api', 'auth:sanctum', 'verified', 'account.active', 'throttl
     ->name('api.')
     ->group(function (): void {
         Route::get('/backups', [BackupController::class, 'index'])
-            ->middleware('permission:VIEW_ANY_BACKUPS')
+            ->middleware('permission:'.PermissionName::ViewAnyBackup->value)
             ->name('backups.index');
 
         Route::get('/backups/{backup}', [BackupController::class, 'show'])
             ->whereUuid('backup')
-            ->middleware('permission:VIEW_BACKUPS')
+            ->middleware('permission:'.PermissionName::ViewBackup->value)
             ->name('backups.show');
     });

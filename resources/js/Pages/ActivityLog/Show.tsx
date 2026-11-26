@@ -10,6 +10,14 @@ import { formatDateTime } from '@/lib/date';
 
 type ActivityEntry = Modules.ActivityLog.Data.ActivityEntryData;
 
+const formatProperty = (value: unknown): string => {
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+
+    return String(value);
+};
+
 type ActivityPageProps = {
     activity: ActivityEntry;
 };
@@ -122,7 +130,7 @@ export default function ActivityLogShow() {
                                     {key}
                                 </dt>
                                 <dd className="min-w-0 break-words text-sm text-surface-900 dark:text-surface-0">
-                                    {String(value)}
+                                    {formatProperty(value)}
                                 </dd>
                             </div>
                         ))}

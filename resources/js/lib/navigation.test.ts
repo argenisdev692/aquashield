@@ -36,18 +36,23 @@ describe('visiblePrimaryNav access catalogue', () => {
 });
 
 describe('groupedPrimaryNav', () => {
-    it('splits the permitted destinations into the rail sections', () => {
+    it('leads with the unlabelled Dashboard row and folds the work destinations under Workspace', () => {
         const groups = groupedPrimaryNav(allPermissions, manageBoth);
 
-        expect(groups.map((group) => group.label)).toEqual(['Workspace', 'Organization', 'System']);
-        expect(groups[0].items.map((item) => item.href)).toEqual([
-            '/dashboard',
+        expect(groups.map((group) => group.label)).toEqual([
+            undefined,
+            'Workspace',
+            'Organization',
+            'System',
+        ]);
+        expect(groups[0].items.map((item) => item.href)).toEqual(['/dashboard']);
+        expect(groups[1].items.map((item) => item.href)).toEqual([
             '/leads',
             '/appointments',
             '/availability',
         ]);
-        expect(groups[1].items.map((item) => item.href)).toEqual(['/company-data/edit', '/users']);
-        expect(groups[2].items.map((item) => item.href)).toEqual([
+        expect(groups[2].items.map((item) => item.href)).toEqual(['/company-data/edit', '/users']);
+        expect(groups[3].items.map((item) => item.href)).toEqual([
             '/roles',
             '/permissions',
             '/backups',
@@ -58,7 +63,7 @@ describe('groupedPrimaryNav', () => {
     it('drops an empty section instead of rendering its heading', () => {
         const groups = groupedPrimaryNav([], { manageAccess: false, manageStaff: false });
 
-        expect(groups.map((group) => group.label)).toEqual(['Workspace']);
+        expect(groups.map((group) => group.label)).toEqual([undefined]);
         expect(groups[0].items.map((item) => item.href)).toEqual(['/dashboard']);
     });
 });
@@ -68,6 +73,7 @@ describe('dashboardGroups', () => {
         const groups = dashboardGroups('/dashboard', allPermissions, manageBoth);
 
         expect(groups.map((group) => group.label)).toEqual([
+            undefined,
             'Workspace',
             'Organization',
             'System',

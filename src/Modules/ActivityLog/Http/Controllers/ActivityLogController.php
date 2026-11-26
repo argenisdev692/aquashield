@@ -10,14 +10,15 @@ use Illuminate\Http\Request;
 use Inertia\Response as InertiaResponse;
 use Modules\ActivityLog\Data\ActivityEntryData;
 use Modules\ActivityLog\Data\ActivityFilterData;
-use Modules\ActivityLog\Models\ActivityEntry;
 use Modules\ActivityLog\Queries\ActivityListQuery;
 use Shared\Domain\Enums\Permission as PermissionName;
+use Shared\Domain\Ports\AuditPort;
 
 final readonly class ActivityLogController
 {
     public function __construct(
         private ActivityListQuery $activity,
+        private AuditPort $audit,
     ) {}
 
     public function index(Request $request): JsonResponse|InertiaResponse
@@ -31,8 +32,8 @@ final readonly class ActivityLogController
             return response()->json([
                 'rows' => $rows,
                 'total' => $page->total(),
-                'page' => $page->currentPage(),
-                'per_page' => $page->perPage(),
+                'currentPage' => $page->currentPage(),
+                'perPage' => $page->perPage(),
             ]);
         }
 
@@ -48,13 +49,18 @@ final readonly class ActivityLogController
 
     public function show(Request $request, string $activity): JsonResponse|InertiaResponse
     {
-        $entry = ActivityEntry::query()
-            ->with('causer:id,first_name,last_name')
-            ->where('uuid', $activity)
-            ->first();
+        $entry = $this->activity->findByUuid($activity);
 
         if ($entry === null) {
             abort(404);
+        }
+
+        if (filter_var(config('activitylog.audit_views', false), FILTER_VALIDATE_BOOLEAN)) {
+            // No subject: the explicit select does not hydrate the internal
+            // `id`, and the viewed UUID is the public identifier the audit needs.
+            $this->audit->log('activity.viewed', null, [
+                'entry' => (string) $entry->uuid,
+            ], $request->user(), 'activity');
         }
 
         $data = ActivityEntryData::fromModel($entry);

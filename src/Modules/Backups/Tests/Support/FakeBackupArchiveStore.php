@@ -31,6 +31,12 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
 
     public string $content = 'PK fake zip payload';
 
+    /** Filename whose quarantine fails, to exercise batch compensation. */
+    public ?string $failQuarantineFor = null;
+
+    /** Filename whose restore fails, to exercise batch compensation. */
+    public ?string $failRestoreFor = null;
+
     public function seedActive(
         string $filename,
         string $takenAt = '2026-10-01 00:00:00',
@@ -70,11 +76,6 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
         return $this->active[$uuid] ?? null;
     }
 
-    public function findTrashed(string $uuid): ?BackupArchive
-    {
-        return $this->trashed[$uuid] ?? null;
-    }
-
     public function disks(): array
     {
         return ['local'];
@@ -82,6 +83,10 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
 
     public function quarantine(BackupArchive $archive): void
     {
+        if ($this->failQuarantineFor === $archive->filename) {
+            throw new RuntimeException('Injected quarantine failure.');
+        }
+
         if (! isset($this->active[$archive->uuid])) {
             throw new RuntimeException('The archive is not active.');
         }
@@ -101,6 +106,10 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
 
     public function restore(BackupArchive $archive): void
     {
+        if ($this->failRestoreFor === $archive->filename) {
+            throw new RuntimeException('Injected restore failure.');
+        }
+
         if (! isset($this->trashed[$archive->uuid])) {
             throw new RuntimeException('The archive is not quarantined.');
         }

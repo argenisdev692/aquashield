@@ -1853,6 +1853,78 @@
                 "tags": [
                     "Backup"
                 ],
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Free-text match on the archive filename or disk.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter[status]",
+                        "in": "query",
+                        "description": "Inventory to list: active, trashed or all.",
+                        "schema": {
+                            "type": "string",
+                            "default": "active"
+                        }
+                    },
+                    {
+                        "name": "filter[disk]",
+                        "in": "query",
+                        "description": "Restrict to one configured destination disk.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter[date_from]",
+                        "in": "query",
+                        "description": "Inclusive start of the taken-at window, Y-m-d.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "filter[date_to]",
+                        "in": "query",
+                        "description": "Inclusive end of the taken-at window, Y-m-d.",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Sort field, prefix with - for descending: taken_at, filename, size_bytes or disk.",
+                        "schema": {
+                            "type": "string",
+                            "default": "-taken_at"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Rows per page (1-100).",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "`BackupListData`",
@@ -1900,8 +1972,10 @@
                         "name": "backup",
                         "in": "path",
                         "required": true,
+                        "description": "Archive UUID.",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
                 ],
@@ -3482,7 +3556,7 @@
             "BackupActivityData": {
                 "type": "object",
                 "properties": {
-                    "id": {
+                    "uuid": {
                         "type": "string"
                     },
                     "event": {
@@ -3508,7 +3582,7 @@
                     }
                 },
                 "required": [
-                    "id",
+                    "uuid",
                     "event",
                     "description",
                     "properties",

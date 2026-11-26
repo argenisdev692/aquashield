@@ -204,7 +204,7 @@ declare namespace Modules {
                 readonly description: string;
                 readonly causer_name: string | null;
                 readonly subject_type: string | null;
-                readonly properties: Record<string, string | number>;
+                readonly properties: Record<string, string | number | string[]>;
                 readonly created_at: string;
             };
             export type ActivityFilterData = {
@@ -225,7 +225,7 @@ declare namespace Modules {
     namespace Backups {
         namespace Data {
             export type BackupActivityData = {
-                readonly id: string;
+                readonly uuid: string;
                 readonly event: string;
                 readonly description: string;
                 readonly causer_name: string | null;
@@ -997,6 +997,15 @@ declare namespace Shared {
                 | 'VIEW_ANY_ACTIVITY_LOGS'
                 | 'VIEW_ACTIVITY_LOGS'
                 | 'EXPORT_ACTIVITY_LOGS'
+                | 'VIEW_ANY_BACKUPS'
+                | 'VIEW_BACKUPS'
+                | 'DOWNLOAD_BACKUPS'
+                | 'CREATE_BACKUPS'
+                | 'DELETE_BACKUPS'
+                | 'RESTORE_BACKUPS'
+                | 'BULK_DELETE_BACKUPS'
+                | 'BULK_RESTORE_BACKUPS'
+                | 'EXPORT_BACKUPS'
                 | 'VIEW_ANY_LEAD'
                 | 'VIEW_LEAD'
                 | 'CREATE_LEAD'

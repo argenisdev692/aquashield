@@ -23,14 +23,12 @@ import { useVisitPending } from '@/lib/visits';
 import SavedViewsMenu from '@/Modules/SavedViews/components/SavedViewsMenu';
 
 type ActivityEntry = Modules.ActivityLog.Data.ActivityEntryData;
-type ActivityFilter = Modules.ActivityLog.Data.ActivityFilterData;
 
 type ActivityPageProps = {
     rows: ActivityEntry[];
     total: number;
     currentPage: number;
     perPage: number;
-    filters: ActivityFilter;
     canView: boolean;
     canExport: boolean;
 };

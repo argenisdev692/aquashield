@@ -28,7 +28,8 @@ final readonly class BackupIndexQuery
 
     public function execute(BackupFilterData $filters): BackupPage
     {
-        $rows = $this->filtered($filters);
+        [$active, $trashed] = $this->inventories($filters);
+        $rows = $this->filtered($filters, $active, $trashed);
         $total = count($rows);
         $lastPage = max(1, (int) ceil($total / $filters->perPage));
         $page = min($filters->page, $lastPage);
@@ -36,6 +37,7 @@ final readonly class BackupIndexQuery
         return new BackupPage(
             items: $this->map(
                 array_slice($rows, ($page - 1) * $filters->perPage, $filters->perPage),
+                $active,
             ),
             total: $total,
             page: $page,
@@ -51,12 +53,16 @@ final readonly class BackupIndexQuery
      */
     public function all(BackupFilterData $filters): array
     {
-        return $this->map($this->filtered($filters));
+        [$active, $trashed] = $this->inventories($filters);
+
+        return $this->map($this->filtered($filters, $active, $trashed), $active);
     }
 
     public function count(BackupFilterData $filters): int
     {
-        return count($this->filtered($filters));
+        [$active, $trashed] = $this->inventories($filters);
+
+        return count($this->filtered($filters, $active, $trashed));
     }
 
     /**
@@ -65,10 +71,11 @@ final readonly class BackupIndexQuery
     public function find(string $uuid): ?BackupArchiveData
     {
         $active = $this->archives->active();
+        $trashed = $this->archives->trashed();
         $newest = BackupInventory::fromList($active)->newest()?->uuid;
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
-        foreach ([...$active, ...$this->archives->trashed()] as $archive) {
+        foreach ([...$active, ...$trashed] as $archive) {
             if ($archive->uuid === $uuid) {
                 return BackupArchiveData::fromArchive($archive, $newest === $archive->uuid, $now);
             }
@@ -78,14 +85,31 @@ final readonly class BackupIndexQuery
     }
 
     /**
+     * One read per inventory per request. The active list is always needed
+     * (it also answers "is this the newest archive?"); the quarantine list is
+     * only fetched when the filter can actually show it.
+     *
+     * @return array{0: list<BackupArchive>, 1: list<BackupArchive>}
+     */
+    private function inventories(BackupFilterData $filters): array
+    {
+        $active = $this->archives->active();
+        $trashed = $filters->status === 'active' ? [] : $this->archives->trashed();
+
+        return [$active, $trashed];
+    }
+
+    /**
+     * @param list<BackupArchive> $active
+     * @param list<BackupArchive> $trashed
      * @return list<BackupArchive>
      */
-    private function filtered(BackupFilterData $filters): array
+    private function filtered(BackupFilterData $filters, array $active, array $trashed): array
     {
         $rows = match ($filters->status) {
-            'trashed' => $this->archives->trashed(),
-            'all' => [...$this->archives->active(), ...$this->archives->trashed()],
-            default => $this->archives->active(),
+            'trashed' => $trashed,
+            'all' => [...$active, ...$trashed],
+            default => $active,
         };
 
         $needle = $filters->search === null ? null : strtolower($filters->search);
@@ -136,12 +160,13 @@ final readonly class BackupIndexQuery
 
     /**
      * @param list<BackupArchive> $rows
+     * @param list<BackupArchive> $active
      * @return list<BackupArchiveData>
      */
-    private function map(array $rows): array
+    private function map(array $rows, array $active): array
     {
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
-        $newest = BackupInventory::fromList($this->archives->active())->newest()?->uuid;
+        $newest = BackupInventory::fromList($active)->newest()?->uuid;
 
         return array_map(
             static fn (BackupArchive $archive): BackupArchiveData => BackupArchiveData::fromArchive(

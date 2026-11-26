@@ -69,11 +69,15 @@ is a console command with `--dry-run`, a window and an audit entry.
   **Windows local** path (`C:/Program Files/PostgreSQL/17/bin`). On Railway
   leave it unset (the client is on PATH) or set `/usr/lib/postgresql/17/bin`.
   Never paste the Windows path into Railway.
-- **Supervisord runs three processes:** `app`, `worker` (`queue:work`) and
-  `scheduler` (`schedule:work`). `schedule:work` is the only thing that runs the
-  cron entries; `queue:work` is the only thing that processes the manual
-  "Run backup" job, invitations and password resets. They are not the same
-  process.
+- **Supervisord runs four processes:** `app`, `worker` (`queue:work`, the
+  `default` queue), `worker-heavy` (`queue:work --queue=heavy`) and `scheduler`
+  (`schedule:work`). `schedule:work` is the only thing that runs the cron
+  entries. The manual "Run backup" job is dispatched to the `heavy` queue, so
+  a 15-minute dump cannot delay invitations or password resets on `default`;
+  `worker` never consumes `heavy`, which is why the fourth process exists.
+  They are not the same process.
+- **Local development** (`composer dev`) listens to `default,heavy` in one
+  `queue:listen`, so the manual run works without a second terminal.
 - **Use the direct Supabase connection or the session pooler (port 5432)** for
   `pg_dump`, not the transaction pooler (6543). The dump is a session-level
   operation.

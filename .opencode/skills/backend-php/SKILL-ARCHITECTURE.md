@@ -44,6 +44,7 @@ src/Modules/{Module}/
 ├── Models/               # Eloquent, HasUuids, $fillable, LogsActivity
 ├── Data/                 # Spatie Data — {Entity}Data + {Entity}FilterData. THE TS SOURCE.
 ├── Http/{Controllers,Requests}/
+├── Queries/              # optional named read contract (§6); not a layer
 ├── Actions/              # only when there is real logic to extract
 ├── Enums/
 ├── Events/
@@ -99,19 +100,27 @@ src/Modules/{Module}/
 
 The dependency rule stated as a table, because a table is what `arch()` can be pointed at.
 
-| Layer             | May import                                                              | Must NOT import                                                        |
-| ----------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `Domain/`         | own entities/VOs/events, `Shared\Domain\*`, native PHP                  | framework, ORM, HTTP, `Infrastructure/`, `Application/`, `Http/`       |
-| `Application/`    | `Domain/`, own abstractions, `Illuminate\Contracts\*` (interfaces only) | ORM, Eloquent, facades, HTTP objects, `Infrastructure/`, other modules |
-| `Infrastructure/` | `Application/`, `Domain/`, `Shared/`, third-party SDKs                  | —                                                                      |
-| `Http/`           | `Application/`, `Domain/`, `Data/`, framework HTTP                      | `Infrastructure/` implementations directly, ORM in the action body     |
-| `Routes/`         | `Http/`, framework routing                                              | anything else                                                          |
-| cross-module      | `Shared\Domain\Ports`, `Shared\Application\DTOs`, public `Data`         | `Modules\Other\Domain\*` and `Modules\Other\Application\*`             |
+| Layer             | May import                                                                                                                                  | Must NOT import                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `Domain/`         | own entities/VOs/events, `Shared\Domain\*`, native PHP                                                                                      | framework, ORM, HTTP, `Infrastructure/`, `Application/`, `Http/`       |
+| `Application/`    | `Domain/`, own abstractions, `Illuminate\Contracts\*` (interfaces only), `Shared\Support\*` pure helpers, dispatch of the module's `Jobs\*` | ORM, Eloquent, facades, HTTP objects, `Infrastructure/`, other modules |
+| `Infrastructure/` | `Application/`, `Domain/`, `Shared/`, third-party SDKs                                                                                      | —                                                                      |
+| `Http/`           | `Application/`, `Domain/`, `Data/`, framework HTTP                                                                                          | `Infrastructure/` implementations directly, ORM in the action body     |
+| `Routes/`         | `Http/`, framework routing                                                                                                                  | anything else                                                          |
+| cross-module      | `Shared\Domain\Ports`, `Shared\Application\DTOs`, public `Data`                                                                             | `Modules\Other\Domain\*` and `Modules\Other\Application\*`             |
 
 The last two rows are the bounded-context rule: **one module = one context.** A module never reaches
 into another module's `Domain/` or `Application/`. If it needs something from another context, that
 something is a port in `Shared\Domain\Ports`, a DTO in `Shared\Application\DTOs`, or a public `Data`
 class. There is no third option, and "just this once" is how it starts.
+
+Two additions to the `Application/` row are named here instead of left implicit:
+`Shared\Support\*` and dispatching the module's `Jobs\*`. `Shared\Support` is stateless (no container,
+no I/O) — `SpreadsheetCell` is the canonical example in an export transformer. A queued job is a
+message, not an adapter: the Application action only enqueues it, and the job's body resolves its
+ports through the container. A job whose body performed I/O directly would belong in
+`Infrastructure/`, reached through a port. The `Jobs/` folder stays at the module root (the FLAT
+layout) in both modes; it is a message namespace, not a fourth layer.
 
 ### The declared exceptions to Domain purity
 

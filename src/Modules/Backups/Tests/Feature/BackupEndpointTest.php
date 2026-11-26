@@ -115,7 +115,9 @@ it('shows one archive with its audit trail', function (): void {
         ->assertOk()
         ->assertJsonPath('backup.filename', $archive->filename)
         ->assertJsonPath('backup.is_newest', true)
-        ->assertJsonPath('activities.0.event', 'backup.quarantined');
+        ->assertJsonPath('activities.0.event', 'backup.quarantined')
+        ->assertJsonPath('activities.0.uuid', fn ($uuid): bool => is_string($uuid) && $uuid !== '')
+        ->assertJsonMissingPath('activities.0.id');
 
     $this->actingAs($this->admin)
         ->get("/backups/{$archive->uuid}")
@@ -312,6 +314,10 @@ it('streams the archive to an authorized downloader', function (): void {
         ->assertOk()
         ->assertHeader('content-type', 'application/zip');
 
+    expect($response->baseResponse->headers->get('Cache-Control'))
+        ->toContain('no-store')
+        ->toContain('private');
+
     expect($response->streamedContent())->toBe($this->store->content);
 });
 
@@ -325,6 +331,19 @@ it('forbids a download without DOWNLOAD_BACKUPS', function (): void {
     $archive = $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
 
     $this->actingAs(User::factory()->create())
+        ->get("/backups/{$archive->uuid}/download")
+        ->assertForbidden();
+});
+
+it('forbids a download for a user who may download but not view', function (): void {
+    $archive = $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+
+    $downloadOnly = User::factory()->create();
+    $downloadOnly->givePermissionTo('DOWNLOAD_BACKUPS');
+
+    // A full database copy is the most sensitive object in the app: DOWNLOAD
+    // must not widen the inventory, exactly like EXPORT.
+    $this->actingAs($downloadOnly)
         ->get("/backups/{$archive->uuid}/download")
         ->assertForbidden();
 });
@@ -419,8 +438,10 @@ it('returns only allowlisted activity properties', function (): void {
         ->getJson('/backups/activity')
         ->assertOk()
         ->assertJsonPath('rows.0.event', 'backup.quarantined')
+        ->assertJsonPath('rows.0.uuid', fn ($uuid): bool => is_string($uuid) && $uuid !== '')
         ->assertJsonPath('rows.0.properties.disk', 'local')
-        ->assertJsonMissingPath('rows.0.properties.secret');
+        ->assertJsonMissingPath('rows.0.properties.secret')
+        ->assertJsonMissingPath('rows.0.id');
 });
 
 it('rejects an activity limit above the port maximum with 422', function (): void {

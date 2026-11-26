@@ -23,6 +23,7 @@ use Modules\Backups\Domain\Exceptions\BackupRestoreConflict;
 use Modules\Backups\Http\Requests\BulkDeleteBackupsRequest;
 use Modules\Backups\Http\Requests\BulkRestoreBackupsRequest;
 use Shared\Application\DTOs\BulkUuidsData;
+use Shared\Domain\Enums\Permission as PermissionName;
 
 final readonly class BackupController
 {
@@ -89,13 +90,14 @@ final readonly class BackupController
             'activities' => $activities,
             'quarantineDays' => $this->quarantineRetentionDays(),
             'can' => [
-                'download' => $actor instanceof User && $actor->can('DOWNLOAD_BACKUPS'),
+                'download' => $actor instanceof User
+                    && $actor->can(PermissionName::DownloadBackup->value),
                 'delete' => $actor instanceof User
-                    && $actor->can('DELETE_BACKUPS')
+                    && $actor->can(PermissionName::DeleteBackup->value)
                     && ! $archive->isTrashed
                     && ! $archive->isNewest,
                 'restore' => $actor instanceof User
-                    && $actor->can('RESTORE_BACKUPS')
+                    && $actor->can(PermissionName::RestoreBackup->value)
                     && $archive->isTrashed,
             ],
         ]);
@@ -103,6 +105,10 @@ final readonly class BackupController
 
     public function run(Request $request): JsonResponse
     {
+        // 202 means "a run is scheduled", not "a new job was created": the job
+        // is `ShouldBeUnique`, so a second click while one is queued or running
+        // is absorbed. A 409 would need the framework's internal unique-lock
+        // key, which would be a second source of truth for the same lock.
         $this->runBackup->execute($request->user());
 
         return response()->json(['status' => 'queued'], 202);
@@ -157,14 +163,22 @@ final readonly class BackupController
     private function abilities(?User $actor): array
     {
         return [
-            'create' => $actor instanceof User && $actor->can('CREATE_BACKUPS'),
-            'delete' => $actor instanceof User && $actor->can('DELETE_BACKUPS'),
-            'bulk_delete' => $actor instanceof User && $actor->can('BULK_DELETE_BACKUPS'),
-            'restore' => $actor instanceof User && $actor->can('RESTORE_BACKUPS'),
-            'bulk_restore' => $actor instanceof User && $actor->can('BULK_RESTORE_BACKUPS'),
-            'download' => $actor instanceof User && $actor->can('DOWNLOAD_BACKUPS'),
-            'export' => $actor instanceof User && $actor->can('EXPORT_BACKUPS'),
-            'view' => $actor instanceof User && $actor->can('VIEW_BACKUPS'),
+            'create' => $actor instanceof User
+                && $actor->can(PermissionName::CreateBackup->value),
+            'delete' => $actor instanceof User
+                && $actor->can(PermissionName::DeleteBackup->value),
+            'bulk_delete' => $actor instanceof User
+                && $actor->can(PermissionName::BulkDeleteBackup->value),
+            'restore' => $actor instanceof User
+                && $actor->can(PermissionName::RestoreBackup->value),
+            'bulk_restore' => $actor instanceof User
+                && $actor->can(PermissionName::BulkRestoreBackup->value),
+            'download' => $actor instanceof User
+                && $actor->can(PermissionName::DownloadBackup->value),
+            'export' => $actor instanceof User
+                && $actor->can(PermissionName::ExportBackup->value),
+            'view' => $actor instanceof User
+                && $actor->can(PermissionName::ViewBackup->value),
         ];
     }
 

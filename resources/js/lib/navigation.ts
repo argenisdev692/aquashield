@@ -34,7 +34,7 @@ export const DASHBOARD_PATH = '/dashboard';
  * here, so a new module cannot land in the unlabelled void between groups and
  * the palette keeps the same mental model as the rail.
  */
-export type NavSection = 'workspace' | 'organization' | 'system' | 'account';
+export type NavSection = 'primary' | 'workspace' | 'organization' | 'system' | 'account';
 
 export interface NavItem {
     readonly label: string;
@@ -61,11 +61,14 @@ export interface NavGroup {
 
 export const PRIMARY_NAV: readonly NavItem[] = [
     {
+        // Dashboard anchors the rail: it leads the list on its own and never
+        // folds. The three daily work destinations sit under the Workspace
+        // disclosure below it.
         label: 'Dashboard',
         href: DASHBOARD_PATH,
         icon: LayoutDashboard,
         keywords: 'home overview start workspace pipeline crm',
-        section: 'workspace',
+        section: 'primary',
     },
     {
         label: 'Leads',
@@ -169,8 +172,14 @@ const ACCOUNT_NAV: NavGroup = { label: 'Account', items: [SETTINGS_NAV] };
 /**
  * The rail's section order. Labels are rendered uppercase by the row component,
  * so the source keeps normal sentence case.
+ *
+ * The primary group carries no label on purpose: Dashboard is a standalone row
+ * at the top of the rail, and Workspace folds the three daily work destinations
+ * (Leads, Appointments, Availability) beneath that row. A section with no label
+ * renders no heading and therefore no disclosure arrow.
  */
-const NAV_SECTIONS: readonly { key: Exclude<NavSection, 'account'>; label: string }[] = [
+const NAV_SECTIONS: readonly { key: Exclude<NavSection, 'account'>; label?: string }[] = [
+    { key: 'primary' },
     { key: 'workspace', label: 'Workspace' },
     { key: 'organization', label: 'Organization' },
     { key: 'system', label: 'System' },

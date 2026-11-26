@@ -129,6 +129,12 @@ HMAC-SHA256(state|disk|path, APP_KEY))`. Not a UUIDv7: there is no row to
    one. 3-2-1-1-0 (three copies, two media, one offsite, one immutable, zero
    unverified restores) needs a second destination with Object Lock/versioning
    and restore drills. Quarantine is a reversible delete, not immutability.
+7. **No JSON index on the audit lookup.** `forFilename()` narrows by the
+   indexed `log_name` and then filters `properties->>filename`. Measured
+   2026-11-26 at 86 rows: `activity_log_log_name_index` + filter, ~3.5 ms. If
+   the audit table grows and the Show page becomes slow, the first step is a
+   generated `filename` column with an index (or a `(log_name, created_at)`
+   composite), measured before it is added.
 
 Demote to FLAT when 0/4 triggers hold for two quarters and no test-covered
 invariant remains in `Domain/`. Demoting means moving the files back to flat —
@@ -149,3 +155,13 @@ not deleting logic.
 - `Tests/Feature/BackupQuarantineCommandTest.php` — expiry window, dry run.
 - `Tests/Feature/SpatieBackupArchiveStoreTest.php` — real adapter on a fake
   disk: list, quarantine, restore, purge.
+
+## Declared cross-module exception (2026-11-26)
+
+`Infrastructure/Persistence/SpatieBackupActivityLog` imports
+`Modules\ActivityLog\Models\ActivityEntry` because `activity_log` is a shared,
+vendor-owned audit substrate and the read is confined to one infrastructure
+adapter. This is a declared exception to the "ports, DTOs or public Data only"
+matrix, not a fourth option. The safe-property projection is shared with the
+ActivityLog panel through `Shared\Support\ActivityProperties`. Review due
+**2027-05-19**; extract a read port/Data if a third consumer appears.

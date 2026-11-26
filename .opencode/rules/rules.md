@@ -332,28 +332,12 @@ php artisan doctor --format=agent   # machine-readable, for an agent to parse
 > `doctor --fix` for it** — it would create a junk directory. Drop the exclusion once fixed upstream;
 > `composer doctor:all` exists so you can check.
 
-### `laravel/vet` — review `vendor/` before it lands
+### Dependency review — no `laravel/vet` in this project
 
-`laravel/vet` (MIT) is a **Composer plugin**. Every update drops code into `vendor/` that nobody on the
-team has read. `vet` makes that reviewable and records trust per package version **plus file hash**, so
-a later update only asks about what actually changed. A package nobody has trusted exits non-zero,
-which makes it enforceable in CI.
-
-```bash
-composer update:safe                   # review the pending update's diffs (interactive)
-./vendor/bin/vet --init                # trust what is installed, write vet.json
-./vendor/bin/vet --fresh               # clear the trust file and re-seed
-./vendor/bin/vet --plan=composer.json  # audit a composer plan file
-```
-
-`vet.json` is committed and currently trusts **219 packages**. Two options that matter:
-
-| Option                    | Effect                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `--minimum-release-age=N` | with `--init`, hold back any release younger than N days — a direct defence against a freshly-published malicious version (OWASP A03) |
-| `--from=X --to=Y`         | show the delta between two versions instead of the trusted one                                                                        |
-
-Requires `allow-plugins: { "laravel/vet": true }` — already set.
+`laravel/vet` is not installed, and `composer vet` / `composer update:safe` are not project scripts.
+Dependency review is `composer update` + the committed `composer.lock`, `composer audit --no-dev`
+(wired into `composer check`), and a changelog read before any major or minor bump. Security patches
+land within 7 days of the advisory; a package from an unknown maintainer needs explicit review.
 
 ## Tier 2 — only when a `Data` class, enum, model or controller changed
 
@@ -423,8 +407,8 @@ deleting any symbol, route, or `implements` always does.
 | `build`                                      | green — Vite 8.3.8; the `Welcome` chunk (1.09 MB) triggers the >500 kB warning                                                                     |
 | `analyse` (PHPStan L5)                       | green — **0 errors**                                                                                                                               |
 | `pint:test`                                  | green                                                                                                                                              |
-| `php artisan test`                           | green — **761 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
-| `doctor`                                     | green — 25 diagnostics, 0 failed, 1 skipped, 3 notices; `composer audit` is clean                                                                  |
+| `php artisan test`                           | green — **826 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
+| `doctor`                                     | green — 25 diagnostics, 0 failed, 1 skipped, 3 notices; `composer audit --no-dev` is clean (Symfony 8.1.12) and runs inside `composer check`       |
 
 What that means for you:
 

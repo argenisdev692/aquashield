@@ -85,7 +85,7 @@
     ],
     "dev": [
       "Composer\\Config::disableProcessTimeout",
-      "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names='server,queue,vite'"
+      "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --queue=default,heavy --tries=1 --timeout=0\" \"npm run dev\" --names='server,queue,vite'"
     ],
     "test": [
       "@php artisan config:clear --ansi @no_additional_args",
@@ -114,12 +114,10 @@
     "doctor:all": [
       "@php artisan doctor"
     ],
-    "vet": [
-      "@php vendor/bin/vet --no-interaction"
-    ],
     "check": [
       "@php artisan config:clear --ansi @no_additional_args",
       "@lint",
+      "@composer audit --no-dev --no-interaction",
       "@php artisan test"
     ],
     "codegen": [
@@ -138,9 +136,6 @@
       "@php artisan config:clear --ansi @no_additional_args",
       "@doctor",
       "@check"
-    ],
-    "update:safe": [
-      "@php vendor/bin/vet"
     ],
     "post-autoload-dump": [
       "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

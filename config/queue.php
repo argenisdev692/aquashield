@@ -42,7 +42,9 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // Same floor as the `redis` entry: the dump's 900 s timeout sets
+            // it for every driver this app can run on.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 960),
             'after_commit' => false,
         ],
 
@@ -70,7 +72,13 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // A reservation must outlive the job that holds it. The database
+            // dump declares `$timeout = 900` (RunDatabaseBackupJob), so 960
+            // keeps retry_after above it (Laravel 13 queues.md: the timeout
+            // must be shorter than retry_after or the job can be processed
+            // twice). Trade-off: a crashed worker's job is retried after 16
+            // minutes instead of 90 seconds.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 960),
             'block_for' => null,
             'after_commit' => false,
         ],

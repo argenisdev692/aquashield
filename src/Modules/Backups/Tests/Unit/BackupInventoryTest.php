@@ -57,3 +57,11 @@ it('matches a filename only on the same disk', function (): void {
     expect($inventory->containsFilename('local', $archive->filename))->toBeTrue()
         ->and($inventory->containsFilename('s3', $archive->filename))->toBeFalse();
 });
+
+it('resolves a filename to the archive on that disk', function (): void {
+    $archive = inventoryArchive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+    $inventory = BackupInventory::fromList([$archive]);
+
+    expect($inventory->findByFilename('local', $archive->filename))->toBe($archive)
+        ->and($inventory->findByFilename('s3', $archive->filename))->toBeNull();
+});

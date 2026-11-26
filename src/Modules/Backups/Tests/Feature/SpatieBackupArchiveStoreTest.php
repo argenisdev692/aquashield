@@ -103,3 +103,35 @@ it('ignores files that are not zip archives', function (): void {
 
     expect($this->store->active())->toHaveCount(1);
 });
+
+it('caches a scalar payload instead of domain objects', function (): void {
+    Storage::disk('local')->put('test-backups/2026-10-01-00-00-00.zip', 'PAYLOAD');
+
+    $this->store->active();
+
+    /** @var array<int, array<string, mixed>> $cached */
+    $cached = Cache::get('backups.inventory.active.v2');
+
+    expect($cached)->toBeArray()
+        ->and($cached[0])->toBeArray()
+        ->and($cached[0]['filename'])->toBe('2026-10-01-00-00-00.zip')
+        ->and($cached[0]['taken_at'])->toBeString();
+});
+
+it('hydrates a payload that crossed a store with classes disallowed', function (): void {
+    Storage::disk('local')->put('test-backups/2026-10-01-00-00-00.zip', 'PAYLOAD');
+
+    $this->store->active();
+
+    $key = 'backups.inventory.active.v2';
+
+    // Exactly what Redis/database returns when `serializable_classes` is
+    // false: the array survives, but nothing inside it may be an object.
+    Cache::put($key, unserialize(serialize(Cache::get($key)), ['allowed_classes' => false]), 30);
+
+    $archives = $this->store->active();
+
+    expect($archives)->toHaveCount(1)
+        ->and($archives[0]->filename)->toBe('2026-10-01-00-00-00.zip')
+        ->and($archives[0]->takenAt->format('Y-m-d H:i:s'))->toBe('2026-10-01 00:00:00');
+});

@@ -42,6 +42,16 @@ enum Permission: string
     case ViewActivityLog = 'VIEW_ACTIVITY_LOGS';
     case ExportActivityLog = 'EXPORT_ACTIVITY_LOGS';
 
+    case ViewAnyBackup = 'VIEW_ANY_BACKUPS';
+    case ViewBackup = 'VIEW_BACKUPS';
+    case DownloadBackup = 'DOWNLOAD_BACKUPS';
+    case CreateBackup = 'CREATE_BACKUPS';
+    case DeleteBackup = 'DELETE_BACKUPS';
+    case RestoreBackup = 'RESTORE_BACKUPS';
+    case BulkDeleteBackup = 'BULK_DELETE_BACKUPS';
+    case BulkRestoreBackup = 'BULK_RESTORE_BACKUPS';
+    case ExportBackup = 'EXPORT_BACKUPS';
+
     case ViewAnyLead = 'VIEW_ANY_LEAD';
     case ViewLead = 'VIEW_LEAD';
     case CreateLead = 'CREATE_LEAD';

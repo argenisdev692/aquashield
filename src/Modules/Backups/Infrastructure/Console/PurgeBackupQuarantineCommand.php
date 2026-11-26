@@ -28,6 +28,12 @@ final class PurgeBackupQuarantineCommand extends Command
 
     public function handle(BackupArchiveStore $archives, AuditPort $audit): int
     {
+        // `--days=0` used to mean "purge everything in quarantine". The
+        // irreversible path should not accept that by accident.
+        if (! $this->validDaysOption()) {
+            return self::FAILURE;
+        }
+
         $days = $this->days();
         $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
 
@@ -69,14 +75,31 @@ final class PurgeBackupQuarantineCommand extends Command
         return self::SUCCESS;
     }
 
+    private function validDaysOption(): bool
+    {
+        $days = $this->option('days');
+
+        if ($days === null) {
+            return true;
+        }
+
+        if (! is_numeric($days) || (int) $days < 1) {
+            $this->error('The --days option must be a positive integer.');
+
+            return false;
+        }
+
+        return true;
+    }
+
     private function days(): int
     {
         $days = $this->option('days');
 
         if (is_numeric($days)) {
-            return max(0, (int) $days);
+            return max(1, (int) $days);
         }
 
-        return max(0, (int) config('backup.quarantine.retain_days', 30));
+        return max(1, (int) config('backup.quarantine.retain_days', 30));
     }
 }

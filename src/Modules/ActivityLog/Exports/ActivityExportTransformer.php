@@ -18,6 +18,14 @@ final readonly class ActivityExportTransformer
 {
     public const int MAX_ROWS = 10_000;
 
+    /**
+     * DomPDF renders the whole document in memory before the response is sent.
+     * Five hundred rows is the bound that keeps a synchronous render inside a
+     * normal PHP-FPM memory budget; CSV/XLSX stay at MAX_ROWS because they
+     * stream row by row.
+     */
+    public const int MAX_PDF_ROWS = 500;
+
     public function __construct(
         private ActivityFilterData $filters,
         private ActivityListQuery $query,
@@ -53,13 +61,13 @@ final readonly class ActivityExportTransformer
     {
         $entries = $this->query
             ->builder($this->filters)
-            ->with('causer:id,first_name,last_name');
+            ->withCauser();
 
         foreach ($entries->lazy(500) as $entry) {
             $causer = $entry->causer;
 
             yield [
-                'created_at' => SpreadsheetCell::sanitise($entry->created_at?->format('Y-m-d H:i') ?? ''),
+                'created_at' => SpreadsheetCell::sanitise($entry->created_at?->toIso8601String() ?? ''),
                 'log_name' => SpreadsheetCell::sanitise((string) ($entry->log_name ?? 'default')),
                 'event' => SpreadsheetCell::sanitise((string) ($entry->event ?? '')),
                 'description' => SpreadsheetCell::sanitise((string) $entry->description),

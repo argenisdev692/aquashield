@@ -35,26 +35,31 @@ Schedule::command('backup:clean')
     ->name('database-backup-clean')
     ->dailyAt('03:30')
     ->withoutOverlapping()
-    ->onOneServer();
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-clean.log'));
 
 Schedule::command('backups:purge-quarantine')
     ->name('database-backup-purge-quarantine')
     ->dailyAt('04:00')
     ->withoutOverlapping()
-    ->onOneServer();
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-quarantine.log'));
 
+// The health check is only useful if a non-zero exit leaves evidence.
 Schedule::command('backup:monitor')
     ->name('database-backup-monitor')
     ->dailyAt('07:00')
     ->withoutOverlapping()
-    ->onOneServer();
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-monitor.log'));
 
 // Retention for the audit trail itself. `--force` is required in production.
 Schedule::command('activitylog:clean --force')
     ->name('activitylog-clean')
     ->monthlyOn(1, '04:30')
     ->withoutOverlapping()
-    ->onOneServer();
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/activitylog-clean.log'));
 
 /*
 | LeadAppointment — US federal holidays are materialised as company availability

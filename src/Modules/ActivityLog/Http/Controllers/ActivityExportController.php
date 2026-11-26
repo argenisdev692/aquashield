@@ -25,36 +25,43 @@ final readonly class ActivityExportController
     {
         $filters = ActivityFilterData::fromRequest($request);
         $rowCount = $this->activity->count($filters);
+        $maxRows = $format === 'pdf'
+            ? ActivityExportTransformer::MAX_PDF_ROWS
+            : ActivityExportTransformer::MAX_ROWS;
 
-        if ($rowCount > ActivityExportTransformer::MAX_ROWS) {
-            abort(422, 'The export is limited to '.ActivityExportTransformer::MAX_ROWS.' rows. Narrow the filters.');
+        if ($rowCount > $maxRows) {
+            abort(422, 'The '.$format.' export is limited to '.$maxRows.' rows. Narrow the filters.');
         }
-
-        // Audit-worthy egress (OWASP A09). No search term, no PII: the filter
-        // summary is deliberately non-identifying.
-        $this->audit->log('activity.exported', null, [
-            'format' => $format,
-            'rows' => $rowCount,
-            'filters' => [
-                'log_name' => $filters->logName,
-                'event' => $filters->event,
-                'date_from' => $filters->dateFrom,
-                'date_to' => $filters->dateTo,
-                'has_search' => $filters->search !== null && $filters->search !== '',
-            ],
-        ], $request->user(), 'activity');
 
         $transformer = new ActivityExportTransformer($filters, $this->activity);
         $filename = 'activity-log.'.$format;
 
-        if ($format === 'pdf') {
-            return $this->exporter->pdf($filename, 'exports.activity-log', [
+        // Build the response before auditing it: a renderer that cannot start
+        // must not leave an "exported" entry behind. The tabular adapter defers
+        // the write to the stream callback, but it opens the writer here.
+        $response = $format === 'pdf'
+            ? $this->exporter->pdf($filename, 'exports.activity-log', [
                 'title' => 'Activity log',
                 'columns' => $transformer->columns(),
                 'rows' => $transformer->rows(),
-            ]);
-        }
+            ])
+            : $this->exporter->tabular($filename, $transformer->headers(), $transformer->rows());
 
-        return $this->exporter->tabular($filename, $transformer->headers(), $transformer->rows());
+        // Audit-worthy egress (OWASP A09). The date window is operational; the
+        // free-text filters are reduced to booleans so a typed email or name is
+        // never copied into the audit trail.
+        $this->audit->log('activity.exported', null, [
+            'format' => $format,
+            'rows' => $rowCount,
+            'filters' => [
+                'date_from' => $filters->dateFrom,
+                'date_to' => $filters->dateTo,
+                'has_log_name_filter' => $filters->logName !== null && $filters->logName !== '',
+                'has_event_filter' => $filters->event !== null && $filters->event !== '',
+                'has_search' => $filters->search !== null && $filters->search !== '',
+            ],
+        ], $request->user(), 'activity');
+
+        return $response;
     }
 }

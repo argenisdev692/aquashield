@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\ActivityLog\Exports\ActivityExportTransformer;
 use Modules\ActivityLog\Models\ActivityEntry;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\PermissionRegistrar;
@@ -81,6 +82,106 @@ it('lists audit entries with a uuid and an allowlisted property set', function (
     expect($response->json('rows.0.uuid'))->toBeString()->not->toBe('');
 });
 
+it('projects the security-relevant properties of access-control and user events', function (): void {
+    activity('access-control')->event('role.updated')->withProperties([
+        'name' => 'Manager',
+        'previous_name' => 'Supervisor',
+        'permissions_added' => ['VIEW_USERS'],
+        'permissions_removed' => ['EXPORT_USERS'],
+        'secret' => 'must-not-leak',
+    ])->log('role.updated');
+
+    activity('users')->event('user.status.changed')->withProperties([
+        'from' => 'active',
+        'to' => 'suspended',
+        'email' => 'must-not-leak@example.test',
+    ])->log('user.status.changed');
+
+    activity('auth')->event('auth.failed')->withProperties([
+        'guard' => 'web',
+        'email' => 'must-not-leak@example.test',
+        'ip_address' => '127.0.0.1',
+    ])->log('auth.failed');
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity')
+        ->assertOk()
+        ->assertJsonPath('rows.0.properties.guard', 'web')
+        ->assertJsonMissingPath('rows.0.properties.email')
+        ->assertJsonMissingPath('rows.0.properties.ip_address')
+        ->assertJsonPath('rows.1.properties.from', 'active')
+        ->assertJsonPath('rows.1.properties.to', 'suspended')
+        ->assertJsonMissingPath('rows.1.properties.email')
+        ->assertJsonPath('rows.2.properties.name', 'Manager')
+        ->assertJsonPath('rows.2.properties.previous_name', 'Supervisor')
+        ->assertJsonPath('rows.2.properties.permissions_added.0', 'VIEW_USERS')
+        ->assertJsonPath('rows.2.properties.permissions_removed.0', 'EXPORT_USERS')
+        ->assertJsonMissingPath('rows.2.properties.secret');
+});
+
+it('projects user changes and export metadata without the filter payload', function (): void {
+    activity('users')->event('user.updated')->withProperties([
+        'changed' => ['email'],
+        'email' => 'must-not-leak@example.test',
+    ])->log('user.updated');
+
+    activity('users')->event('user.exported')->withProperties([
+        'format' => 'csv',
+        'rows' => 2,
+        'filters' => ['search' => 'ada'],
+    ])->log('user.exported');
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity')
+        ->assertOk()
+        ->assertJsonPath('rows.0.properties.format', 'csv')
+        ->assertJsonPath('rows.0.properties.rows', 2)
+        ->assertJsonMissingPath('rows.0.properties.filters')
+        ->assertJsonPath('rows.1.properties.changed.0', 'email')
+        ->assertJsonMissingPath('rows.1.properties.email');
+});
+
+it('returns ISO 8601 timestamps with an explicit offset', function (): void {
+    activity('backups')->event('backup.quarantined')->log('quarantined');
+
+    $response = $this->actingAs($this->admin)
+        ->getJson('/activity')
+        ->assertOk();
+
+    expect($response->json('rows.0.created_at'))
+        ->toMatch('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/');
+});
+
+it('keeps the causer name after the actor is soft deleted', function (): void {
+    $actor = User::factory()->create();
+
+    activity('users')->causedBy($actor)->event('user.updated')->log('updated');
+    $actor->delete();
+
+    $this->actingAs($this->admin)
+        ->getJson('/activity')
+        ->assertOk()
+        ->assertJsonPath('rows.0.causer_name', $actor->name);
+});
+
+it('audits detail views only when the audit_views switch is enabled', function (): void {
+    activity('backups')->event('backup.quarantined')->log('quarantined');
+
+    $entry = ActivityEntry::query()->firstOrFail();
+
+    $this->actingAs($this->admin)->getJson("/activity/{$entry->uuid}")->assertOk();
+
+    expect(Activity::query()->where('event', 'activity.viewed')->count())->toBe(0);
+
+    config()->set('activitylog.audit_views', true);
+
+    $this->actingAs($this->admin)->getJson("/activity/{$entry->uuid}")->assertOk();
+
+    $viewed = Activity::query()->where('event', 'activity.viewed')->sole();
+
+    expect(data_get($viewed->properties, 'entry'))->toBe($entry->uuid);
+});
+
 it('paginates audit entries with a hard per-page cap', function (): void {
     foreach (range(1, 16) as $i) {
         activity('backups')->event('backup.quarantined')->log('entry '.$i);
@@ -90,7 +191,7 @@ it('paginates audit entries with a hard per-page cap', function (): void {
         ->getJson('/activity')
         ->assertOk()
         ->assertJsonPath('total', 16)
-        ->assertJsonPath('per_page', 15)
+        ->assertJsonPath('perPage', 15)
         ->assertJsonCount(15, 'rows');
 
     $this->actingAs($this->admin)
@@ -234,6 +335,22 @@ it('exports the filtered audit trail as CSV, XLSX and PDF', function (): void {
     expect($pdf->getContent())->toStartWith('%PDF');
 });
 
+it('caps the PDF export at the renderer-safe bound but still streams CSV', function (): void {
+    foreach (range(1, ActivityExportTransformer::MAX_PDF_ROWS + 1) as $i) {
+        activity('backups')->event('backup.quarantined')->log('entry '.$i);
+    }
+
+    // DomPDF renders synchronously; a large PDF is a memory/worker risk. The
+    // streamed formats keep the higher MAX_ROWS bound.
+    $this->actingAs($this->admin)
+        ->get('/activity/export/pdf')
+        ->assertStatus(422);
+
+    $this->actingAs($this->admin)
+        ->get('/activity/export/csv')
+        ->assertOk();
+});
+
 it('neutralises spreadsheet formula injection in the CSV export', function (): void {
     activity('backups')->event('backup.quarantined')->log('=HYPERLINK("https://evil.test","open")');
 
@@ -264,14 +381,19 @@ it('forbids an export for a user who may export but not list', function (): void
         ->assertForbidden();
 });
 
-it('audits an activity export without storing the search term', function (): void {
+it('audits an activity export without storing free-text filter values', function (): void {
     $this->actingAs($this->admin)
-        ->get('/activity/export/csv?search=ada')
+        ->get('/activity/export/csv?search=ada&filter[event]=ada&filter[log_name]=backups')
         ->assertOk();
 
     $entry = Activity::query()->where('event', 'activity.exported')->sole();
 
     expect($entry->log_name)->toBe('activity')
         ->and(data_get($entry->properties, 'filters.has_search'))->toBeTrue()
-        ->and($entry->properties->toArray())->not->toHaveKey('search');
+        ->and(data_get($entry->properties, 'filters.has_event_filter'))->toBeTrue()
+        ->and(data_get($entry->properties, 'filters.has_log_name_filter'))->toBeTrue()
+        ->and($entry->properties->toArray())->not->toHaveKey('search')
+        ->and($entry->properties->toArray()['filters'])->not->toHaveKey('search')
+        ->and($entry->properties->toArray()['filters'])->not->toHaveKey('event')
+        ->and($entry->properties->toArray()['filters'])->not->toHaveKey('log_name');
 });

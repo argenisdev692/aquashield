@@ -75,3 +75,21 @@ it('validates the whole batch before moving any file', function (): void {
     expect($store->active())->toHaveCount(2)
         ->and($store->trashed())->toHaveCount(0);
 });
+
+it('rolls back the moves it already made when a later move fails', function (): void {
+    $store = new FakeBackupArchiveStore;
+    $first = $store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+    $second = $store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
+    $store->seedActive('2026-10-03-00-00-00.zip', '2026-10-03 00:00:00');
+    $store->failQuarantineFor = $second->filename;
+
+    $this->app->instance(BackupArchiveStore::class, $store);
+    $this->mock(AuditPort::class)->shouldNotReceive('log');
+
+    expect(fn () => app(DeleteBackupsAction::class)->execute([$first->uuid, $second->uuid], null))
+        ->toThrow(RuntimeException::class);
+
+    // The first move was compensated, so the inventory is exactly as it was.
+    expect($store->active())->toHaveCount(3)
+        ->and($store->trashed())->toBe([]);
+});

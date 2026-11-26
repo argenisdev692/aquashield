@@ -43,6 +43,16 @@ final class BackupFilterData extends Data
     public static function fromRequest(Request $request): self
     {
         $filter = $request->input('filter');
+
+        // A scalar `?filter=trashed` must not be treated as "no filters": that
+        // silently returns the active inventory while the caller asked for the
+        // quarantined one. Malformed input is a 422, like an unknown key.
+        if ($filter !== null && ! is_array($filter)) {
+            throw ValidationException::withMessages([
+                'filter' => 'The filter must be an object of allowlisted keys.',
+            ]);
+        }
+
         $filter = is_array($filter) ? $filter : [];
 
         $unknown = array_diff(array_map('strval', array_keys($filter)), self::ALLOWED_FILTERS);

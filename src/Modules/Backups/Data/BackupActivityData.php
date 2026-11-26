@@ -21,7 +21,7 @@ final class BackupActivityData extends Data
      * @param array<string, string|int> $properties
      */
     public function __construct(
-        public readonly string $id,
+        public readonly string $uuid,
         public readonly string $event,
         public readonly string $description,
         public readonly ?string $causerName,

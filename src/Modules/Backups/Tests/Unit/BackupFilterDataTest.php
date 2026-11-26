@@ -38,3 +38,9 @@ it('rejects a date that is not Y-m-d', function (): void {
         'filter' => ['date_to' => '31/01/2026'],
     ]));
 })->throws(ValidationException::class);
+
+it('rejects a scalar filter instead of silently widening the list', function (): void {
+    BackupFilterData::fromRequest(Request::create('/backups', 'GET', [
+        'filter' => 'trashed',
+    ]));
+})->throws(ValidationException::class);

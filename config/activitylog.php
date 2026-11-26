@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Modules\ActivityLog\Actions\ChunkedCleanActivityLogAction;
 use Modules\ActivityLog\Models\ActivityEntry;
-use Spatie\Activitylog\Actions\CleanActivityLogAction;
 use Spatie\Activitylog\Actions\LogActivityAction;
 
 return [
@@ -78,6 +78,13 @@ return [
      */
     'actions' => [
         'log_activity' => LogActivityAction::class,
-        'clean_log' => CleanActivityLogAction::class,
+        'clean_log' => ChunkedCleanActivityLogAction::class,
     ],
+
+    /*
+     * Audit detail views of the audit trail itself. Disabled by default: every
+     * view would append a row and grow the table. Enable only when the
+     * compliance question is "who viewed this entry"; list views stay unaudited.
+     */
+    'audit_views' => env('ACTIVITYLOG_AUDIT_VIEWS', false),
 ];

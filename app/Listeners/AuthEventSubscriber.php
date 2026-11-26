@@ -170,8 +170,14 @@ final readonly class AuthEventSubscriber
             );
         } catch (Throwable $exception) {
             // A failed audit write must not block a login or a credential
-            // change; report it for operators instead.
+            // change; report it for operators instead. The stable event name is
+            // what an alert rule can match; the exception class is safe context.
             report($exception);
+
+            logger()->error('audit.write_failed', [
+                'event' => $event,
+                'exception' => $exception::class,
+            ]);
         }
     }
 

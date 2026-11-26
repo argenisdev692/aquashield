@@ -20,7 +20,9 @@ final readonly class RunDatabaseBackupAction
             ? (int) $causer->getAuthIdentifier()
             : null;
 
-        RunDatabaseBackupJob::dispatch($requestedBy);
+        // The dump can hold a worker for 15 minutes; the heavy queue isolates
+        // it from invitations and password resets (worker-heavy in supervisord).
+        RunDatabaseBackupJob::dispatch($requestedBy)->onQueue(RunDatabaseBackupJob::QUEUE);
 
         $this->audit->log('backup.run_requested', null, [
             'requested_by' => $requestedBy,

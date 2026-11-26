@@ -30,6 +30,12 @@ final class RunDatabaseBackupJob implements ShouldBeUnique, ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    /**
+     * A dump can hold a worker for 15 minutes. `worker-heavy` consumes this
+     * queue; `worker` (the default) does not, so mail keeps moving.
+     */
+    public const string QUEUE = 'heavy';
+
     public int $tries = 1;
 
     public int $timeout = 900;
