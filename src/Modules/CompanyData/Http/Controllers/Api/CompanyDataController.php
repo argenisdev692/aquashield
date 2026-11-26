@@ -10,12 +10,13 @@ use Modules\CompanyData\Data\CompanyDataDto;
 use Modules\CompanyData\Data\SaveCompanyDataData;
 use Modules\CompanyData\Http\Requests\UpdateCompanyDataRequest;
 use Modules\CompanyData\Models\CompanyData;
-use Shared\Infrastructure\Company\CompanyProfile;
+use Shared\Domain\Ports\CompanyBrandingPort;
 
 final class CompanyDataController
 {
     public function __construct(
         private readonly SaveCompanyDataAction $saveCompanyData,
+        private readonly CompanyBrandingPort $branding,
     ) {}
 
     /**
@@ -27,7 +28,7 @@ final class CompanyDataController
      */
     public function show(): CompanyBrandingDto
     {
-        return CompanyBrandingDto::from(CompanyProfile::data());
+        return CompanyBrandingDto::from($this->branding->data());
     }
 
     /**

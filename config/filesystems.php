@@ -79,6 +79,12 @@ return [
             'url' => env('R2_URL'),
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => env('R2_USE_PATH_STYLE_ENDPOINT', true),
+            // Uploads happen inside the request/queue worker; without a bound,
+            // a degraded R2 connection holds a PHP worker indefinitely.
+            'http' => [
+                'timeout' => (int) env('R2_HTTP_TIMEOUT', 30),
+                'connect_timeout' => (int) env('R2_CONNECT_TIMEOUT', 5),
+            ],
             'throw' => false,
             'report' => false,
         ],

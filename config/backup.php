@@ -40,7 +40,12 @@ return [
                 'exclude' => [
                     base_path('vendor'),
                     base_path('node_modules'),
+                    base_path('.env'),
+                    base_path('.git'),
                     storage_path('framework'),
+                    storage_path('logs'),
+                    storage_path('app/private'),
+                    storage_path('app/backup-temp'),
                 ],
 
                 /*

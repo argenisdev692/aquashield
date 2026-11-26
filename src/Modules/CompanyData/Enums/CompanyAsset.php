@@ -36,8 +36,8 @@ enum CompanyAsset: string
 
     /**
      * Logos become WebP (email clients that cannot draw WebP fall back to the
-     * bundled PNG, see CompanyProfile::emailSafeLogoUrl). A signature stays PNG
-     * so the stroke stays lossless for print.
+     * bundled PNG through the Shared branding rule). A signature stays PNG so
+     * the stroke stays lossless for print.
      */
     public function extension(): string
     {

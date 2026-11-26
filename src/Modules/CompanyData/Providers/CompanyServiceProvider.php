@@ -7,11 +7,18 @@ namespace Modules\CompanyData\Providers;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Modules\CompanyData\Console\ProvisionCompanyDataCommand;
 
 final class CompanyServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ProvisionCompanyDataCommand::class,
+            ]);
+        }
+
         // One authorisation source: these abilities are the API transport's
         // view of the same Spatie permissions the web routes use.
         Gate::define(

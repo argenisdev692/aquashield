@@ -22,7 +22,7 @@ it('refuses production without an archive password', function (): void {
     config(['backup.backup.password' => null]);
     $this->app['env'] = 'production';
 
-    expect(fn () => BackupArchiveEncryption::assertConfiguredInProduction())
+    expect(fn () => BackupArchiveEncryption::assertConfigured())
         ->toThrow(RuntimeException::class, 'BACKUP_ARCHIVE_PASSWORD');
 });
 
@@ -30,7 +30,24 @@ it('allows production when the archive password is configured', function (): voi
     config(['backup.backup.password' => 'secret']);
     $this->app['env'] = 'production';
 
-    BackupArchiveEncryption::assertConfiguredInProduction();
+    BackupArchiveEncryption::assertConfigured();
+
+    expect(true)->toBeTrue();
+});
+
+it('refuses staging without an archive password', function (): void {
+    config(['backup.backup.password' => null]);
+    $this->app['env'] = 'staging';
+
+    expect(fn () => BackupArchiveEncryption::assertConfigured())
+        ->toThrow(RuntimeException::class, 'BACKUP_ARCHIVE_PASSWORD');
+});
+
+it('allows local without an archive password', function (): void {
+    config(['backup.backup.password' => null]);
+    $this->app['env'] = 'local';
+
+    BackupArchiveEncryption::assertConfigured();
 
     expect(true)->toBeTrue();
 });

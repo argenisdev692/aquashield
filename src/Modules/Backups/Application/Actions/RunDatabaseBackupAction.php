@@ -7,6 +7,7 @@ namespace Modules\Backups\Application\Actions;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Modules\Backups\Jobs\RunDatabaseBackupJob;
 use Shared\Domain\Ports\AuditPort;
+use Throwable;
 
 final readonly class RunDatabaseBackupAction
 {
@@ -24,8 +25,14 @@ final readonly class RunDatabaseBackupAction
         // it from invitations and password resets (worker-heavy in supervisord).
         RunDatabaseBackupJob::dispatch($requestedBy)->onQueue(RunDatabaseBackupJob::QUEUE);
 
-        $this->audit->log('backup.run_requested', null, [
-            'requested_by' => $requestedBy,
-        ], $causer, 'backups');
+        // The job is already queued; a failing audit write is reported, not
+        // surfaced as a 500 for a request that successfully scheduled a run.
+        try {
+            $this->audit->log('backup.run_requested', null, [
+                'requested_by' => $requestedBy,
+            ], $causer, 'backups');
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }

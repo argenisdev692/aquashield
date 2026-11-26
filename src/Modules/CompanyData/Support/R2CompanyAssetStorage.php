@@ -10,8 +10,8 @@ use Intervention\Image\Format;
 use Intervention\Image\ImageManager;
 use LogicException;
 use Modules\CompanyData\Enums\CompanyAsset;
+use Shared\Domain\Ports\CompanyBrandingPort;
 use Shared\Domain\Ports\StoragePort;
-use Shared\Infrastructure\Company\CompanyProfile;
 use SplFileInfo;
 use Throwable;
 
@@ -33,6 +33,7 @@ final class R2CompanyAssetStorage
 
     public function __construct(
         private readonly StoragePort $storage,
+        private readonly CompanyBrandingPort $branding,
     ) {}
 
     public function store(CompanyAsset $asset, string $companyUuid, SplFileInfo $file): string
@@ -83,7 +84,7 @@ final class R2CompanyAssetStorage
             }
         }
 
-        return CompanyProfile::logoUrl($key, self::logoFallback($asset));
+        return $this->branding->logoUrl($key, $this->logoFallback($asset));
     }
 
     public function forget(?string $key): void
@@ -100,12 +101,12 @@ final class R2CompanyAssetStorage
         }
     }
 
-    private static function logoFallback(CompanyAsset $asset): string
+    private function logoFallback(CompanyAsset $asset): string
     {
         return match ($asset) {
-            CompanyAsset::LOGO => CompanyProfile::FALLBACK_LOGO,
-            CompanyAsset::LOGO_WHITE => CompanyProfile::FALLBACK_LOGO_WHITE,
-            CompanyAsset::MARK => CompanyProfile::FALLBACK_MARK,
+            CompanyAsset::LOGO => $this->branding->fallbackLogo(),
+            CompanyAsset::LOGO_WHITE => $this->branding->fallbackLogoWhite(),
+            CompanyAsset::MARK => $this->branding->fallbackMark(),
             CompanyAsset::SIGNATURE => throw new LogicException('A signature has no bundled fallback.'),
         };
     }

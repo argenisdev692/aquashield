@@ -16,11 +16,17 @@ use RuntimeException;
  */
 final class BackupDeletionRefused extends RuntimeException
 {
+    private function __construct(string $message, public readonly string $filename)
+    {
+        parent::__construct($message);
+    }
+
     public static function newest(string $filename): self
     {
         return new self(
             "The newest database backup ({$filename}) cannot be removed. "
             .'Wait for the next successful dump, or let the retention policy rotate it.',
+            $filename,
         );
     }
 }

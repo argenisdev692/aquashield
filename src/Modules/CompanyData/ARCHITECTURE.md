@@ -41,6 +41,14 @@ demoted on 2026-11-22 and the files moved — the logic was not deleted.
 - `R2CompanyAssetStorage` reaches R2 through `Shared\Domain\Ports\StoragePort`.
   If a second adapter or a test double for the module's own asset contract is
   ever needed, introduce that port then — not before.
+- Branding/cache access goes through
+  `Shared\Domain\Ports\CompanyBrandingPort` (bound to
+  `CompanyProfileAdapter`). `Http/`, `Models/` and `Support/` do not import
+  `Shared\Infrastructure`; the arch suite enforces this.
+- Financial/tax fields (`nif_nipc`, `nie`, `bank_*`, `invoice_notes`) use the
+  `encrypted` Eloquent cast and `text` columns. `CompanyProfile::pdfBranding()`
+  decrypts the same contract for PDFs. Rotating `APP_KEY` requires a deliberate
+  re-encryption pass.
 - The public `GET /api/company-data` surface is real (welcome page and external
   landing sites) and stays.
 - The active-oldest rule exists twice on purpose: `CompanyData::current()` for

@@ -28,7 +28,13 @@ final class SaveCompanyDataAction
         // The profile write and the activity entries are multiple inserts; the
         // transaction keeps the audit trail atomic with the change it records.
         return DB::transaction(function () use ($data): CompanyDataDto {
-            $company = CompanyData::current();
+            // The singleton is the aggregate root: lock the row so two
+            // concurrent profile saves cannot both read the same snapshot and
+            // overwrite each other's financial audit.
+            $company = CompanyData::query()
+                ->oldest('id')
+                ->lockForUpdate()
+                ->first();
 
             if ($company === null) {
                 throw (new ModelNotFoundException)->setModel(CompanyData::class);

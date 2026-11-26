@@ -10,6 +10,7 @@ use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\UnableToRetrieveMetadata;
 use Shared\Domain\Exceptions\StorageObjectNotFoundException;
+use Shared\Domain\Exceptions\StorageWriteException;
 use Shared\Domain\Ports\StoragePort;
 
 /**
@@ -35,7 +36,14 @@ final readonly class R2StorageAdapter implements StoragePort
     public function put(string $path, string $contents, string $visibility = 'private'): string
     {
         $key = $this->normalizeObjectKey($path);
-        $this->disk->put($key, $contents, ['visibility' => $visibility]);
+
+        // The `r2` disk is configured with throw/report false, so a failed
+        // write returns false instead of throwing. Never return a key the
+        // object store did not acknowledge: the caller would persist a
+        // dangling reference.
+        if (! $this->disk->put($key, $contents, ['visibility' => $visibility])) {
+            throw StorageWriteException::forPath($key);
+        }
 
         return $key;
     }
@@ -47,7 +55,7 @@ final readonly class R2StorageAdapter implements StoragePort
         $path = $this->disk->putFile($directory, new File($file->getPathname()), ['visibility' => $visibility]);
 
         if ($path === false) {
-            throw new \RuntimeException("Failed to store file in [{$directory}].");
+            throw StorageWriteException::forPath($directory);
         }
 
         return $path;
@@ -162,7 +170,7 @@ final readonly class R2StorageAdapter implements StoragePort
         try {
             $ok = $this->disk->put($key, $stream, ['visibility' => $visibility]);
             if ($ok === false) {
-                throw new \RuntimeException("Failed to stream [{$localPath}] to storage [{$key}].");
+                throw StorageWriteException::forPath($key);
             }
         } finally {
             if (is_resource($stream)) {

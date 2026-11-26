@@ -122,7 +122,13 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            return [
+                Limit::perMinute(5)->by($throttleKey),
+                // The per-account budget alone lets an attacker vary the
+                // submitted email and write an `auth.failed` audit row per
+                // address. A per-IP ceiling bounds that traffic.
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+            ];
         });
 
         RateLimiter::for('two-factor', function (Request $request) {
@@ -209,7 +215,10 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('api-login', function (Request $request) {
             $email = Str::lower((string) $request->input('email'));
 
-            return Limit::perMinute(5)->by($email.'|'.$request->ip());
+            return [
+                Limit::perMinute(5)->by($email.'|'.$request->ip()),
+                Limit::perMinute(20)->by('api-login-ip:'.$request->ip()),
+            ];
         });
 
         RateLimiter::for('api', function (Request $request) {

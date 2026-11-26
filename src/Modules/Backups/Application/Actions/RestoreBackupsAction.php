@@ -55,13 +55,18 @@ final readonly class RestoreBackupsAction
         }
 
         // Audit only a batch that fully succeeded: an entry for a restore that
-        // was reverted would be a false record.
+        // was reverted would be a false record. A failing audit write is
+        // reported, not surfaced: the file move is the operation.
         foreach ($targets as $target) {
-            $this->audit->log('backup.restored', null, [
-                'disk' => $target->disk,
-                'filename' => $target->filename,
-                'size_bytes' => $target->sizeBytes,
-            ], $causer, 'backups');
+            try {
+                $this->audit->log('backup.restored', null, [
+                    'disk' => $target->disk,
+                    'filename' => $target->filename,
+                    'size_bytes' => $target->sizeBytes,
+                ], $causer, 'backups');
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         }
     }
 

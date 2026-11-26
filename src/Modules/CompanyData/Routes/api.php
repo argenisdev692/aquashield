@@ -17,12 +17,18 @@ Route::middleware('api')->prefix('api')->group(function (): void {
 
     // Sanctum is the API transport; the `can:` abilities are defined by the
     // module provider and resolve to the same Spatie permissions as the web
-    // routes, so there is one authorisation source.
-    Route::get('/company-data/manage', [CompanyDataController::class, 'showManage'])
-        ->middleware(['auth:sanctum', 'can:view-company-data'])
-        ->name('api.company-data.manage');
+    // routes, so there is one authorisation source. `verified` and
+    // `account.active` keep the API on the same lifecycle contract as the
+    // other authenticated module groups (suspended / pending-password /
+    // unverified accounts cannot use the token here either).
+    Route::middleware(['auth:sanctum', 'verified', 'account.active', 'throttle:api'])
+        ->group(function (): void {
+            Route::get('/company-data/manage', [CompanyDataController::class, 'showManage'])
+                ->middleware('can:view-company-data')
+                ->name('api.company-data.manage');
 
-    Route::put('/company-data', [CompanyDataController::class, 'update'])
-        ->middleware(['auth:sanctum', 'can:update-company-data', 'throttle:30,1'])
-        ->name('api.company-data.update');
+            Route::put('/company-data', [CompanyDataController::class, 'update'])
+                ->middleware(['can:update-company-data', 'throttle:30,1'])
+                ->name('api.company-data.update');
+        });
 });

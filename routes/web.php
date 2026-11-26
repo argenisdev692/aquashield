@@ -12,7 +12,7 @@ use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\ProfilePhotoController;
 use Illuminate\Support\Facades\Route;
 use Modules\CompanyData\Data\CompanyBrandingDto;
-use Shared\Infrastructure\Company\CompanyProfile;
+use Shared\Domain\Ports\CompanyBrandingPort;
 use Shared\Infrastructure\Http\Controllers\AcceptCookieConsentController;
 
 /*
@@ -24,7 +24,7 @@ Route::get('/', fn () => inertia('Welcome', [
     // Same public contract as GET /api/company-data, delivered with the page so
     // the header renders its real mark/name on first paint instead of flashing
     // the fallback while a client-side fetch resolves.
-    'company' => CompanyBrandingDto::from(CompanyProfile::data()),
+    'company' => CompanyBrandingDto::from(app(CompanyBrandingPort::class)->data()),
 ]));
 
 /*

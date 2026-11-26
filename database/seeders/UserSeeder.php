@@ -6,7 +6,6 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Shared\Domain\Enums\Role as RoleName;
@@ -33,7 +32,7 @@ final class UserSeeder extends Seeder
         [
             'first_name' => 'Victor Lara',
             'username' => 'victor.lara',
-            'email' => 'info@aquashieldrestorationusa.com',
+            'email' => 'aquashieldrestoration@gmail.com',
             'role' => RoleName::SuperAdmin->value,
         ],
         [
@@ -224,7 +223,6 @@ final class UserSeeder extends Seeder
                     ...$userData,
                     'password' => $passwordHash,
                     'uuid' => (string) Str::uuid7(),
-                    'email_verified_at' => Carbon::now(),
                 ]);
             }
 

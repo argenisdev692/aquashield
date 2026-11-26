@@ -45,3 +45,18 @@ it('rolls back the restores it already made when a later restore fails', functio
     expect($store->trashed())->toHaveCount(2)
         ->and($store->active())->toBe([]);
 });
+
+it('does not fail the restore when the audit write fails', function (): void {
+    $store = new FakeBackupArchiveStore;
+    $archive = $store->seedTrashed('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+
+    $this->app->instance(BackupArchiveStore::class, $store);
+    $this->mock(AuditPort::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('log')->once()->andThrow(new RuntimeException('audit down'));
+    });
+
+    app(RestoreBackupsAction::class)->execute([$archive->uuid], null);
+
+    expect($store->active())->toHaveCount(1)
+        ->and($store->trashed())->toBe([]);
+});

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Listeners\AuthEventSubscriber;
+use App\Listeners\GuardDestructiveCommandsOnRemoteDatabase;
 use GuzzleHttp\Client as GuzzleClient;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Transport\ResendTransport;
 use Illuminate\Support\Facades\Event;
@@ -94,5 +96,11 @@ class AppServiceProvider extends ServiceProvider
         // and Fortify events. The subscriber is the only place that knows the
         // event-to-activity mapping.
         Event::subscribe(AuthEventSubscriber::class);
+
+        // A local shell must not wipe a hosted database just because .env
+        // points at it.
+        if ($this->app->runningInConsole()) {
+            Event::listen(CommandStarting::class, GuardDestructiveCommandsOnRemoteDatabase::class);
+        }
     }
 }

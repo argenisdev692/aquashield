@@ -1,24 +1,26 @@
 # Backups — operations runbook
 
-Database-only backups (`backup:run --only-db`) for AquaShield. The archive is a
-zip produced by `spatie/laravel-backup` 10; this module is the panel over it.
+Database-only backups (`backups:run`, which calls `backup:run --only-db`) for
+AquaShield. The archive is a zip produced by `spatie/laravel-backup` 10; this
+module is the panel over it.
 
 ## HTTP surface
 
-| Method   | Path                       | Permission             | What it does                               |
-| -------- | -------------------------- | ---------------------- | ------------------------------------------ |
-| `GET`    | `/backups`                 | `VIEW_ANY_BACKUPS`     | List + search + filter + sort + paginate   |
-| `GET`    | `/backups/activity`        | `VIEW_ANY_BACKUPS`     | Read-only audit trail of backup operations |
-| `POST`   | `/backups/run`             | `CREATE_BACKUPS`       | Queue a manual database dump (202)         |
-| `GET`    | `/backups/{uuid}/download` | `DOWNLOAD_BACKUPS`     | Stream the archive (audited, 10/min)       |
-| `DELETE` | `/backups/{uuid}`          | `DELETE_BACKUPS`       | Move one archive to quarantine             |
-| `PATCH`  | `/backups/{uuid}/restore`  | `RESTORE_BACKUPS`      | Move a quarantined archive back            |
-| `POST`   | `/backups/bulk-delete`     | `BULK_DELETE_BACKUPS`  | Quarantine up to 500 archives              |
-| `POST`   | `/backups/bulk-restore`    | `BULK_RESTORE_BACKUPS` | Restore up to 500 archives                 |
-| `GET`    | `/backups/export/{format}` | `EXPORT_BACKUPS`       | CSV / XLSX / PDF, same filters as the list |
+| Method   | Path                       | Permission                            | What it does                                             |
+| -------- | -------------------------- | ------------------------------------- | -------------------------------------------------------- |
+| `GET`    | `/backups`                 | `VIEW_ANY_BACKUPS`                    | List + search + filter + sort + paginate                 |
+| `GET`    | `/backups/activity`        | `VIEW_ANY_BACKUPS`                    | Read-only audit trail of backup operations               |
+| `POST`   | `/backups/run`             | `CREATE_BACKUPS`                      | Queue a manual database dump (202)                       |
+| `GET`    | `/backups/{uuid}/download` | `VIEW_BACKUPS` + `DOWNLOAD_BACKUPS`   | Stream the archive (password-confirmed, audited, 10/min) |
+| `DELETE` | `/backups/{uuid}`          | `DELETE_BACKUPS`                      | Move one archive to quarantine                           |
+| `PATCH`  | `/backups/{uuid}/restore`  | `RESTORE_BACKUPS`                     | Move a quarantined archive back                          |
+| `POST`   | `/backups/bulk-delete`     | `BULK_DELETE_BACKUPS`                 | Quarantine up to 500 archives                            |
+| `POST`   | `/backups/bulk-restore`    | `BULK_RESTORE_BACKUPS`                | Restore up to 500 archives                               |
+| `GET`    | `/backups/export/{format}` | `VIEW_ANY_BACKUPS` + `EXPORT_BACKUPS` | CSV / XLSX / PDF, same filters as the list               |
 
-All routes are under `web` (session + CSRF) + `auth` + `verified`. Responses are
-JSON; the Inertia screen is a separate `frontend-new` task.
+All routes are under `web` (session + CSRF) + `auth` + `verified`. The web
+controllers answer both an Inertia page visit and a plain JSON request; the
+`/api` surface is separate.
 
 A read-only REST surface also exists under `/api` (Sanctum bearer token,
 Scramble-documented in `api.json`, same `permission:*` middleware as the web
@@ -36,8 +38,8 @@ recovery point, nor to walk away with a full copy of the database.
 ## Retention (two-stage)
 
 ```
-active      backup:run --only-db                 02:30 daily
-            backup:clean                         03:30 daily
+active      backups:run                          02:30 America/Chicago daily
+            backup:clean                         03:30 America/Chicago daily
               keep all for 7 days
               then 1/day for 16 days
               then 1/week for 8 weeks
@@ -45,11 +47,11 @@ active      backup:run --only-db                 02:30 daily
               then 1/year for 2 years
               and never the newest archive
 quarantine  panel delete moves the file here
-            backups:purge-quarantine             04:00 daily
+            backups:purge-quarantine             04:00 America/Chicago daily
               permanently deletes after 30 days
 audit       activitylog:clean --force            04:30 on the 1st
               default 2555 days = 7 years (SOX/GLBA 7y, HIPAA 6y, PCI 12m)
-health      backup:monitor                       07:00 daily
+health      backup:monitor                       07:00 America/Chicago daily
 ```
 
 The quarantine window is `backup.quarantine.retain_days`
@@ -60,6 +62,26 @@ change, not a deploy.
 **Why two stages:** an authenticated web request must not be able to destroy the
 only recoverable dump. Delete is reversible for 30 days; the irreversible step
 is a console command with `--dry-run`, a window and an audit entry.
+
+`backups:run` is the scheduled entry point and acquires the shared
+`backups:database-run` lock; the panel's "Run now" job acquires the same lock.
+The package command `php artisan backup:run --only-db` does not, so use it only
+for a deliberate manual recovery.
+
+## Failure modes
+
+- **Destination unreachable** — `GET /backups` and the REST list answer **503**,
+  not an empty page; the purge command exits non-zero. An empty inventory and
+  an unreadable one are different facts.
+- **Archive vanished between listing and move** — the move returns **422**
+  ("refresh the list"), not a 500; a concurrent move of the same archive does
+  the same.
+- **Purge failure** — the command reports the archive, continues with the rest,
+  and exits non-zero; the schedule emails the failure to
+  `BACKUP_NOTIFICATION_MAIL_TO`.
+- **Audit write failure after a successful move** — the move stands and the
+  failure is reported to the application log; the API does not return a 500
+  for an operation that already happened.
 
 ## Railway / production
 
@@ -108,17 +130,22 @@ that needs maintenance mode and an operator watching it. Procedure:
 ## Security notes
 
 - Archive encryption is on when `BACKUP_ARCHIVE_PASSWORD` is set; set it in
-  production (the dump contains every claim and customer record).
+  every shared environment (the app refuses to boot outside `local`/`testing`
+  without it — the dump contains every claim and customer record).
 - **3-2-1-1-0 is not satisfied by this config yet.** `backup.backup.destination.disks`
   has one disk, and quarantine is on that same disk. The 30-day quarantine
   protects against operator error, **not** against ransomware or a stolen
   credential. Add a second destination (S3/R2 with Object Lock or bucket
   versioning) for the offsite immutable copy, and run restore drills — the
   "0 errors" leg. Until then this is a single-copy backup.
-- Downloads are permission-gated, throttled and audited. The storage path is
-  never exposed; the response carries only the filename. There is no signed
-  URL: the archive is streamed through the app, because a link that survives
-  the request is a link that outlives the permission check.
+- Only `--only-db` is a supported backup mode. `source.files.exclude` also
+  removes `.env`, `.git`, logs and private storage, so an accidental full
+  `backup:run` cannot seal secrets or the quarantine into the archive.
+- Downloads are permission-gated, require a recent password confirmation,
+  throttled and audited. The storage path is never exposed; the response
+  carries only the filename. There is no signed URL: the archive is streamed
+  through the app, because a link that survives the request is a link that
+  outlives the permission check.
 - The audit endpoint is read-only and applies a property allowlist. An audit
   trail the panel can rewrite is not an audit trail (OWASP A09).
 - A failed dump is audited with the exception **class** only. `backup:run` still

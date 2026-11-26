@@ -15,17 +15,21 @@ Artisan::command('inspire', function () {
 | Database backup and audit schedule
 |--------------------------------------------------------------------------
 |
-| The database is the only backup source (`--only-db`). The panel's "run now"
-| dispatches RunDatabaseBackupJob, which calls the same command, so cron and
-| the button cannot drift.
+| The database is the only backup source (`--only-db`). `backups:run` is the
+| locked wrapper used by the cron; the panel's "run now" job acquires the same
+| `BackupRunLock`. Without that shared lock the cron and the button can both
+| enter spatie's single `backup-temp/temp` directory, which the package
+| deletes on start.
 |
-| Times are in config('app.timezone'). `onOneServer()` needs a shared cache
-| store (database/redis in production); `withoutOverlapping()` holds a lock so
-| a slow dump cannot start twice.
+| The backup window is America/Chicago on purpose: the app timezone is UTC,
+| and 02:30 UTC would be the previous evening in the business zone.
+| `onOneServer()` needs a shared cache store; `withoutOverlapping()` holds a
+| lock so a slow dump cannot start twice.
 |
 */
-Schedule::command('backup:run --only-db')
+Schedule::command('backups:run')
     ->name('database-backup')
+    ->timezone('America/Chicago')
     ->dailyAt('02:30')
     ->withoutOverlapping(120)
     ->onOneServer()
@@ -33,21 +37,25 @@ Schedule::command('backup:run --only-db')
 
 Schedule::command('backup:clean')
     ->name('database-backup-clean')
+    ->timezone('America/Chicago')
     ->dailyAt('03:30')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/backup-clean.log'));
 
-Schedule::command('backups:purge-quarantine')
+Schedule::command('backups:purge-quarantine --force')
     ->name('database-backup-purge-quarantine')
+    ->timezone('America/Chicago')
     ->dailyAt('04:00')
     ->withoutOverlapping()
     ->onOneServer()
-    ->appendOutputTo(storage_path('logs/backup-quarantine.log'));
+    ->appendOutputTo(storage_path('logs/backup-quarantine.log'))
+    ->emailOutputOnFailure((string) config('backup.notifications.notifications.mail.to'));
 
 // The health check is only useful if a non-zero exit leaves evidence.
 Schedule::command('backup:monitor')
     ->name('database-backup-monitor')
+    ->timezone('America/Chicago')
     ->dailyAt('07:00')
     ->withoutOverlapping()
     ->onOneServer()

@@ -93,3 +93,19 @@ it('rolls back the moves it already made when a later move fails', function (): 
     expect($store->active())->toHaveCount(3)
         ->and($store->trashed())->toBe([]);
 });
+
+it('does not fail the move when the audit write fails', function (): void {
+    $store = new FakeBackupArchiveStore;
+    $store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
+    $older = $store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+
+    $this->app->instance(BackupArchiveStore::class, $store);
+    $this->mock(AuditPort::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('log')->once()->andThrow(new RuntimeException('audit down'));
+    });
+
+    app(DeleteBackupsAction::class)->execute([$older->uuid], null);
+
+    expect($store->active())->toHaveCount(1)
+        ->and($store->trashed())->toHaveCount(1);
+});

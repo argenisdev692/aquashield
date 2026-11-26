@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Shared\Domain\Ports;
 
 use Shared\Domain\Exceptions\StorageObjectNotFoundException;
+use Shared\Domain\Exceptions\StorageWriteException;
 
 /**
  * Cloud storage contract (Cloudflare R2 by default).
@@ -17,11 +18,15 @@ interface StoragePort
 {
     /**
      * Persist raw contents and return the stored path.
+     *
+     * @throws StorageWriteException when the provider does not acknowledge the write
      */
     public function put(string $path, string $contents, string $visibility = 'private'): string;
 
     /**
      * Persist an uploaded/local file into $directory and return the stored path.
+     *
+     * @throws StorageWriteException when the provider does not acknowledge the write
      */
     public function putFile(string $directory, \SplFileInfo $file, string $visibility = 'private'): string;
 
@@ -52,6 +57,8 @@ interface StoragePort
 
     /**
      * Stream a local file into cloud storage without loading it into PHP memory.
+     *
+     * @throws StorageWriteException when the provider does not acknowledge the write
      */
     public function putFromPath(string $path, string $localPath, string $visibility = 'private'): string;
 

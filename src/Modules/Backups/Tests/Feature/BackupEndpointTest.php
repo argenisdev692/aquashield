@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
+use Mockery\MockInterface;
 use Modules\Backups\Application\Ports\BackupActivityLog;
 use Modules\Backups\Application\Ports\BackupArchiveStore;
+use Modules\Backups\Domain\Exceptions\BackupDestinationUnavailable;
 use Modules\Backups\Jobs\RunDatabaseBackupJob;
 use Modules\Backups\Tests\Support\FakeBackupArchiveStore;
 use Spatie\Activitylog\Models\Activity;
@@ -59,6 +61,23 @@ it('forbids a user without VIEW_ANY_BACKUPS', function (): void {
         ->assertForbidden();
 });
 
+it('answers 503 when the backup destination is unreachable', function (): void {
+    $this->mock(BackupArchiveStore::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('active')->once()->andThrow(BackupDestinationUnavailable::allDisks());
+    });
+
+    $this->actingAs($this->admin)
+        ->getJson('/backups')
+        ->assertStatus(503)
+        ->assertJsonStructure(['message']);
+});
+
+it('forbids the activity feed without VIEW_ANY_BACKUPS', function (): void {
+    $this->actingAs(User::factory()->create())
+        ->getJson('/backups/activity')
+        ->assertForbidden();
+});
+
 it('rejects an unknown filter with 422', function (): void {
     $this->actingAs($this->admin)
         ->getJson('/backups?filter[nope]=1')
@@ -73,6 +92,13 @@ it('rejects an unknown sort column with 422', function (): void {
         ->assertJsonValidationErrors('sort_field');
 });
 
+it('rejects a page size above the hard cap with 422', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/backups?per_page=101')
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('per_page');
+});
+
 it('lists archives newest first and marks the protected one', function (): void {
     $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
     $this->store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
@@ -82,6 +108,7 @@ it('lists archives newest first and marks the protected one', function (): void 
         ->assertOk()
         ->assertJsonPath('total', 2)
         ->assertJsonPath('rows.0.filename', '2026-10-02-00-00-00.zip')
+        ->assertJsonPath('rows.0.taken_at', '2026-10-02T00:00:00+00:00')
         ->assertJsonPath('rows.0.is_newest', true)
         ->assertJsonPath('rows.1.is_newest', false)
         ->assertJsonPath('can.create', true);
@@ -259,6 +286,15 @@ it('rejects an empty bulk payload with 422', function (): void {
         ->assertJsonValidationErrors('uuids.0');
 });
 
+it('rejects a bulk selection above the cap with 422', function (): void {
+    $uuids = array_map(static fn (): string => (string) Str::uuid7(), range(1, 501));
+
+    $this->actingAs($this->admin)
+        ->postJson('/backups/bulk-delete', ['uuids' => $uuids])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('uuids');
+});
+
 it('restores a single quarantined archive', function (): void {
     $this->store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
     $quarantined = $this->store->seedTrashed('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
@@ -294,6 +330,33 @@ it('refuses a restore that would overwrite an active filename', function (): voi
         ->assertJsonValidationErrors('uuids');
 });
 
+it('audits a refused deletion of the protected newest archive', function (): void {
+    $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+    $newest = $this->store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
+
+    $this->actingAs($this->admin)
+        ->deleteJson("/backups/{$newest->uuid}")
+        ->assertStatus(422);
+
+    $entry = Activity::query()->where('event', 'backup.delete_refused')->sole();
+
+    expect($entry->log_name)->toBe('backups')
+        ->and($entry->properties->toArray()['filename'])->toBe('2026-10-02-00-00-00.zip');
+});
+
+it('audits a refused restore that would overwrite an active filename', function (): void {
+    $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+    $quarantined = $this->store->seedTrashed('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+
+    $this->actingAs($this->admin)
+        ->patchJson("/backups/{$quarantined->uuid}/restore")
+        ->assertStatus(422);
+
+    $entry = Activity::query()->where('event', 'backup.restore_conflict')->sole();
+
+    expect($entry->properties->toArray()['filename'])->toBe('2026-10-01-00-00-00.zip');
+});
+
 it('forbids a restore without RESTORE_BACKUPS and leaves the archive quarantined', function (): void {
     $this->store->seedActive('2026-10-02-00-00-00.zip', '2026-10-02 00:00:00');
     $quarantined = $this->store->seedTrashed('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
@@ -310,6 +373,7 @@ it('streams the archive to an authorized downloader', function (): void {
     $archive = $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
 
     $response = $this->actingAs($this->admin)
+        ->withSession(['auth.password_confirmed_at' => time()])
         ->get("/backups/{$archive->uuid}/download")
         ->assertOk()
         ->assertHeader('content-type', 'application/zip');
@@ -321,8 +385,17 @@ it('streams the archive to an authorized downloader', function (): void {
     expect($response->streamedContent())->toBe($this->store->content);
 });
 
+it('requires a recent password confirmation before streaming', function (): void {
+    $archive = $this->store->seedActive('2026-10-01-00-00-00.zip', '2026-10-01 00:00:00');
+
+    $this->actingAs($this->admin)
+        ->get("/backups/{$archive->uuid}/download")
+        ->assertRedirect(route('password.confirm'));
+});
+
 it('answers 404 for a download of an unknown archive', function (): void {
     $this->actingAs($this->admin)
+        ->withSession(['auth.password_confirmed_at' => time()])
         ->get('/backups/'.Str::uuid7().'/download')
         ->assertNotFound();
 });
@@ -360,6 +433,7 @@ it('exports the filtered inventory as CSV, XLSX and PDF', function (): void {
     expect($csv)
         ->toContain('Filename')
         ->toContain('2026-10-01-00-00-00.zip')
+        ->toContain('2026-10-01 00:00')
         ->not->toContain('2026-10-02-00-00-00.zip');
 
     $xlsx = $this->actingAs($this->admin)
@@ -491,6 +565,12 @@ it('forbids the backup REST API without the permission', function (): void {
     Sanctum::actingAs(User::factory()->create());
 
     $this->getJson('/api/backups')->assertForbidden();
+});
+
+it('answers 404 for an unknown archive on the REST API', function (): void {
+    Sanctum::actingAs($this->admin);
+
+    $this->getJson('/api/backups/'.Str::uuid7())->assertNotFound();
 });
 
 it('keeps the archive download off the token surface', function (): void {

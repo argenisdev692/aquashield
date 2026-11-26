@@ -10,12 +10,16 @@ use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Support\Facades\Cache;
 use League\Flysystem\FileAttributes;
 use Modules\Backups\Application\Ports\BackupArchiveStore;
+use Modules\Backups\Domain\Exceptions\BackupDestinationUnavailable;
+use Modules\Backups\Domain\Exceptions\BackupMoveInProgress;
+use Modules\Backups\Domain\Exceptions\BackupNotFound;
 use Modules\Backups\Domain\Models\BackupArchive;
 use Modules\Backups\Domain\Models\BackupInventory;
 use Ramsey\Uuid\Uuid;
 use RuntimeException;
 use Spatie\Backup\BackupDestination\BackupDestination;
 use Spatie\Backup\Tasks\Backup\BackupJob;
+use Throwable;
 
 /**
  * Adapter over spatie/laravel-backup's destination listing plus a sibling
@@ -32,11 +36,11 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
      * objects, and `config/cache.php` sets `serializable_classes => false`
      * (Laravel 13's default), so a cache hit unserialized them as
      * `__PHP_Incomplete_Class`. The version bump abandons any warm v1 entry;
-     * it expires on its own within the TTL.
+     * it expires on its own within the TTL. The environment segment keeps a
+     * staging and a production app that share one Redis from reading each
+     * other's inventory.
      */
-    private const string ACTIVE_CACHE_KEY = 'backups.inventory.active.v2';
-
-    private const string TRASHED_CACHE_KEY = 'backups.inventory.trashed.v2';
+    private const string CACHE_PREFIX = 'backups.inventory';
 
     /**
      * S3 listing is a network round trip per destination. Thirty seconds is
@@ -51,12 +55,12 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 
     public function active(): array
     {
-        return $this->hydrated(self::ACTIVE_CACHE_KEY, trashed: false);
+        return $this->hydrated($this->cacheKey('active'), trashed: false);
     }
 
     public function trashed(): array
     {
-        return $this->hydrated(self::TRASHED_CACHE_KEY, trashed: true);
+        return $this->hydrated($this->cacheKey('trashed'), trashed: true);
     }
 
     public function findActive(string $uuid): ?BackupArchive
@@ -91,13 +95,19 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
         $archives = [];
 
         foreach ($rows as $row) {
-            // A payload this class did not write is a cache miss, not a reason
-            // to render a broken inventory.
             if (! is_array($row)) {
                 return $this->collect(trashed: $trashed);
             }
 
-            $archives[] = $this->hydrate($row);
+            $archive = $this->hydrate($row);
+
+            // A payload this class did not write is a cache miss, not a reason
+            // to render a broken inventory.
+            if ($archive === null) {
+                return $this->collect(trashed: $trashed);
+            }
+
+            $archives[] = $archive;
         }
 
         return $archives;
@@ -146,60 +156,119 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
     /**
      * @param array<string, mixed> $row
      */
-    private function hydrate(array $row): BackupArchive
+    private function hydrate(array $row): ?BackupArchive
     {
+        foreach (['uuid', 'disk', 'path', 'filename', 'size_bytes', 'taken_at', 'trashed'] as $key) {
+            if (! array_key_exists($key, $row)) {
+                return null;
+            }
+        }
+
+        if (! is_string($row['uuid'])
+            || ! is_string($row['disk'])
+            || ! is_string($row['path'])
+            || ! is_string($row['filename'])
+            || ! is_int($row['size_bytes'])
+            || ! is_string($row['taken_at'])
+            || ! is_bool($row['trashed'])) {
+            return null;
+        }
+
+        try {
+            $takenAt = new DateTimeImmutable($row['taken_at']);
+        } catch (Throwable) {
+            return null;
+        }
+
         return new BackupArchive(
-            uuid: (string) $row['uuid'],
-            disk: (string) $row['disk'],
-            path: (string) $row['path'],
-            filename: (string) $row['filename'],
-            sizeBytes: (int) $row['size_bytes'],
-            takenAt: new DateTimeImmutable((string) $row['taken_at']),
-            trashed: (bool) $row['trashed'],
+            uuid: $row['uuid'],
+            disk: $row['disk'],
+            path: $row['path'],
+            filename: $row['filename'],
+            sizeBytes: $row['size_bytes'],
+            takenAt: $takenAt,
+            trashed: $row['trashed'],
         );
     }
 
     public function quarantine(BackupArchive $archive): void
     {
-        $disk = $this->filesystems->disk($archive->disk);
-        $target = $this->quarantinePath($archive->filename);
+        $this->withMoveLock($archive, function () use ($archive): void {
+            $disk = $this->filesystems->disk($archive->disk);
+            $target = $this->quarantinePath($archive->filename);
 
-        if ($disk->exists($target)) {
-            throw new RuntimeException("The quarantine already contains {$archive->filename}.");
-        }
+            if (! $disk->exists($archive->path)) {
+                throw BackupNotFound::gone();
+            }
 
-        if (! $disk->move($archive->path, $target)) {
-            throw new RuntimeException("Could not quarantine {$archive->filename}.");
-        }
+            if ($disk->exists($target)) {
+                throw new RuntimeException("The quarantine already contains {$archive->filename}.");
+            }
 
-        $this->forgetInventory();
+            if (! $disk->move($archive->path, $target)) {
+                throw new RuntimeException("Could not quarantine {$archive->filename}.");
+            }
+
+            $this->forgetInventory();
+        });
     }
 
     public function restore(BackupArchive $archive): void
     {
-        $disk = $this->filesystems->disk($archive->disk);
-        $target = $this->backupName().'/'.$archive->filename;
+        $this->withMoveLock($archive, function () use ($archive): void {
+            $disk = $this->filesystems->disk($archive->disk);
+            $target = $this->backupName().'/'.$archive->filename;
 
-        // The guard already checked the inventory; this is the last line of
-        // defence against a concurrent restore of the same filename.
-        if ($disk->exists($target)) {
-            throw new RuntimeException("An active archive already exists at {$target}.");
-        }
+            if (! $disk->exists($archive->path)) {
+                throw BackupNotFound::gone();
+            }
 
-        if (! $disk->move($archive->path, $target)) {
-            throw new RuntimeException("Could not restore {$archive->filename}.");
-        }
+            // The guard already checked the inventory; this is the last line of
+            // defence against a concurrent restore of the same filename.
+            if ($disk->exists($target)) {
+                throw new RuntimeException("An active archive already exists at {$target}.");
+            }
 
-        $this->forgetInventory();
+            if (! $disk->move($archive->path, $target)) {
+                throw new RuntimeException("Could not restore {$archive->filename}.");
+            }
+
+            $this->forgetInventory();
+        });
     }
 
     public function purge(BackupArchive $archive): void
     {
-        if (! $this->filesystems->disk($archive->disk)->delete($archive->path)) {
-            throw new RuntimeException("Could not purge {$archive->filename}.");
+        $this->withMoveLock($archive, function () use ($archive): void {
+            if (! $this->filesystems->disk($archive->disk)->delete($archive->path)) {
+                throw new RuntimeException("Could not purge {$archive->filename}.");
+            }
+
+            $this->forgetInventory();
+        });
+    }
+
+    /**
+     * Serialise mutations of one archive. The existence checks are
+     * check-then-act, and Flysystem's `move` is copy+delete on object stores
+     * (not atomic), so two concurrent requests could both pass the checks.
+     */
+    private function withMoveLock(BackupArchive $archive, callable $operation): void
+    {
+        $lock = Cache::lock(
+            'backups:move:'.$archive->disk.':'.$archive->filename,
+            300,
+        );
+
+        if (! $lock->get()) {
+            throw BackupMoveInProgress::filename($archive->filename);
         }
 
-        $this->forgetInventory();
+        try {
+            $operation();
+        } finally {
+            $lock->release();
+        }
     }
 
     public function stream(BackupArchive $archive): mixed
@@ -219,32 +288,59 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
     private function collect(bool $trashed): array
     {
         $rows = [];
+        $listed = 0;
+        $failures = 0;
 
         foreach ($this->configuredDisks() as $diskName) {
             if ($trashed) {
-                array_push($rows, ...$this->quarantined($diskName));
+                try {
+                    array_push($rows, ...$this->quarantined($diskName));
+                    $listed++;
+                } catch (Throwable $exception) {
+                    $failures++;
+                    logger()->warning('Backup quarantine is unreachable.', [
+                        'disk' => $diskName,
+                        'exception' => $exception::class,
+                    ]);
+                }
 
                 continue;
             }
 
-            $destination = BackupDestination::create($diskName, $this->backupName());
+            try {
+                $destination = BackupDestination::create($diskName, $this->backupName());
 
-            if ($destination->connectionError() !== null) {
-                logger()->warning('Backup destination is unreachable.', ['disk' => $diskName]);
+                if ($destination->connectionError() !== null) {
+                    $failures++;
+                    logger()->warning('Backup destination is unreachable.', ['disk' => $diskName]);
 
-                continue;
+                    continue;
+                }
+
+                foreach ($destination->backups() as $backup) {
+                    $rows[] = new BackupArchive(
+                        uuid: $this->uuid('active', $diskName, $backup->path()),
+                        disk: $diskName,
+                        path: $backup->path(),
+                        filename: basename($backup->path()),
+                        sizeBytes: (int) $backup->sizeInBytes(),
+                        takenAt: DateTimeImmutable::createFromInterface($backup->date()),
+                    );
+                }
+
+                $listed++;
+            } catch (Throwable $exception) {
+                $failures++;
+                logger()->warning('Backup destination is unreachable.', [
+                    'disk' => $diskName,
+                    'exception' => $exception::class,
+                ]);
             }
+        }
 
-            foreach ($destination->backups() as $backup) {
-                $rows[] = new BackupArchive(
-                    uuid: $this->uuid('active', $diskName, $backup->path()),
-                    disk: $diskName,
-                    path: $backup->path(),
-                    filename: basename($backup->path()),
-                    sizeBytes: (int) $backup->sizeInBytes(),
-                    takenAt: DateTimeImmutable::createFromInterface($backup->date()),
-                );
-            }
+        // An empty inventory and an unreachable disk are different facts.
+        if ($listed === 0 && $failures > 0) {
+            throw BackupDestinationUnavailable::allDisks();
         }
 
         return $rows;
@@ -294,10 +390,12 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
      */
     private function takenAt(string $path, ?int $lastModified): DateTimeImmutable
     {
+        $timezone = new DateTimeZone((string) config('app.timezone', 'UTC'));
+
         $date = DateTimeImmutable::createFromFormat(
             BackupJob::FILENAME_FORMAT,
             basename($path),
-            new DateTimeZone('UTC'),
+            $timezone,
         );
 
         if ($date !== false) {
@@ -305,8 +403,8 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
         }
 
         return $lastModified === null
-            ? new DateTimeImmutable('now', new DateTimeZone('UTC'))
-            : new DateTimeImmutable('@'.$lastModified);
+            ? new DateTimeImmutable('now', $timezone)
+            : (new DateTimeImmutable('@'.$lastModified))->setTimezone($timezone);
     }
 
     /**
@@ -361,7 +459,17 @@ final readonly class SpatieBackupArchiveStore implements BackupArchiveStore
 
     private function forgetInventory(): void
     {
-        Cache::forget(self::ACTIVE_CACHE_KEY);
-        Cache::forget(self::TRASHED_CACHE_KEY);
+        // Reads already degrade to a direct listing when the cache store is
+        // down; a failed invalidation must not turn a successful file move
+        // into a 500 for the caller.
+        rescue(function (): void {
+            Cache::forget($this->cacheKey('active'));
+            Cache::forget($this->cacheKey('trashed'));
+        }, report: false);
+    }
+
+    private function cacheKey(string $state): string
+    {
+        return self::CACHE_PREFIX.'.'.app()->environment().'.'.$state.'.v2';
     }
 }

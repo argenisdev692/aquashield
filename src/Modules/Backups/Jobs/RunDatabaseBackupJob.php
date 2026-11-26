@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Modules\Backups\Application\Ports\BackupRunLock;
 use Modules\Backups\Application\Ports\DatabaseBackupRunner;
 use Shared\Domain\Ports\AuditPort;
 use Throwable;
@@ -65,19 +66,31 @@ final class RunDatabaseBackupJob implements ShouldBeUnique, ShouldQueue
         ];
     }
 
-    public function handle(DatabaseBackupRunner $runner, AuditPort $audit): void
+    public function handle(DatabaseBackupRunner $runner, AuditPort $audit, BackupRunLock $lock): void
     {
-        $causer = $this->causer();
+        if (! $lock->acquire()) {
+            $audit->log('backup.skipped', null, [
+                'requested_by' => $this->requestedBy,
+            ], $this->causer(), 'backups');
 
-        $audit->log('backup.started', null, [
-            'requested_by' => $this->requestedBy,
-        ], $causer, 'backups');
+            return;
+        }
 
-        $runner->run();
+        try {
+            $causer = $this->causer();
 
-        $audit->log('backup.completed', null, [
-            'requested_by' => $this->requestedBy,
-        ], $causer, 'backups');
+            $audit->log('backup.started', null, [
+                'requested_by' => $this->requestedBy,
+            ], $causer, 'backups');
+
+            $runner->run();
+
+            $audit->log('backup.completed', null, [
+                'requested_by' => $this->requestedBy,
+            ], $causer, 'backups');
+        } finally {
+            $lock->release();
+        }
     }
 
     public function failed(Throwable $exception): void

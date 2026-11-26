@@ -62,6 +62,23 @@ arch('first-party code uses strict types')
     ->expect(['App', 'Modules', 'Shared'])
     ->toUseStrictTypes();
 
+/*
+ * CompanyData is the module that used to reach into Shared\Infrastructure for
+ * branding. The port (Shared\Domain\Ports\CompanyBrandingPort) is the only
+ * allowed seam; these rules keep the next refactor from reintroducing it.
+ */
+arch('CompanyData Http does not import Shared Infrastructure')
+    ->expect('Modules\CompanyData\Http')
+    ->not->toUse('Shared\Infrastructure');
+
+arch('CompanyData Models do not import Shared Infrastructure')
+    ->expect('Modules\CompanyData\Models')
+    ->not->toUse('Shared\Infrastructure');
+
+arch('CompanyData Support does not import Shared Infrastructure')
+    ->expect('Modules\CompanyData\Support')
+    ->not->toUse('Shared\Infrastructure');
+
 arch('Shared domain model code is framework-free')
     // The ORM, facades and the framework core stay out of Shared\Domain entirely.
     //

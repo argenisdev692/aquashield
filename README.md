@@ -1,3 +1,39 @@
+# AquaShield
+
+Laravel 13 · PHP 8.6 · React 19.3 · Inertia v3. The stack, skills and closing gate are documented in
+`AGENTS.md`.
+
+## Bootstrap
+
+Local demo:
+
+```bash
+composer setup
+# Set SEED_USER_PASSWORD in .env, then:
+php artisan db:seed
+```
+
+Production/reference provisioning:
+
+```bash
+php artisan migrate --force
+php artisan db:seed --class=RolePermissionSeeder
+php artisan app:create-super-admin --email=admin@example.com --password='<temporary-secret>'
+php artisan company-data:provision --owner=admin@example.com
+```
+
+`app:create-super-admin` creates an active, verified `SUPER_ADMIN` with
+`must_change_password`; replace the temporary secret on first sign-in. Omit
+`--password` to be prompted instead of leaving the secret in shell history.
+`company-data:provision` is idempotent and accepts an active `SUPER_ADMIN`
+(the first one is used if `--owner` is omitted).
+
+Production logging: set `LOG_CHANNEL=json` (or add `json` to `LOG_STACK`) so
+the `request_id` context and the `X-Request-Id` response header can be
+correlated in the aggregator.
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

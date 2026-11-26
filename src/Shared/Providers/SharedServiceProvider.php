@@ -10,6 +10,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\View as ViewFactory;
 use Illuminate\Support\ServiceProvider;
 use Shared\Domain\Ports\AuditPort;
+use Shared\Domain\Ports\CompanyBrandingPort;
 use Shared\Domain\Ports\ExportPort;
 use Shared\Domain\Ports\StoragePort;
 use Shared\Infrastructure\AI\AIClientInterface;
@@ -17,6 +18,7 @@ use Shared\Infrastructure\AI\LaravelAIAdapter;
 use Shared\Infrastructure\AI\PromptCache\PromptCacheScope;
 use Shared\Infrastructure\Audit\SpatieActivityLogAdapter;
 use Shared\Infrastructure\Company\CompanyProfile;
+use Shared\Infrastructure\Company\CompanyProfileAdapter;
 use Shared\Infrastructure\Console\Commands\PingRedisCommand;
 use Shared\Infrastructure\Console\Commands\SyncR2CorsCommand;
 use Shared\Infrastructure\Export\SimpleExcelExportAdapter;
@@ -41,6 +43,7 @@ final class SharedServiceProvider extends ServiceProvider
     {
         $this->app->bind(AuditPort::class, SpatieActivityLogAdapter::class);
         $this->app->bind(StoragePort::class, R2StorageAdapter::class);
+        $this->app->bind(CompanyBrandingPort::class, CompanyProfileAdapter::class);
         // CSV/Excel handled here; PDF delegated to DomPdfExportAdapter (auto-resolved).
         $this->app->bind(ExportPort::class, SimpleExcelExportAdapter::class);
         $this->app->bind(AIClientInterface::class, LaravelAIAdapter::class);

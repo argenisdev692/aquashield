@@ -7,11 +7,12 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Modules\CompanyData\Actions\ProvisionCompanyDataAction;
 use Modules\CompanyData\Models\CompanyData;
-use Shared\Infrastructure\Company\CompanyProfile;
 
 /**
- * Seeds the CompanyData singleton (AquaShield Restoration USA).
+ * Seeds the CompanyData singleton (AquaShield Restoration USA) for local demo
+ * installations. Production provisioning uses `company-data:provision`.
  */
 class CompanyDataSeeder extends Seeder
 {
@@ -23,8 +24,6 @@ class CompanyDataSeeder extends Seeder
     public function run(): void
     {
         $this->createMainCompany();
-
-        CompanyProfile::forget();
     }
 
     /**
@@ -32,43 +31,22 @@ class CompanyDataSeeder extends Seeder
      */
     private function createMainCompany(): void
     {
-        $owner = User::query()
-            ->where('email', 'info@aquashieldrestorationusa.com')
-            ->firstOrFail();
-
         if (CompanyData::query()->exists()) {
             return;
         }
 
-        $company = new CompanyData;
+        $owner = User::query()
+            ->where('email', 'info@aquashieldrestorationusa.com')
+            ->first();
 
-        $company->fill([
-            'name' => 'Victor Lara',
-            'company_name' => 'AquaShield Restoration USA',
-            'description' => 'Water damage restoration, mold remediation, and reconstruction services in Houston, Texas.',
-            'email' => 'info@aquashieldrestorationusa.com',
-            'phone' => '+17135876423',
-            'address' => '3733 Westheimer Rd. Ste 1-4583, Houston, TX 77027',
-            'country' => 'United States',
-            'country_code' => 'US',
-            'website' => 'https://aquashieldrestorationusa.com',
-            'latitude' => 29.75516,
-            'longitude' => -95.3984135,
-            'facebook_link' => 'https://www.facebook.com/aquashieldrestorationusa/',
-            'instagram_link' => 'https://www.instagram.com/aquashieldrestorationusa/',
-            'linkedin_link' => 'https://www.linkedin.com/company/aquashieldrestorationusa/',
-            'twitter_link' => 'https://twitter.com/aquashieldrestorationusa',
-        ]);
+        if (! $owner instanceof User) {
+            $this->command?->warn(
+                'CompanyDataSeeder: no user with email info@aquashieldrestorationusa.com exists; skipping the company profile.',
+            );
 
-        // Ownership, signature and branding assets are set explicitly: none of
-        // them is mass-assignable from the profile endpoint. `img/...` tells
-        // CompanyProfile to serve the bundled public asset; an uploaded asset is
-        // an R2 object key written by the asset endpoint, never a full URL
-        // (a frozen origin makes a later bucket migration unrecoverable).
-        $company->user_id = $owner->id;
-        $company->logo_path = 'img/logo.webp';
-        $company->logo_white_path = 'img/logo-white.webp';
-        $company->mark_path = 'img/logo-mark.webp';
-        $company->save();
+            return;
+        }
+
+        app(ProvisionCompanyDataAction::class)->execute($owner);
     }
 }

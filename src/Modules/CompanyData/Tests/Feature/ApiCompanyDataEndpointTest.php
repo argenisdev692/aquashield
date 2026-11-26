@@ -47,6 +47,24 @@ it('forbids a token without the view permission', function (): void {
     $this->getJson('/api/company-data/manage')->assertForbidden();
 });
 
+it('forbids an unverified token', function (): void {
+    $user = User::factory()->unverified()->create();
+    $user->givePermissionTo('VIEW_COMPANY_DATA');
+
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson('/api/company-data/manage')->assertForbidden();
+});
+
+it('forbids a token for an account that must change its password', function (): void {
+    $user = User::factory()->create(['must_change_password' => true]);
+    $user->givePermissionTo('VIEW_COMPANY_DATA');
+
+    Sanctum::actingAs($user, ['*']);
+
+    $this->getJson('/api/company-data/manage')->assertForbidden();
+});
+
 it('returns the full profile to a token with the view permission', function (): void {
     $this->user->givePermissionTo('VIEW_COMPANY_DATA');
     apiCompanyRecord($this->user);

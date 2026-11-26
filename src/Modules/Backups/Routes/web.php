@@ -58,12 +58,14 @@ Route::middleware('web')->group(function (): void {
 
             // The archive is a full database copy: DOWNLOAD_BACKUPS must never
             // widen an inventory the actor cannot see. Same pairing rule as
-            // the export route above.
+            // the export route above. `password.confirm` is the step-up gate:
+            // a stolen session must not be enough to exfiltrate the database.
             Route::get('/{backup}/download', BackupDownloadController::class)
                 ->whereUuid('backup')
                 ->middleware([
                     'permission:'.PermissionName::ViewBackup->value,
                     'permission:'.PermissionName::DownloadBackup->value,
+                    'password.confirm',
                     'throttle:10,1',
                 ])
                 ->name('download');

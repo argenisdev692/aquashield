@@ -23,6 +23,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Remote Destructive Command Guard
+    |--------------------------------------------------------------------------
+    |
+    | When the local environment points at a non-local database (for example a
+    | hosted dev or production DSN in .env), a developer shell can wipe it with
+    | `migrate:fresh` or `db:wipe` without a confirmation. The guard refuses
+    | those commands; set this to true only for a deliberate operation.
+    |
+    */
+
+    'allow_remote_destructive' => (bool) env('DB_ALLOW_REMOTE_DESTRUCTIVE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Shared\Infrastructure\Company;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -176,13 +177,13 @@ final class CompanyProfile
             'address' => self::composeAddress($company),
             'country' => self::stringOrNull($company, 'country'),
             'country_code' => self::stringOrNull($company, 'country_code'),
-            'nif_nipc' => self::stringOrNull($company, 'nif_nipc'),
-            'nie' => self::stringOrNull($company, 'nie'),
-            'bank_beneficiary' => self::stringOrNull($company, 'bank_beneficiary'),
-            'bank_iban' => self::stringOrNull($company, 'bank_iban'),
-            'bank_bic' => self::stringOrNull($company, 'bank_bic'),
-            'bank_name' => self::stringOrNull($company, 'bank_name'),
-            'invoice_notes' => self::stringOrNull($company, 'invoice_notes'),
+            'nif_nipc' => self::decryptOrNull($company, 'nif_nipc'),
+            'nie' => self::decryptOrNull($company, 'nie'),
+            'bank_beneficiary' => self::decryptOrNull($company, 'bank_beneficiary'),
+            'bank_iban' => self::decryptOrNull($company, 'bank_iban'),
+            'bank_bic' => self::decryptOrNull($company, 'bank_bic'),
+            'bank_name' => self::decryptOrNull($company, 'bank_name'),
+            'invoice_notes' => self::decryptOrNull($company, 'invoice_notes'),
             'logo_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_white_path'), self::FALLBACK_LOGO_WHITE),
             'logo_dark_data_uri' => self::logoDataUri(self::stringOrNull($company, 'logo_path'), self::FALLBACK_LOGO),
             'socials' => array_filter([
@@ -208,9 +209,9 @@ final class CompanyProfile
      * Resolve a stored logo reference to an absolute URL: an R2 object key →
      * permanent public URL; otherwise the bundled asset served from APP_URL.
      *
-     * Public so the Company module's storage adapter resolves logo URLs through
-     * the same rule this class applies to emails and PDF exports, instead of
-     * reimplementing the fallback and ending up one asset out of step.
+     * Public so the Shared CompanyProfileAdapter resolves logo URLs through the
+     * same rule this class applies to emails and PDF exports. Modules depend on
+     * CompanyBrandingPort, never on this class directly.
      */
     public static function logoUrl(?string $key, string $fallback): string
     {
@@ -299,6 +300,28 @@ final class CompanyProfile
     private static function stringOrNull(array $row, string $column): ?string
     {
         return array_key_exists($column, $row) && $row[$column] !== null ? (string) $row[$column] : null;
+    }
+
+    /**
+     * Decrypt a financial/tax column written by the CompanyData `encrypted`
+     * cast. A legacy plaintext row (before the encryption migration) is
+     * returned as-is rather than breaking every PDF.
+     *
+     * @param array<string, mixed> $row
+     */
+    private static function decryptOrNull(array $row, string $column): ?string
+    {
+        $value = self::stringOrNull($row, $column);
+
+        if ($value === null) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (Throwable) {
+            return $value;
+        }
     }
 
     /**

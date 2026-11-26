@@ -12,9 +12,10 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * Resolved brand-asset URLs for the edit screen.
  *
  * Deliberately separate from CompanyDataDto: that class is the JSON contract
- * and carries storage keys. This one is what a browser can actually render —
- * a public URL for each logo and a signed, expiring URL for the signature —
- * so no object key and no signature path reaches the client.
+ * and carries the non-secret logo keys for edit round-trips. This one is what
+ * a browser can actually render — a public URL for each logo and a signed,
+ * expiring URL for the signature — so the page never has to build a URL from
+ * a storage key, and no signature path reaches the client.
  */
 #[MapOutputName(SnakeCaseMapper::class)]
 final class CompanyAssetsDto extends Data

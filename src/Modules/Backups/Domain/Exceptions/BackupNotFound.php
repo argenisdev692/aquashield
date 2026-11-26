@@ -10,9 +10,9 @@ use RuntimeException;
  * A selected archive is no longer in the inventory: it was purged, or the list
  * the operator is looking at is stale.
  *
- * The message never echoes the UUID. The identifier is guessable to anyone who
- * knows the filename format (see ARCHITECTURE.md), so the refusal is generic and
- * the client refreshes instead of learning which guess landed.
+ * The message never echoes the UUID. The identifier is a keyed UUIDv5: it is
+ * stable across requests but not derivable without APP_KEY (see
+ * ARCHITECTURE.md), so a refusal must not confirm which guess landed.
  */
 final class BackupNotFound extends RuntimeException
 {

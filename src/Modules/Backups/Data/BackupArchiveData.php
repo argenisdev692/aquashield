@@ -36,7 +36,7 @@ final class BackupArchiveData extends Data
             filename: $archive->filename,
             sizeBytes: $archive->sizeBytes,
             sizeHuman: self::humanSize($archive->sizeBytes),
-            takenAt: $archive->takenAt->format('Y-m-d H:i'),
+            takenAt: $archive->takenAt->format(DATE_ATOM),
             ageDays: $archive->ageInDays($now),
             isNewest: $isNewest,
             isTrashed: $archive->trashed,

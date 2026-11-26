@@ -56,13 +56,19 @@ final readonly class DeleteBackupsAction
         }
 
         // Audit only a batch that fully succeeded: an entry for a move that was
-        // rolled back would be a false record.
+        // rolled back would be a false record. A failing audit write is
+        // reported, not surfaced: the file move is the operation, and a 500
+        // would make the client retry something that already happened.
         foreach ($targets as $target) {
-            $this->audit->log('backup.quarantined', null, [
-                'disk' => $target->disk,
-                'filename' => $target->filename,
-                'size_bytes' => $target->sizeBytes,
-            ], $causer, 'backups');
+            try {
+                $this->audit->log('backup.quarantined', null, [
+                    'disk' => $target->disk,
+                    'filename' => $target->filename,
+                    'size_bytes' => $target->sizeBytes,
+                ], $causer, 'backups');
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         }
     }
 

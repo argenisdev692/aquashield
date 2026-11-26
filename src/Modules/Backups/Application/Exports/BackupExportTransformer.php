@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Backups\Application\Exports;
 
+use DateTimeImmutable;
 use Modules\Backups\Application\Queries\BackupIndexQuery;
 use Modules\Backups\Data\BackupFilterData;
 use Shared\Support\SpreadsheetCell;
@@ -55,7 +56,7 @@ final readonly class BackupExportTransformer
             yield [
                 'filename' => SpreadsheetCell::sanitise($row->filename),
                 'disk' => SpreadsheetCell::sanitise($row->disk),
-                'taken_at' => SpreadsheetCell::sanitise($row->takenAt),
+                'taken_at' => SpreadsheetCell::sanitise(new DateTimeImmutable($row->takenAt)),
                 'size' => SpreadsheetCell::sanitise($row->sizeHuman),
                 'age_days' => $row->ageDays,
                 'status' => $row->isTrashed ? 'Quarantined' : 'Active',

@@ -147,14 +147,24 @@ not deleting logic.
 - `Tests/Unit/BackupInventoryTest.php` — pure domain: newest by taken-at,
   UUID lookup, the whole batch refused when one UUID is gone.
 - `Tests/Unit/DeleteBackupsActionTest.php` — DB-free handler with a mocked
-  `BackupArchiveStore` + `AuditPort`.
-- `Tests/Unit/RunDatabaseBackupJobTest.php` — job with a mocked runner.
+  `BackupArchiveStore` + `AuditPort`; a failing audit write does not fail the
+  move.
+- `Tests/Unit/RestoreBackupsActionTest.php` — the same for the restore path.
+- `Tests/Unit/RunDatabaseBackupJobTest.php` — job with a mocked runner and
+  shared lock; a held lock records `backup.skipped`.
+- `Tests/Unit/RunBackupCommandTest.php` — the scheduled wrapper acquires the
+  shared lock, audits start/completion and the failure class only.
+- `Tests/Unit/RunDatabaseBackupActionTest.php` — the job is queued even when
+  the audit write fails.
 - `Tests/Feature/BackupEndpointTest.php` — 401/403/422 + index, search,
-  pagination, delete/restore/bulk pair, download, export, run, activity, and
-  the read-only REST API (401/403/happy path, download absent).
-- `Tests/Feature/BackupQuarantineCommandTest.php` — expiry window, dry run.
+  pagination, delete/restore/bulk pair, download (step-up), export, run,
+  activity, 503 on an unreachable destination, and the read-only REST API
+  (401/403/404/happy path, download absent).
+- `Tests/Feature/BackupQuarantineCommandTest.php` — expiry window, dry run,
+  production confirmation, unreachable destination and per-archive failure.
 - `Tests/Feature/SpatieBackupArchiveStoreTest.php` — real adapter on a fake
-  disk: list, quarantine, restore, purge.
+  disk: list, quarantine, restore, purge, a vanished source, an unreachable
+  disk, the move lock and cache payload validation.
 
 ## Declared cross-module exception (2026-11-26)
 

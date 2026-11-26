@@ -18,12 +18,14 @@ use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Application\Queries\BackupIndexQuery;
 use Modules\Backups\Data\BackupFilterData;
 use Modules\Backups\Domain\Exceptions\BackupDeletionRefused;
+use Modules\Backups\Domain\Exceptions\BackupMoveInProgress;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
 use Modules\Backups\Domain\Exceptions\BackupRestoreConflict;
 use Modules\Backups\Http\Requests\BulkDeleteBackupsRequest;
 use Modules\Backups\Http\Requests\BulkRestoreBackupsRequest;
 use Shared\Application\DTOs\BulkUuidsData;
 use Shared\Domain\Enums\Permission as PermissionName;
+use Shared\Domain\Ports\AuditPort;
 
 final readonly class BackupController
 {
@@ -31,6 +33,7 @@ final readonly class BackupController
         private BackupIndexQuery $backups,
         private BackupArchiveStore $archives,
         private BackupActivityLog $activity,
+        private AuditPort $audit,
         private DeleteBackupsAction $deleteBackups,
         private RestoreBackupsAction $restoreBackups,
         private RunDatabaseBackupAction $runBackup,
@@ -117,6 +120,7 @@ final readonly class BackupController
     public function destroy(Request $request, string $backup): Response
     {
         $this->assertDomainOutcome(
+            $request,
             fn () => $this->deleteBackups->execute([$backup], $request->user()),
         );
 
@@ -126,6 +130,7 @@ final readonly class BackupController
     public function restore(Request $request, string $backup): Response
     {
         $this->assertDomainOutcome(
+            $request,
             fn () => $this->restoreBackups->execute([$backup], $request->user()),
         );
 
@@ -137,6 +142,7 @@ final readonly class BackupController
         $uuids = BulkUuidsData::from($request->validated())->uuids;
 
         $this->assertDomainOutcome(
+            $request,
             fn () => $this->deleteBackups->execute($uuids, $request->user()),
         );
 
@@ -148,6 +154,7 @@ final readonly class BackupController
         $uuids = BulkUuidsData::from($request->validated())->uuids;
 
         $this->assertDomainOutcome(
+            $request,
             fn () => $this->restoreBackups->execute($uuids, $request->user()),
         );
 
@@ -195,12 +202,30 @@ final readonly class BackupController
     /**
      * Domain refusals are input problems from the client's point of view:
      * the selected row moved, or it is the one archive the guard protects.
+     * A refused destruction attempt is also audit-worthy (OWASP A09): the
+     * guard is a security control, so trying to defeat it must leave a trace.
      */
-    private function assertDomainOutcome(callable $operation): void
+    private function assertDomainOutcome(Request $request, callable $operation): void
     {
         try {
             $operation();
-        } catch (BackupNotFound|BackupDeletionRefused|BackupRestoreConflict $exception) {
+        } catch (BackupDeletionRefused $exception) {
+            $this->audit->log('backup.delete_refused', null, [
+                'filename' => $exception->filename,
+                'reason' => $exception::class,
+            ], $request->user(), 'backups');
+
+            throw ValidationException::withMessages(['uuids' => $exception->getMessage()]);
+        } catch (BackupRestoreConflict $exception) {
+            $this->audit->log('backup.restore_conflict', null, [
+                'filename' => $exception->filename,
+                'reason' => $exception::class,
+            ], $request->user(), 'backups');
+
+            throw ValidationException::withMessages(['uuids' => $exception->getMessage()]);
+        } catch (BackupMoveInProgress $exception) {
+            throw ValidationException::withMessages(['uuids' => $exception->getMessage()]);
+        } catch (BackupNotFound $exception) {
             throw ValidationException::withMessages(['uuids' => $exception->getMessage()]);
         }
     }

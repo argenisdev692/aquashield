@@ -37,6 +37,9 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
     /** Filename whose restore fails, to exercise batch compensation. */
     public ?string $failRestoreFor = null;
 
+    /** Filename whose purge fails, to exercise the per-archive failure path. */
+    public ?string $failPurgeFor = null;
+
     public function seedActive(
         string $filename,
         string $takenAt = '2026-10-01 00:00:00',
@@ -129,6 +132,10 @@ final class FakeBackupArchiveStore implements BackupArchiveStore
 
     public function purge(BackupArchive $archive): void
     {
+        if ($this->failPurgeFor === $archive->filename) {
+            throw new RuntimeException('Injected purge failure.');
+        }
+
         unset($this->trashed[$archive->uuid]);
         $this->purged[] = $archive->filename;
     }
