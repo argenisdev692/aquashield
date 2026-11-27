@@ -124,7 +124,8 @@ it('renders the index page with the generated props', function (): void {
             ->component('Backups/Index')
             ->has('rows', 1)
             ->where('can.create', true)
-            ->where('can.view', true));
+            ->where('can.view', true)
+            ->where('runStatus.status', 'idle'));
 });
 
 it('shows one archive with its audit trail', function (): void {
@@ -485,6 +486,11 @@ it('queues a database-only backup instead of running it in the request', functio
         ->assertJsonPath('status', 'queued');
 
     Queue::assertPushed(RunDatabaseBackupJob::class);
+
+    $this->actingAs($this->admin)
+        ->getJson('/backups/run-status')
+        ->assertOk()
+        ->assertJsonPath('status', 'queued');
 });
 
 it('forbids a manual run without CREATE_BACKUPS', function (): void {
@@ -495,6 +501,10 @@ it('forbids a manual run without CREATE_BACKUPS', function (): void {
         ->assertForbidden();
 
     Queue::assertNothingPushed();
+
+    $this->actingAs(User::factory()->create())
+        ->getJson('/backups/run-status')
+        ->assertForbidden();
 });
 
 it('returns only allowlisted activity properties', function (): void {

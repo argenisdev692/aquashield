@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Backups\Application\Ports\BackupActivityLog;
 use Modules\Backups\Application\Ports\BackupArchiveStore;
 use Modules\Backups\Application\Ports\BackupRunLock;
+use Modules\Backups\Application\Ports\BackupRunStatusStore;
 use Modules\Backups\Application\Ports\DatabaseBackupRunner;
 use Modules\Backups\Infrastructure\Console\PurgeBackupQuarantineCommand;
 use Modules\Backups\Infrastructure\Console\RunBackupCommand;
@@ -15,6 +16,7 @@ use Modules\Backups\Infrastructure\Persistence\SpatieBackupActivityLog;
 use Modules\Backups\Infrastructure\Persistence\SpatieBackupArchiveStore;
 use Modules\Backups\Infrastructure\Services\SpatieDatabaseBackupRunner;
 use Modules\Backups\Infrastructure\Support\CacheBackupRunLock;
+use Modules\Backups\Infrastructure\Support\CacheBackupRunStatusStore;
 
 final class BackupsServiceProvider extends ServiceProvider
 {
@@ -29,6 +31,7 @@ final class BackupsServiceProvider extends ServiceProvider
         // Holds the acquired lock, so it must be released by the instance that
         // acquired it: `bind` gives each handler its own instance.
         $this->app->bind(BackupRunLock::class, CacheBackupRunLock::class);
+        $this->app->bind(BackupRunStatusStore::class, CacheBackupRunStatusStore::class);
     }
 
     public function boot(): void

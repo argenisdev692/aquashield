@@ -266,6 +266,16 @@ declare namespace Modules {
                 readonly per_page: number;
                 readonly last_page: number;
             };
+            export type BackupRunStatusData = {
+                readonly status: Modules.Backups.Domain.Enums.BackupRunStatus;
+                readonly updated_at: string | null;
+            };
+        }
+        namespace Domain {
+            namespace Enums {
+                export type BackupRunStatus =
+                    'idle' | 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped';
+            }
         }
     }
     namespace CompanyData {

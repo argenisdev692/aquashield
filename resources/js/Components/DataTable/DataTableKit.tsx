@@ -210,6 +210,8 @@ interface DataTableKitProps<TData extends RowData> {
      */
     onBulkDelete?: (rows: TData[]) => void;
     onBulkRestore?: (rows: TData[]) => void;
+    /** Context-specific recovery copy for the bulk-delete confirmation. */
+    deleteDescription?: string;
     /**
      * A contextual action slot rendered inside the bulk bar. It receives the
      * selected loaded rows and a clear-selection callback. Omit both this and
@@ -276,6 +278,7 @@ export default function DataTableKit<TData extends RowData>({
     onExport,
     onBulkDelete,
     onBulkRestore,
+    deleteDescription,
     bulkActions,
     onSelectionChange,
     onResetFilters,
@@ -1177,8 +1180,8 @@ export default function DataTableKit<TData extends RowData>({
                             Delete {selectedCount} {selectedCount === 1 ? 'record' : 'records'}?
                         </DialogTitle>
                         <DialogDescription>
-                            Deleted rows can be restored later from the same list. This action is
-                            applied to every selected row.
+                            {deleteDescription ??
+                                'Deleted rows can be restored later from the same list. This action is applied to every selected row.'}
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

@@ -11,6 +11,7 @@ module is the panel over it.
 | `GET`    | `/backups`                 | `VIEW_ANY_BACKUPS`                    | List + search + filter + sort + paginate                 |
 | `GET`    | `/backups/activity`        | `VIEW_ANY_BACKUPS`                    | Read-only audit trail of backup operations               |
 | `POST`   | `/backups/run`             | `CREATE_BACKUPS`                      | Queue a manual database dump (202)                       |
+| `GET`    | `/backups/run-status`      | `VIEW_ANY_BACKUPS`                    | Read the latest manual run lifecycle state               |
 | `GET`    | `/backups/{uuid}/download` | `VIEW_BACKUPS` + `DOWNLOAD_BACKUPS`   | Stream the archive (password-confirmed, audited, 10/min) |
 | `DELETE` | `/backups/{uuid}`          | `DELETE_BACKUPS`                      | Move one archive to quarantine                           |
 | `PATCH`  | `/backups/{uuid}/restore`  | `RESTORE_BACKUPS`                     | Move a quarantined archive back                          |
@@ -21,6 +22,15 @@ module is the panel over it.
 All routes are under `web` (session + CSRF) + `auth` + `verified`. The web
 controllers answer both an Inertia page visit and a plain JSON request; the
 `/api` surface is separate.
+
+The panel polls `run-status` every five seconds while a manual run is queued or
+running, stops at a terminal state, and refreshes the archive rows once after
+success. Status is cached for two hours and is observability-only: a cache
+failure is reported but never prevents the dump.
+
+Backup calendar-date filters and displayed timestamps use **UTC**. This keeps
+presets, server day filtering, archive age, and operator-facing timestamps on
+one contract.
 
 A read-only REST surface also exists under `/api` (Sanctum bearer token,
 Scramble-documented in `api.json`, same `permission:*` middleware as the web

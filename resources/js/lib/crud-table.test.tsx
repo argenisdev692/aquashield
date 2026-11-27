@@ -8,14 +8,15 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
  * which records the screen *and* the export describe, so every setter is
  * asserted on the URL it produces, not on local state.
  */
-const { visit, reload, requestJson } = vi.hoisted(() => ({
+const { visit, cancelPendingReload, reloadCurrentPage, requestJson } = vi.hoisted(() => ({
     visit: vi.fn<
         (
             url: string,
             options?: { replace?: boolean; preserveState?: boolean; onFinish?: () => void },
         ) => void
     >(),
-    reload: vi.fn<(options?: unknown) => void>(),
+    cancelPendingReload: vi.fn<(path?: string) => void>(),
+    reloadCurrentPage: vi.fn<(options?: unknown) => void>(),
     requestJson: vi.fn<(path: string, options?: unknown) => Promise<unknown>>(),
 }));
 
@@ -23,8 +24,10 @@ const page: { url: string; props: { perPage?: number } } = { url: '/users', prop
 
 vi.mock('@inertiajs/react', () => ({
     usePage: () => page,
-    router: { visit, reload },
+    router: { visit },
 }));
+
+vi.mock('@/lib/visits', () => ({ cancelPendingReload, reloadCurrentPage }));
 
 vi.mock('@/lib/http', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@/lib/http')>();
@@ -48,7 +51,8 @@ const lastOptions = (): {
 
 beforeEach(() => {
     visit.mockReset();
-    reload.mockReset();
+    cancelPendingReload.mockReset();
+    reloadCurrentPage.mockReset();
     requestJson.mockReset();
     requestJson.mockResolvedValue(null);
     page.url = '/users';
@@ -116,6 +120,17 @@ describe('useCrudTable', () => {
         expect(url.searchParams.get('filter[status]')).toBe('active');
         expect(url.searchParams.get('search')).toBe('acme');
         expect(url.searchParams.has('page')).toBe(false);
+    });
+
+    it('cancels a background table reload before committing a newer URL', () => {
+        const { result } = renderHook(() => useCrudTable({ endpoint: '/users' }));
+
+        act(() => {
+            result.current.setFilter('status', 'active');
+        });
+
+        expect(cancelPendingReload).toHaveBeenCalledWith('/users');
+        expect(visit).toHaveBeenCalledTimes(1);
     });
 
     it('tracks only the visits it started and clears pending on finish', () => {
@@ -280,13 +295,13 @@ describe('useBulkActions', () => {
             result.current.deleteRows(rows);
         });
 
-        await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(reloadCurrentPage).toHaveBeenCalledTimes(1));
 
         expect(requestJson).toHaveBeenCalledWith('/users/bulk-delete', {
             method: 'POST',
             body: { uuids: ['a', 'b'] },
         });
-        expect(reload.mock.calls[0][0]).toEqual({
+        expect(reloadCurrentPage.mock.calls[0][0]).toEqual({
             only: ['rows', 'total', 'currentPage', 'perPage', 'filters'],
         });
     });
@@ -302,7 +317,7 @@ describe('useBulkActions', () => {
 
         await waitFor(() => expect(result.current.error).toBe('Network is down'));
         expect(result.current.processing).toBe(false);
-        expect(reload).not.toHaveBeenCalled();
+        expect(reloadCurrentPage).not.toHaveBeenCalled();
     });
 
     it('does nothing without a URL or a selection', async () => {

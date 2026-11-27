@@ -168,6 +168,26 @@ describe('DataTableKit pagination', () => {
 });
 
 describe('DataTableKit selection', () => {
+    it('renders page-specific recovery copy in the bulk-delete confirmation', () => {
+        render(
+            <DataTableKit
+                {...createProps()}
+                onBulkDelete={vi.fn<(rows: Row[]) => void>()}
+                deleteDescription="Quarantined archives can be restored until their retention window expires."
+            />,
+        );
+
+        const [, firstRowCheckbox] = screen.getAllByRole('checkbox');
+        fireEvent.click(firstRowCheckbox);
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+        expect(
+            screen.getByText(
+                'Quarantined archives can be restored until their retention window expires.',
+            ),
+        ).toBeTruthy();
+    });
+
     it('clears the page selection when the server replaces the rows', () => {
         const props = createProps();
         const onSelectionChange = vi.fn<(ids: string[], rows: Row[]) => void>();

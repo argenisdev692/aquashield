@@ -118,6 +118,21 @@ export function formatDateTime(
     return Number.isNaN(date.getTime()) ? value : dateTimeFormatter(locale, options).format(date);
 }
 
+/** Format an operational timestamp in the explicit UTC contract. */
+export function formatUtcDateTime(value: string | null | undefined): string {
+    if (!value) {
+        return '';
+    }
+
+    const formatted = formatDateTime(value, 'en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'UTC',
+    });
+
+    return formatted === value ? formatted : `${formatted} UTC`;
+}
+
 /**
  * Today's calendar date in the viewer's local zone as `YYYY-MM-DD`.
  *

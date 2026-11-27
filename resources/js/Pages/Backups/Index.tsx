@@ -23,10 +23,11 @@ import {
 } from '@/Components/DataTable';
 import AppLayout from '@/Layouts/AppLayout';
 import { useBulkActions, useCrudTable } from '@/lib/crud-table';
-import { formatDateTime } from '@/lib/date';
+import { formatUtcDateTime } from '@/lib/date';
 import { useVisitPending } from '@/lib/visits';
 import { useRunBackup } from '@/Modules/Backups/hooks/useRunBackup';
 import SavedViewsMenu from '@/Modules/SavedViews/components/SavedViewsMenu';
+import { bulkDeleteError, bulkRestoreError } from './bulk-selection';
 
 type BackupArchive = Modules.Backups.Data.BackupArchiveData;
 type BackupFilter = Modules.Backups.Data.BackupFilterData;
@@ -39,6 +40,7 @@ type BackupPageProps = {
     lastPage: number;
     filters: BackupFilter;
     disks: string[];
+    runStatus: Modules.Backups.Data.BackupRunStatusData;
     can: {
         create: boolean;
         delete: boolean;
@@ -84,7 +86,7 @@ const backupColumns: SimpleColumn<BackupArchive>[] = [
         width: 'w-44',
         className: 'whitespace-nowrap tabular-nums',
         hideBelow: 'sm',
-        cell: ({ row }) => formatDateTime(row.taken_at),
+        cell: ({ row }) => formatUtcDateTime(row.taken_at),
     },
     // Displayed as a human label; sorted by the numeric field the server allows.
     {
@@ -122,14 +124,18 @@ export default function BackupsIndex() {
     });
 
     const [confirmRunOpen, setConfirmRunOpen] = useState(false);
+    const [bulkSelectionError, setBulkSelectionError] = useState<string | null>(null);
     const {
         run,
         pending: runPending,
+        polling: runPolling,
         status: runStatus,
         error: runError,
         reset: resetRun,
     } = useRunBackup();
-    const runQueued = runStatus === 'queued';
+    const runActive = runStatus === 'queued' || runStatus === 'running';
+    const runSucceeded = runStatus === 'succeeded';
+    const runFailed = runStatus === 'failed' || runStatus === 'skipped';
 
     /*
      * Every entry point resets the hook first. A late response from a dialog the
@@ -137,7 +143,10 @@ export default function BackupsIndex() {
      * stale "queued" or "failed" message.
      */
     const openRunDialog = (): void => {
-        resetRun();
+        if (!runPolling) {
+            resetRun();
+        }
+
         setConfirmRunOpen(true);
     };
 
@@ -159,12 +168,30 @@ export default function BackupsIndex() {
             placeholder: 'Any disk',
             options: disks.map((disk) => ({ value: disk, label: disk })),
         },
-        { key: 'taken', label: 'Taken', type: 'date-range' },
+        { key: 'taken', label: 'Taken (UTC)', type: 'date-range', timeZone: 'UTC' },
     ];
 
     const exportFormats: ExportFormat[] = can.export ? ['csv', 'xlsx', 'pdf'] : [];
 
     const selectionLabel = (row: BackupArchive): string => `${row.filename} (${row.disk})`;
+
+    const deleteSelected = (rows: BackupArchive[]): void => {
+        const error = bulkDeleteError(rows);
+        setBulkSelectionError(error);
+
+        if (error === null) {
+            bulk.deleteRows(rows);
+        }
+    };
+
+    const restoreSelected = (rows: BackupArchive[]): void => {
+        const error = bulkRestoreError(rows);
+        setBulkSelectionError(error);
+
+        if (error === null) {
+            bulk.restoreRows(rows);
+        }
+    };
 
     const runBackupAction = can.create ? (
         <Button onClick={openRunDialog} disabled={visitsPending || runPending} className="h-9">
@@ -178,7 +205,7 @@ export default function BackupsIndex() {
             Clear filters
         </Button>
     ) : can.create ? (
-        <Button onClick={openRunDialog} variant="outline">
+        <Button onClick={openRunDialog} variant="outline" disabled={visitsPending || runPending}>
             Run the first backup
         </Button>
     ) : null;
@@ -229,9 +256,10 @@ export default function BackupsIndex() {
                 exportFormats={exportFormats}
                 exportHref={can.export ? table.exportUrl : undefined}
                 selectionLabel={selectionLabel}
-                onBulkDelete={can.bulk_delete ? bulk.deleteRows : undefined}
-                onBulkRestore={can.bulk_restore ? bulk.restoreRows : undefined}
-                actionError={bulk.error}
+                onBulkDelete={can.bulk_delete ? deleteSelected : undefined}
+                onBulkRestore={can.bulk_restore ? restoreSelected : undefined}
+                deleteDescription="Quarantined archives can be restored until their retention window expires. This action is applied to every selected row."
+                actionError={bulkSelectionError ?? bulk.error}
                 actions={runBackupAction}
                 emptyAction={emptyActionContent}
             />
@@ -239,27 +267,53 @@ export default function BackupsIndex() {
             <CrudDialog
                 open={confirmRunOpen}
                 onOpenChange={setConfirmRunOpen}
-                title={runQueued ? 'Backup queued' : 'Run a database backup?'}
+                title={
+                    runSucceeded
+                        ? 'Backup complete'
+                        : runFailed
+                          ? 'Backup not completed'
+                          : runStatus === 'running'
+                            ? 'Backup running'
+                            : runActive
+                              ? 'Backup queued'
+                              : 'Run a database backup?'
+                }
                 description={
-                    runQueued
-                        ? 'The dump is running in the background; the scheduled run is unaffected.'
-                        : 'This queues a database-only dump and writes a new archive to the backup disk.'
+                    runSucceeded
+                        ? 'The run finished and the archive list has been refreshed.'
+                        : runFailed
+                          ? 'The run ended without creating a new archive.'
+                          : runStatus === 'running'
+                            ? 'The database dump is running. This page updates when it finishes.'
+                            : runActive
+                              ? 'The dump is waiting for or running on a heavy-queue worker. Status refreshes automatically.'
+                              : 'This queues a database-only dump and writes a new archive to the backup disk.'
                 }
                 confirmLabel="Run backup"
-                confirmHidden={runQueued}
-                cancelLabel={runQueued ? 'Close' : 'Cancel'}
+                confirmHidden={runActive || runSucceeded || runFailed}
+                cancelLabel={runStatus === 'idle' ? 'Cancel' : 'Close'}
                 onConfirm={() => {
                     void run();
                 }}
                 loading={runPending}
             >
-                {runQueued ? (
+                {runActive || runSucceeded ? (
                     <div role="status" className="flex flex-col gap-2">
                         <p className="text-sm text-surface-600 dark:text-surface-300">
-                            The archive appears at the top of this list once the worker finishes the
-                            dump. You can keep working while it runs.
+                            {runSucceeded
+                                ? 'The newest archive is now available in the list.'
+                                : 'You can keep working while the run completes. Polling stops automatically at the terminal state.'}
                         </p>
+                        {runError ? (
+                            <p role="alert" className="text-sm font-medium text-destructive">
+                                {runError}
+                            </p>
+                        ) : null}
                     </div>
+                ) : runFailed ? (
+                    <p role="alert" className="text-sm font-medium text-destructive">
+                        {runError}
+                    </p>
                 ) : (
                     <div className="flex flex-col gap-2">
                         <p className="text-sm text-surface-600 dark:text-surface-300">

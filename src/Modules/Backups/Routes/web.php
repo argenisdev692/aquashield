@@ -30,6 +30,10 @@ Route::middleware('web')->group(function (): void {
                 ->middleware(['permission:'.PermissionName::CreateBackup->value, 'throttle:3,1'])
                 ->name('run');
 
+            Route::get('/run-status', [BackupController::class, 'runStatus'])
+                ->middleware(['permission:'.PermissionName::ViewAnyBackup->value, 'throttle:30,1'])
+                ->name('run-status');
+
             // Static paths precede `{backup}` so the UUID constraint cannot
             // swallow `bulk-delete` or `export`.
             Route::post('/bulk-delete', [BackupController::class, 'bulkDelete'])

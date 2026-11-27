@@ -2,14 +2,14 @@
  * Backups/Show — single backup archive detail.
  * Connected to Inertia: props come from the Laravel controller via usePage().
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Database, Download, TriangleAlert } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Tag } from '@/Components/ui/tag';
 import { CrudDialog } from '@/Components/DataTable';
 import AppLayout from '@/Layouts/AppLayout';
-import { formatDateTime } from '@/lib/date';
+import { formatUtcDateTime } from '@/lib/date';
 
 type BackupArchive = Modules.Backups.Data.BackupArchiveData;
 type BackupActivity = Modules.Backups.Data.BackupActivityData;
@@ -26,6 +26,11 @@ type BackupPageProps = {
     };
 };
 
+const ACTION_TIMEOUT_MS = 30_000;
+const TIMEOUT_MESSAGE = 'The request timed out. Refresh the archive status and try again.';
+
+type PendingSetter = Dispatch<SetStateAction<boolean>>;
+
 export default function BackupsShow() {
     const page = usePage<BackupPageProps>();
     const { backup, activities, can, quarantineDays } = page.props;
@@ -36,10 +41,42 @@ export default function BackupsShow() {
     const [restoring, setRestoring] = useState(false);
     const [quarantining, setQuarantining] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
+    const actionTimeout = useRef<number | null>(null);
+    const cancelAction = useRef<(() => void) | null>(null);
+
+    const clearActionWatchdog = (): void => {
+        if (actionTimeout.current !== null) {
+            window.clearTimeout(actionTimeout.current);
+            actionTimeout.current = null;
+        }
+
+        cancelAction.current = null;
+    };
+
+    const watchAction = (setPending: PendingSetter): void => {
+        clearActionWatchdog();
+        setPending(true);
+        setActionError(null);
+        actionTimeout.current = window.setTimeout(() => {
+            cancelAction.current?.();
+        }, ACTION_TIMEOUT_MS);
+    };
+
+    const finishAction = (setPending: PendingSetter): void => {
+        clearActionWatchdog();
+        setPending(false);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (actionTimeout.current !== null) {
+                window.clearTimeout(actionTimeout.current);
+            }
+        };
+    }, []);
 
     const restore = () => {
-        setRestoring(true);
-        setActionError(null);
+        watchAction(setRestoring);
 
         // The web route is PATCH /backups/{uuid}/restore; PUT answers 405.
         router.patch(
@@ -47,15 +84,21 @@ export default function BackupsShow() {
             {},
             {
                 preserveScroll: true,
+                onCancelToken: (token) => {
+                    cancelAction.current = token.cancel;
+                },
+                onCancel: () => setActionError(TIMEOUT_MESSAGE),
                 onSuccess: () => {
                     router.visit('/backups');
                 },
                 onError: (errors) => {
                     setActionError(
-                        errors.backup ?? 'The archive could not be restored. Try again.',
+                        errors.uuids ??
+                            errors.backup ??
+                            'The archive could not be restored. Try again.',
                     );
                 },
-                onFinish: () => setRestoring(false),
+                onFinish: () => finishAction(setRestoring),
             },
         );
     };
@@ -66,19 +109,26 @@ export default function BackupsShow() {
     };
 
     const confirmQuarantine = () => {
-        setQuarantining(true);
-        setActionError(null);
+        watchAction(setQuarantining);
 
         router.delete(`/backups/${backup.uuid}`, {
             preserveScroll: true,
+            onCancelToken: (token) => {
+                cancelAction.current = token.cancel;
+            },
+            onCancel: () => setActionError(TIMEOUT_MESSAGE),
             onSuccess: () => {
                 setConfirmQuarantineOpen(false);
                 router.visit('/backups');
             },
             onError: (errors) => {
-                setActionError(errors.backup ?? 'The archive could not be quarantined. Try again.');
+                setActionError(
+                    errors.uuids ??
+                        errors.backup ??
+                        'The archive could not be quarantined. Try again.',
+                );
             },
-            onFinish: () => setQuarantining(false),
+            onFinish: () => finishAction(setQuarantining),
         });
     };
 
@@ -218,7 +268,7 @@ export default function BackupsShow() {
                                 </dt>
                                 <dd className="mt-0.5 text-sm text-surface-900 tabular-nums dark:text-surface-0">
                                     <time dateTime={backup.taken_at}>
-                                        {formatDateTime(backup.taken_at)}
+                                        {formatUtcDateTime(backup.taken_at)}
                                     </time>
                                 </dd>
                             </div>
@@ -287,7 +337,7 @@ export default function BackupsShow() {
                                                 className="ml-auto text-xs text-surface-600 tabular-nums dark:text-surface-300"
                                                 dateTime={entry.created_at}
                                             >
-                                                {formatDateTime(entry.created_at)}
+                                                {formatUtcDateTime(entry.created_at)}
                                             </time>
                                         </div>
                                         <p className="mt-1 text-xs text-surface-600 dark:text-surface-300">

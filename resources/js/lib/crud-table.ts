@@ -24,6 +24,7 @@ import {
     type TableSort,
 } from '@/lib/table';
 import { tablePreferencesKey } from '@/lib/table-preferences';
+import { cancelPendingReload, reloadCurrentPage } from '@/lib/visits';
 
 export interface CrudTableOptions {
     /** The list endpoint, e.g. `/users`. Also the prefix of its exports. */
@@ -143,6 +144,7 @@ export function useCrudTable({ endpoint, defaults }: CrudTableOptions): CrudTabl
     }, [url]);
 
     const visitUrl = (target: string, next: TableState, replace = false): void => {
+        cancelPendingReload(endpoint);
         desiredRef.current = next;
         setDesired(next);
         begin();
@@ -316,7 +318,7 @@ export function useBulkActions({
 
             // Reload the props the table renders; the URL (and therefore the
             // active filters) stays exactly where the user left it.
-            router.reload({
+            reloadCurrentPage({
                 only: ['rows', 'total', 'currentPage', 'perPage', 'filters'],
             });
 

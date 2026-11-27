@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Mockery\MockInterface;
 use Modules\Backups\Application\Ports\BackupRunLock;
+use Modules\Backups\Application\Ports\BackupRunStatusStore;
 use Modules\Backups\Application\Ports\DatabaseBackupRunner;
+use Modules\Backups\Domain\Enums\BackupRunStatus;
 use Modules\Backups\Domain\Exceptions\BackupRunFailed;
 use Modules\Backups\Jobs\RunDatabaseBackupJob;
 use Shared\Domain\Ports\AuditPort;
@@ -16,6 +18,16 @@ it('runs a database backup and records start and completion', function (): void 
     $this->mock(BackupRunLock::class, function (MockInterface $mock): void {
         $mock->shouldReceive('acquire')->once()->andReturnTrue();
         $mock->shouldReceive('release')->once();
+    });
+
+    $this->mock(BackupRunStatusStore::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('update')->twice()->withArgs(
+            fn (BackupRunStatus $status): bool => in_array(
+                $status,
+                [BackupRunStatus::Running, BackupRunStatus::Succeeded],
+                true,
+            ),
+        );
     });
 
     $this->mock(DatabaseBackupRunner::class, function (MockInterface $mock): void {
@@ -32,6 +44,7 @@ it('runs a database backup and records start and completion', function (): void 
         app(DatabaseBackupRunner::class),
         app(AuditPort::class),
         app(BackupRunLock::class),
+        app(BackupRunStatusStore::class),
     );
 });
 
@@ -39,6 +52,16 @@ it('records a failed run without copying the exception message', function (): vo
     $this->mock(BackupRunLock::class, function (MockInterface $mock): void {
         $mock->shouldReceive('acquire')->once()->andReturnTrue();
         $mock->shouldReceive('release')->once();
+    });
+
+    $this->mock(BackupRunStatusStore::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('update')->times(3)->withArgs(
+            fn (BackupRunStatus $status): bool => in_array(
+                $status,
+                [BackupRunStatus::Running, BackupRunStatus::Failed],
+                true,
+            ),
+        );
     });
 
     $this->mock(DatabaseBackupRunner::class, function (MockInterface $mock): void {
@@ -61,6 +84,7 @@ it('records a failed run without copying the exception message', function (): vo
         app(DatabaseBackupRunner::class),
         app(AuditPort::class),
         app(BackupRunLock::class),
+        app(BackupRunStatusStore::class),
     ))->toThrow(BackupRunFailed::class);
 
     $job->failed(BackupRunFailed::exitCode(1));
@@ -80,6 +104,10 @@ it('skips the run when another process holds the shared lock', function (): void
 
     $this->mock(DatabaseBackupRunner::class)->shouldNotReceive('run');
 
+    $this->mock(BackupRunStatusStore::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('update')->once()->with(BackupRunStatus::Skipped);
+    });
+
     $this->mock(AuditPort::class, function (MockInterface $mock): void {
         $mock->shouldReceive('log')
             ->once()
@@ -90,5 +118,6 @@ it('skips the run when another process holds the shared lock', function (): void
         app(DatabaseBackupRunner::class),
         app(AuditPort::class),
         app(BackupRunLock::class),
+        app(BackupRunStatusStore::class),
     );
 });

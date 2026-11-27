@@ -15,8 +15,10 @@ use Modules\Backups\Application\Actions\RestoreBackupsAction;
 use Modules\Backups\Application\Actions\RunDatabaseBackupAction;
 use Modules\Backups\Application\Ports\BackupActivityLog;
 use Modules\Backups\Application\Ports\BackupArchiveStore;
+use Modules\Backups\Application\Ports\BackupRunStatusStore;
 use Modules\Backups\Application\Queries\BackupIndexQuery;
 use Modules\Backups\Data\BackupFilterData;
+use Modules\Backups\Data\BackupRunStatusData;
 use Modules\Backups\Domain\Exceptions\BackupDeletionRefused;
 use Modules\Backups\Domain\Exceptions\BackupMoveInProgress;
 use Modules\Backups\Domain\Exceptions\BackupNotFound;
@@ -37,6 +39,7 @@ final readonly class BackupController
         private DeleteBackupsAction $deleteBackups,
         private RestoreBackupsAction $restoreBackups,
         private RunDatabaseBackupAction $runBackup,
+        private BackupRunStatusStore $runStatus,
     ) {}
 
     public function index(Request $request): JsonResponse|InertiaResponse
@@ -45,6 +48,7 @@ final readonly class BackupController
         $page = $this->backups->execute($filters);
         $actor = $request->user();
         $can = $this->abilities($actor);
+        $runStatus = $this->runStatus->current() ?? BackupRunStatusData::idle();
 
         if ($this->wantsJson($request)) {
             return response()->json([
@@ -55,6 +59,7 @@ final readonly class BackupController
                 'last_page' => $page->lastPage,
                 'filters' => $filters,
                 'can' => $can,
+                'run_status' => $runStatus,
             ]);
         }
 
@@ -67,6 +72,7 @@ final readonly class BackupController
             'filters' => $filters,
             'disks' => $this->archives->disks(),
             'can' => $can,
+            'runStatus' => $runStatus,
         ]);
     }
 
@@ -108,13 +114,16 @@ final readonly class BackupController
 
     public function run(Request $request): JsonResponse
     {
-        // 202 means "a run is scheduled", not "a new job was created": the job
-        // is `ShouldBeUnique`, so a second click while one is queued or running
-        // is absorbed. A 409 would need the framework's internal unique-lock
-        // key, which would be a second source of truth for the same lock.
-        $this->runBackup->execute($request->user());
+        // 202 means "a run is scheduled", not necessarily "a new job was
+        // created": ShouldBeUnique absorbs a duplicate while one is active.
+        $status = $this->runBackup->execute($request->user());
 
-        return response()->json(['status' => 'queued'], 202);
+        return response()->json($status, 202);
+    }
+
+    public function runStatus(): JsonResponse
+    {
+        return response()->json($this->runStatus->current() ?? BackupRunStatusData::idle());
     }
 
     public function destroy(Request $request, string $backup): Response

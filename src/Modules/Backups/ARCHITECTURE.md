@@ -34,7 +34,8 @@ the honest minimum. If either stop being true, demote.
 
 ## Boundaries and public contracts
 
-- Web routes: `GET /backups`, `GET /backups/{uuid}` (Inertia + JSON).
+- Web routes: `GET /backups`, `GET /backups/{uuid}` (Inertia + JSON),
+  `POST /backups/run`, and `GET /backups/run-status`.
 - REST routes (Sanctum, read-only, Scramble-documented): `GET /api/backups`,
   `GET /api/backups/{uuid}`. They reuse the web query and the same
   `BackupArchiveData`, and are guarded by the same `permission:*` middleware —
@@ -82,6 +83,8 @@ is an operator runbook, not HTTP. This is accepted debt, listed below.
    refusals are mapped to 422 in `BackupController::assertDomainOutcome`.
 4. `BackupArchiveStore` is the interface; `SpatieBackupArchiveStore` lives in
    `Infrastructure/Persistence/` and has a different name.
+   `BackupRunStatusStore` exposes the latest manual run lifecycle. Its cache
+   adapter is observability-only: cache failures never block a dump.
 5. Dependencies point inward. Infrastructure is the only layer that names
    spatie, `Storage`, `Cache`, `Artisan` and `Ramsey\Uuid`.
 6. No other module is touched. The audit and export ports come from `Shared`.
@@ -155,7 +158,8 @@ not deleting logic.
 - `Tests/Unit/RunBackupCommandTest.php` — the scheduled wrapper acquires the
   shared lock, audits start/completion and the failure class only.
 - `Tests/Unit/RunDatabaseBackupActionTest.php` — the job is queued even when
-  the audit write fails.
+  the audit write fails; duplicate requests retain the active run status.
+- `Tests/Unit/BackupRunStatusStoreTest.php` — cache-backed lifecycle projection.
 - `Tests/Feature/BackupEndpointTest.php` — 401/403/422 + index, search,
   pagination, delete/restore/bulk pair, download (step-up), export, run,
   activity, 503 on an unreachable destination, and the read-only REST API

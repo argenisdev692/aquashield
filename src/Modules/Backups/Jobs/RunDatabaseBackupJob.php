@@ -13,7 +13,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Modules\Backups\Application\Ports\BackupRunLock;
+use Modules\Backups\Application\Ports\BackupRunStatusStore;
 use Modules\Backups\Application\Ports\DatabaseBackupRunner;
+use Modules\Backups\Domain\Enums\BackupRunStatus;
 use Shared\Domain\Ports\AuditPort;
 use Throwable;
 
@@ -66,9 +68,14 @@ final class RunDatabaseBackupJob implements ShouldBeUnique, ShouldQueue
         ];
     }
 
-    public function handle(DatabaseBackupRunner $runner, AuditPort $audit, BackupRunLock $lock): void
-    {
+    public function handle(
+        DatabaseBackupRunner $runner,
+        AuditPort $audit,
+        BackupRunLock $lock,
+        BackupRunStatusStore $runStatus,
+    ): void {
         if (! $lock->acquire()) {
+            $runStatus->update(BackupRunStatus::Skipped);
             $audit->log('backup.skipped', null, [
                 'requested_by' => $this->requestedBy,
             ], $this->causer(), 'backups');
@@ -78,16 +85,22 @@ final class RunDatabaseBackupJob implements ShouldBeUnique, ShouldQueue
 
         try {
             $causer = $this->causer();
+            $runStatus->update(BackupRunStatus::Running);
 
             $audit->log('backup.started', null, [
                 'requested_by' => $this->requestedBy,
             ], $causer, 'backups');
 
             $runner->run();
+            $runStatus->update(BackupRunStatus::Succeeded);
 
             $audit->log('backup.completed', null, [
                 'requested_by' => $this->requestedBy,
             ], $causer, 'backups');
+        } catch (Throwable $exception) {
+            $runStatus->update(BackupRunStatus::Failed);
+
+            throw $exception;
         } finally {
             $lock->release();
         }
@@ -95,6 +108,8 @@ final class RunDatabaseBackupJob implements ShouldBeUnique, ShouldQueue
 
     public function failed(Throwable $exception): void
     {
+        app(BackupRunStatusStore::class)->update(BackupRunStatus::Failed);
+
         // Only the class name crosses into the audit trail and the log line.
         // mysqldump/pg_dump errors can echo connection arguments, and those may
         // contain credentials (OWASP A04/A09).

@@ -36,7 +36,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/Components/ui/select';
-import { formatIsoDate, toIsoDate } from '@/lib/date';
+import { formatIsoDate, todayIso, toIsoDate } from '@/lib/date';
 import { OPTION_PREVIEW_LIMIT, previewOptions } from '@/lib/options';
 import type { TableFilters, TableFilterValue, TableState } from '@/lib/table';
 import { cn } from '@/lib/utils';
@@ -80,6 +80,8 @@ export type CrudFilterDef =
           fromKey?: string;
           toKey?: string;
           presets?: boolean;
+          /** Timezone used to build calendar presets, e.g. `UTC`. */
+          timeZone?: string;
       };
 
 interface CrudFiltersProps {
@@ -565,7 +567,37 @@ const PRESETS: readonly { value: DatePreset; label: string }[] = [
     { value: 'all', label: 'All time' },
 ];
 
-const presetRange = (preset: DatePreset): { from: string | null; to: string | null } => {
+export const presetRange = (
+    preset: DatePreset,
+    timeZone?: string,
+): { from: string | null; to: string | null } => {
+    if (timeZone !== undefined) {
+        const today = todayIso(timeZone);
+        const [year, month] = today.split('-').map(Number);
+
+        switch (preset) {
+            case 'last7':
+            case 'last30': {
+                const start = new Date(`${today}T00:00:00Z`);
+                start.setUTCDate(start.getUTCDate() - (preset === 'last7' ? 6 : 29));
+
+                return { from: start.toISOString().slice(0, 10), to: today };
+            }
+
+            case 'month':
+                return {
+                    from: `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-01`,
+                    to: today,
+                };
+
+            case 'year':
+                return { from: `${String(year).padStart(4, '0')}-01-01`, to: today };
+
+            default:
+                return { from: null, to: null };
+        }
+    }
+
     const today = new Date();
 
     switch (preset) {
@@ -617,7 +649,7 @@ function DateRangeFilter({
             return false;
         }
 
-        const range = presetRange(preset.value);
+        const range = presetRange(preset.value, def.timeZone);
 
         return range.from === valueFrom && range.to === valueTo;
     });
@@ -639,7 +671,7 @@ function DateRangeFilter({
             return;
         }
 
-        const range = presetRange(preset as DatePreset);
+        const range = presetRange(preset as DatePreset, def.timeZone);
         onChange({ [fromKey]: range.from, [toKey]: range.to });
     };
 
