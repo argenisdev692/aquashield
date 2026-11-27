@@ -69,6 +69,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
         <AppLayout title="Edit user">
             <Head title={`Edit ${user.name}`} />
 
+            {/* No `mx-auto`: same left-edge alignment as the "Edit user" title. */}
             <form
                 onSubmit={(event) => {
                     event.preventDefault();
@@ -81,7 +82,7 @@ export default function UsersEdit({ user, googleMapsApiKey }: EditUserPageProps)
                         form.put(`/users/${user.uuid}`, { preserveScroll: true });
                     });
                 }}
-                className="mx-auto flex max-w-4xl flex-col gap-6"
+                className="flex max-w-4xl flex-col gap-6"
                 noValidate
             >
                 <div className="flex flex-wrap items-center gap-3">

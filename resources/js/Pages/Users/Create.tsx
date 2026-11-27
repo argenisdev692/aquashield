@@ -91,7 +91,11 @@ export default function UsersCreate({ catalog, googleMapsApiKey }: CreateUserPag
         <AppLayout title="Create user">
             <Head title="Create user" />
 
-            <form onSubmit={onSubmit} className="mx-auto flex max-w-4xl flex-col gap-6" noValidate>
+            {/* No `mx-auto`: the AppLayout title spans the full main width, so a
+                centered column left the "Create user" heading floating away from
+                the form's left edge. The width cap stays; the column starts where
+                the title does. */}
+            <form onSubmit={onSubmit} className="flex max-w-4xl flex-col gap-6" noValidate>
                 <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <Card>

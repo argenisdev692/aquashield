@@ -72,6 +72,8 @@ export default function StickyFormBar({
                 </p>
             </div>
 
+            {/* Secondary actions pin AppButton's h-11 action height — the same
+                pairing FormActions and FormOverlay use. */}
             <div className="flex flex-col gap-2 sm:flex-row">
                 {onDiscard ? (
                     <Button
@@ -79,6 +81,7 @@ export default function StickyFormBar({
                         variant="outline"
                         disabled={!isDirty || processing}
                         onClick={onDiscard}
+                        className="h-11 min-w-28 rounded-md"
                     >
                         {discardLabel}
                     </Button>
@@ -90,6 +93,7 @@ export default function StickyFormBar({
                         variant="outline"
                         disabled={processing}
                         onClick={onCancel}
+                        className="h-11 min-w-28 rounded-md"
                     >
                         {cancelLabel}
                     </Button>

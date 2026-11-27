@@ -182,16 +182,24 @@ export default function ConfirmPasswordDialog({
                         required
                     />
 
+                    {/* Secondary actions pin AppButton's h-11 action height —
+                        the same pairing FormActions and FormOverlay use. */}
                     <DialogFooter>
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => close(false)}
                             disabled={locked}
+                            className="h-11 min-w-28 rounded-md"
                         >
                             Cancel
                         </Button>
-                        <AppButton type="submit" loading={busy} disabled={passkeyBusy}>
+                        <AppButton
+                            type="submit"
+                            loading={busy}
+                            disabled={passkeyBusy}
+                            className="min-w-28"
+                        >
                             Confirm password
                         </AppButton>
                     </DialogFooter>

@@ -114,7 +114,8 @@ export default function UsersShow({
         <AppLayout title="User profile">
             <Head title={user.name} />
 
-            <div className="mx-auto flex max-w-4xl flex-col gap-6">
+            {/* No `mx-auto`: same left-edge alignment as the "User profile" title. */}
+            <div className="flex max-w-4xl flex-col gap-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex flex-col gap-2">
                         <div className="flex flex-wrap items-center gap-2">
