@@ -97,7 +97,8 @@ final class R2CompanyAssetStorage
             $this->storage->delete($key);
         } catch (Throwable) {
             // A failed cleanup must not roll back a save that already points at
-            // the new object. The orphan is bounded by the four asset slots.
+            // the new object. Orphans are best-effort debt and can be reconciled
+            // by a storage lifecycle policy.
         }
     }
 

@@ -52,6 +52,8 @@ final class CompanyDataDto extends Data
         public readonly ?string $linkedinLink = null,
         public readonly ?string $twitterLink = null,
         public readonly ?string $tiktokLink = null,
+        #[MapOutputName('updated_at')]
+        public readonly ?string $updatedAt = null,
         public readonly ?string $logoPath = null,
         public readonly ?string $logoWhitePath = null,
         public readonly ?string $markPath = null,

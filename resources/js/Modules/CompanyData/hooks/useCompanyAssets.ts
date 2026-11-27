@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { xsrfToken } from '@/lib/http';
 
 /**
@@ -29,6 +29,7 @@ export interface CompanyAssetsController {
 }
 
 const ENDPOINT = '/company-data/assets';
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Error carrying the message the server wants the user to read. */
 export class CompanyAssetRequestError extends Error {
@@ -72,6 +73,10 @@ const isCompanyAssets = (value: unknown): value is CompanyAssets =>
     isNullableString(value.signature_url);
 
 function messageFrom(payload: unknown, status: number): string {
+    if (status === 419) {
+        return 'Your session expired. Reload the page and try again.';
+    }
+
     // A 5xx body may carry an exception message; never surface it (same rule
     // as lib/http.ts). Field errors and 4xx copy are app-authored.
     if (status < 500 && isRecord(payload)) {
@@ -86,9 +91,7 @@ function messageFrom(payload: unknown, status: number): string {
         }
     }
 
-    return status === 419
-        ? 'Your session expired. Reload the page and try again.'
-        : 'The upload failed. Try again.';
+    return 'The upload failed. Try again.';
 }
 
 export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsController {
@@ -109,12 +112,36 @@ export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsControlle
 
     /** The last failure, in the words the server chose. One panel, one message. */
     const [error, setError] = useState<string | null>(null);
+    const inFlight = useRef<AbortController | null>(null);
+    const requestSequence = useRef(0);
+    const mounted = useRef(true);
+
+    useEffect(() => {
+        mounted.current = true;
+
+        return () => {
+            mounted.current = false;
+            requestSequence.current += 1;
+            inFlight.current?.abort();
+            inFlight.current = null;
+        };
+    }, []);
 
     const request = async (
         kind: CompanyAssetKind,
         method: 'POST' | 'DELETE',
         body?: FormData,
     ): Promise<boolean> => {
+        // A ref closes the same-tick gap before React commits `pending`.
+        if (inFlight.current !== null) {
+            return false;
+        }
+
+        const controller = new AbortController();
+        const sequence = ++requestSequence.current;
+        const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        inFlight.current = controller;
+
         setPending(kind);
         setError(null);
 
@@ -123,6 +150,7 @@ export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsControlle
                 method,
                 body,
                 credentials: 'same-origin',
+                signal: controller.signal,
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -130,7 +158,15 @@ export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsControlle
                 },
             });
 
+            if (!mounted.current || sequence !== requestSequence.current) {
+                return false;
+            }
+
             const payload: unknown = await response.json().catch(() => null);
+
+            if (!mounted.current || sequence !== requestSequence.current) {
+                return false;
+            }
 
             if (!response.ok) {
                 throw new CompanyAssetRequestError(messageFrom(payload, response.status));
@@ -144,15 +180,33 @@ export function useCompanyAssets(initial: CompanyAssets): CompanyAssetsControlle
 
             return true;
         } catch (caught) {
-            setError(
-                caught instanceof CompanyAssetRequestError
-                    ? caught.message
-                    : 'The upload failed. Try again.',
-            );
+            if (!mounted.current || sequence !== requestSequence.current) {
+                return false;
+            }
+
+            if (controller.signal.aborted) {
+                setError('The asset request timed out. Try again.');
+            } else {
+                setError(
+                    caught instanceof CompanyAssetRequestError
+                        ? caught.message
+                        : method === 'DELETE'
+                          ? 'The asset removal failed. Try again.'
+                          : 'The upload failed. Try again.',
+                );
+            }
 
             return false;
         } finally {
-            setPending(null);
+            window.clearTimeout(timeout);
+
+            if (sequence === requestSequence.current) {
+                inFlight.current = null;
+
+                if (mounted.current) {
+                    setPending(null);
+                }
+            }
         }
     };
 

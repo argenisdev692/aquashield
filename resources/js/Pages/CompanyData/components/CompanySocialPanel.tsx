@@ -12,10 +12,11 @@ import TextField from '@/Components/Forms/TextField';
 import type { CompanyProfileForm } from '@/Modules/CompanyData/schemas/companyProfile';
 
 interface CompanySocialPanelProps {
-    form: InertiaForm<CompanyProfileForm>;
+    form: Pick<InertiaForm<CompanyProfileForm>, 'data'>;
     errors: Partial<Record<string, string>>;
     onBlur: (field: keyof CompanyProfileForm) => void;
     readOnly: boolean;
+    setField: (field: keyof CompanyProfileForm, value: string) => void;
 }
 
 const SOCIAL_FIELDS: readonly {
@@ -43,6 +44,7 @@ export default function CompanySocialPanel({
     errors,
     onBlur,
     readOnly,
+    setField,
 }: CompanySocialPanelProps) {
     return (
         <div className="flex flex-col gap-6">
@@ -58,7 +60,7 @@ export default function CompanySocialPanel({
                         name={field}
                         type="url"
                         value={form.data[field]}
-                        onChange={(value) => form.setData(field, value)}
+                        onChange={(value) => setField(field, value)}
                         onBlur={() => onBlur(field)}
                         error={errors[field]}
                         hint="Full URL, including https://. Leave empty to hide the network."

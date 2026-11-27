@@ -93,7 +93,12 @@ if (cspNonce) {
 createInertiaApp({
     nonce: cspNonce,
     resolve: (name) => {
-        const pages = import.meta.glob<InertiaPageModule>('./Pages/**/*.tsx');
+        // Test modules live beside pages for Vitest, but they are not Inertia
+        // entry points and must never become production chunks.
+        const pages = import.meta.glob<InertiaPageModule>([
+            './Pages/**/*.tsx',
+            '!./Pages/**/*.test.tsx',
+        ]);
         const pagePath = `./Pages/${name}.tsx`;
         const pageImport = pages[pagePath];
 

@@ -146,8 +146,17 @@ export default function AppLayout({ title, subtitle, actions, children }: AppLay
                 target instanceof HTMLElement &&
                 (target.isContentEditable ||
                     ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+            const otherModalOpen =
+                document.querySelector(
+                    '[role="dialog"][aria-modal="true"]:not([data-slot="command-palette"])',
+                ) !== null;
 
-            if (event.repeat || editing || document.querySelector('[data-session-idle]') !== null) {
+            if (
+                event.repeat ||
+                editing ||
+                otherModalOpen ||
+                document.querySelector('[data-session-idle]') !== null
+            ) {
                 return;
             }
 

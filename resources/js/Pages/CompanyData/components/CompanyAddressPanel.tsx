@@ -30,10 +30,12 @@ type AddressField = 'city' | 'state' | 'zip_code' | 'country';
 
 interface CompanyAddressPanelProps {
     apiKey: string;
-    form: InertiaForm<CompanyProfileForm>;
+    form: Pick<InertiaForm<CompanyProfileForm>, 'data'>;
     errors: Partial<Record<string, string>>;
     onBlur: (field: keyof CompanyProfileForm) => void;
     canUpdate: boolean;
+    setField: (field: keyof CompanyProfileForm, value: string) => void;
+    setFields: (patch: Partial<CompanyProfileForm>) => void;
 }
 
 interface LockedFieldProps {
@@ -109,6 +111,8 @@ export default function CompanyAddressPanel({
     errors,
     onBlur,
     canUpdate,
+    setField,
+    setFields,
 }: CompanyAddressPanelProps) {
     /*
      * Initial lock set: a derived field that already holds a value is treated
@@ -170,12 +174,11 @@ export default function CompanyAddressPanel({
 
     const onAddressInput = (next: string): void => {
         // A manually edited street line no longer matches the stored point.
-        form.setData((previous) => ({
-            ...previous,
+        setFields({
             address: next,
             latitude: '',
             longitude: '',
-        }));
+        });
         setAutofilled(false);
     };
 
@@ -191,14 +194,13 @@ export default function CompanyAddressPanel({
          * One merge, not a replacement. Inertia v3 replaces the whole payload
          * for an object `setData`, which discarded every other company field.
          */
-        form.setData((previous) => ({
-            ...previous,
+        setFields({
             address: selection.address,
             ...derived,
             country_code: 'US',
             latitude: coordinate(selection.latitude),
             longitude: coordinate(selection.longitude),
-        }));
+        });
 
         setLocked(
             new Set(
@@ -210,6 +212,18 @@ export default function CompanyAddressPanel({
         setLastUnlocked(null);
         setOverride(false);
         setAutofilled(true);
+    };
+
+    const updateAddressField = (field: AddressField, value: string): void => {
+        const patch: Partial<CompanyProfileForm> = { latitude: '', longitude: '' };
+        patch[field] = value;
+
+        if (field === 'country') {
+            patch.country_code = '';
+        }
+
+        setFields(patch);
+        setAutofilled(false);
     };
 
     return (
@@ -273,7 +287,7 @@ export default function CompanyAddressPanel({
                 label="Address line 2"
                 name="address_2"
                 value={form.data.address_2}
-                onChange={(value) => form.setData('address_2', value)}
+                onChange={(value) => setField('address_2', value)}
                 onBlur={() => onBlur('address_2')}
                 error={errors.address_2}
                 hint="Apartment, suite, unit or building. This field is never overwritten by autocomplete."
@@ -299,15 +313,7 @@ export default function CompanyAddressPanel({
                                 label={label}
                                 name={field}
                                 value={form.data[field]}
-                                onChange={(value) =>
-                                    field === 'country'
-                                        ? form.setData((previous) => ({
-                                              ...previous,
-                                              country: value,
-                                              country_code: '',
-                                          }))
-                                        : form.setData(field, value)
-                                }
+                                onChange={(value) => updateAddressField(field, value)}
                                 onBlur={() => onBlur(field)}
                                 error={errors[field]}
                                 autocomplete={autocomplete}

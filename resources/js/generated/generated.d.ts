@@ -335,6 +335,7 @@ declare namespace Modules {
                 readonly linkedin_link: string | null;
                 readonly twitter_link: string | null;
                 readonly tiktok_link: string | null;
+                readonly updated_at: string | null;
                 readonly logo_path: string | null;
                 readonly logo_white_path: string | null;
                 readonly mark_path: string | null;
@@ -374,6 +375,7 @@ declare namespace Modules {
                 readonly linkedin_link: string | null;
                 readonly twitter_link: string | null;
                 readonly tiktok_link: string | null;
+                readonly updated_at: string | null;
             };
         }
         namespace Enums {

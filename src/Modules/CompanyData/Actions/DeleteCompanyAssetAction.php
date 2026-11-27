@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\CompanyData\Actions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Modules\CompanyData\Enums\CompanyAsset;
 use Modules\CompanyData\Models\CompanyData;
@@ -22,16 +23,28 @@ final class DeleteCompanyAssetAction
 
     public function execute(CompanyData $company, CompanyAsset $asset): CompanyData
     {
-        $previous = $company->getAttribute($asset->column());
+        /** @var array{CompanyData, string|null} $result */
+        $result = DB::transaction(static function () use ($asset): array {
+            $locked = CompanyData::query()
+                ->oldest('id')
+                ->lockForUpdate()
+                ->first();
 
-        $company->setAttribute($asset->column(), null);
+            if ($locked === null) {
+                throw (new ModelNotFoundException)->setModel(CompanyData::class);
+            }
 
-        // Same split as the upload: the row + activity entry commit together,
-        // the object deletion happens after the row stops pointing at it.
-        DB::transaction(static fn () => $company->save());
+            $previous = $locked->getAttribute($asset->column());
+            $locked->setAttribute($asset->column(), null);
+            $locked->save();
 
-        $this->storage->forget(is_string($previous) ? $previous : null);
+            return [$locked, is_string($previous) ? $previous : null];
+        });
 
-        return $company;
+        [$updated, $previous] = $result;
+
+        $this->storage->forget($previous);
+
+        return $updated;
     }
 }

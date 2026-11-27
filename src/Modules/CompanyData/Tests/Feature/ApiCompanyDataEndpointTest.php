@@ -101,6 +101,7 @@ it('answers 404 when the unprovisioned singleton is updated', function (): void 
         'name' => 'Victor Lara',
         'company_name' => 'AquaShield Restoration USA',
         'email' => 'info@aquashieldrestorationusa.com',
+        'updated_at' => now()->toJSON(),
     ])->assertNotFound();
 
     $this->assertDatabaseCount('company_data', 0);
@@ -117,6 +118,7 @@ it('updates the provisioned singleton with a token and the update permission', f
         'name' => 'Victor Lara',
         'company_name' => 'AquaShield Restoration LLC',
         'email' => 'info@aquashieldrestorationusa.com',
+        'updated_at' => $company->updated_at?->toJSON(),
     ])->assertOk()->assertJsonPath('company_name', 'AquaShield Restoration LLC');
 
     $this->assertDatabaseCount('company_data', 1);

@@ -163,8 +163,9 @@ Neither is decidable from source.
 Primitives are **copies in your repo**, not an npm component library. `npx shadcn@latest add
 <name>` writes them and they are committed.
 
-- **Base UI is the default (since July 2026).** Primitives import from `@base-ui/react/*`. Radix is
-  not installed; do not add it.
+- **Base UI is the default (since July 2026).** Primitives import from `@base-ui/react/*`. No direct
+  Radix primitive is installed; `cmdk` remains the documented transitive Radix exception for the
+  command palette. Do not add new Radix primitives.
 - The generated file is the place to customise. A call-site `className` that fights the primitive's
   own variants is the React equivalent of the old inline `pt` override — invisible to the next
   registry update and silently defeats the token layer.

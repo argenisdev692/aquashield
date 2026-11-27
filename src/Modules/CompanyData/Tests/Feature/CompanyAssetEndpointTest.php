@@ -6,6 +6,8 @@ use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Modules\CompanyData\Actions\StoreCompanyAssetAction;
+use Modules\CompanyData\Enums\CompanyAsset;
 use Modules\CompanyData\Models\CompanyData;
 use Modules\CompanyData\Tests\Support\FakeStoragePort;
 use Shared\Domain\Ports\StoragePort;
@@ -146,6 +148,43 @@ it('deletes the previous object only after the row points at the new one', funct
     expect($second)->not->toBe($first)
         ->and($this->storage->deleted)->toBe([$first])
         ->and($this->storage->exists($first))->toBeFalse();
+});
+
+it('derives replacement cleanup from a fresh locked row instead of a stale controller model', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+    $company = assetCompanyRecord($this->user);
+    $stale = CompanyData::query()->firstOrFail();
+
+    $company->forceFill(['logo_path' => 'company/'.$company->uuid.'/logo-current.webp'])->save();
+
+    app(StoreCompanyAssetAction::class)->execute(
+        $stale,
+        CompanyAsset::LOGO,
+        UploadedFile::fake()->image('fresh.png', 200, 200),
+    );
+
+    expect($this->storage->deleted)->toContain('company/'.$company->uuid.'/logo-current.webp');
+    expect($company->refresh()->logo_path)->not->toBe('company/'.$company->uuid.'/logo-current.webp');
+});
+
+it('removes a newly uploaded object when the database save fails', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+    $company = assetCompanyRecord($this->user);
+
+    CompanyData::saving(static function (CompanyData $model): void {
+        if ($model->isDirty('logo_path')) {
+            throw new RuntimeException('database save failed');
+        }
+    });
+
+    expect(fn () => app(StoreCompanyAssetAction::class)->execute(
+        $company,
+        CompanyAsset::LOGO,
+        UploadedFile::fake()->image('fresh.png', 200, 200),
+    ))->toThrow(RuntimeException::class, 'database save failed');
+
+    expect($this->storage->objects)->toBe([])
+        ->and($this->storage->deleted)->toHaveCount(1);
 });
 
 it('rejects a file that is not a raster image', function (): void {

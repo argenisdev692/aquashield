@@ -34,6 +34,7 @@ import type {
 interface CompanyBrandingPanelProps {
     controller: CompanyAssetsController;
     canUpdate: boolean;
+    disabled?: boolean;
 }
 
 interface AssetDefinition {
@@ -81,6 +82,7 @@ interface AssetCardProps {
     assets: CompanyAssets;
     canUpdate: boolean;
     pending: CompanyAssetKind | null;
+    disabled: boolean;
     onUpload: (kind: CompanyAssetKind, file: File) => Promise<boolean>;
     onRequestRemove: (definition: AssetDefinition) => void;
 }
@@ -90,6 +92,7 @@ function AssetCard({
     assets,
     canUpdate,
     pending,
+    disabled,
     onUpload,
     onRequestRemove,
 }: AssetCardProps) {
@@ -100,7 +103,7 @@ function AssetCard({
     const [previewFailed, setPreviewFailed] = useState(false);
 
     const url = definition.url(assets);
-    const busy = pending !== null;
+    const busy = pending !== null || disabled;
     const uploading = pending === definition.kind;
     const selected = files[0];
     const drawable = definition.kind === 'signature';
@@ -281,13 +284,17 @@ function AssetCard({
     );
 }
 
-export default function CompanyBrandingPanel({ controller, canUpdate }: CompanyBrandingPanelProps) {
+export default function CompanyBrandingPanel({
+    controller,
+    canUpdate,
+    disabled = false,
+}: CompanyBrandingPanelProps) {
     const { assets, pending, error, upload, remove } = controller;
     const [removeTarget, setRemoveTarget] = useState<AssetDefinition | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
 
     const confirmRemove = async (): Promise<void> => {
-        if (removeTarget === null) {
+        if (removeTarget === null || disabled) {
             return;
         }
 
@@ -300,7 +307,7 @@ export default function CompanyBrandingPanel({ controller, canUpdate }: CompanyB
         }
     };
 
-    const busy = pending !== null;
+    const busy = pending !== null || disabled;
 
     return (
         <div className="flex flex-col gap-5">
@@ -335,6 +342,7 @@ export default function CompanyBrandingPanel({ controller, canUpdate }: CompanyB
                         assets={assets}
                         canUpdate={canUpdate}
                         pending={pending}
+                        disabled={disabled}
                         onUpload={upload}
                         onRequestRemove={(target) => {
                             setNotice(null);
@@ -346,8 +354,8 @@ export default function CompanyBrandingPanel({ controller, canUpdate }: CompanyB
 
             {!canUpdate && (
                 <p className="text-xs text-surface-500 dark:text-surface-300">
-                    Brand assets are managed by a super admin. All four current files are visible
-                    here.
+                    Brand assets are managed by users with the Company update permission. All four
+                    current files are visible here.
                 </p>
             )}
 

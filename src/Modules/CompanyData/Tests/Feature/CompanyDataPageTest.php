@@ -90,13 +90,14 @@ it('flags canUpdate for a user with the update permission', function (): void {
 
 it('redirects the Inertia form back to the edit screen and persists the profile', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
-    pageCompanyRecord($this->user);
+    $company = pageCompanyRecord($this->user);
 
     $this->actingAs($this->user)
         ->put('/company-data', [
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration LLC',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => $company->updated_at?->toJSON(),
             'city' => 'Houston',
         ])
         ->assertRedirect(route('company-data.edit'));

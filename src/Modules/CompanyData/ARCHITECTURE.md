@@ -36,6 +36,19 @@ demoted on 2026-11-22 and the files moved — the logic was not deleted.
 - `Enums/CompanyAsset.php`, `Support/R2CompanyAssetStorage.php`.
 - `Http/`, `Routes/{web,api}.php`, `Providers/`, `Tests/`.
 
+## Write consistency
+
+- Profile updates carry the DTO's `updated_at` token. The action compares it
+  under the singleton row lock and returns `409` when another session has
+  already committed a newer profile.
+- Asset storage I/O stays outside database transactions. The transaction
+  re-reads and locks the singleton before changing the pointer; replacement
+  cleanup uses that fresh row, and a failed save compensates by deleting the
+  newly uploaded object.
+- Branding cache keys include a fingerprint of the committed company row, so a
+  pre-commit reader can only populate the previous version. Model listeners
+  invalidate the legacy cache key after commit.
+
 ## Accepted debt
 
 - `R2CompanyAssetStorage` reaches R2 through `Shared\Domain\Ports\StoragePort`.

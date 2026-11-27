@@ -4149,6 +4149,12 @@
                             "null"
                         ]
                     },
+                    "updated_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "logo_path": {
                         "type": [
                             "string",
@@ -5432,6 +5438,10 @@
                         "format": "email",
                         "maxLength": 255
                     },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "phone": {
                         "type": [
                             "string",
@@ -5611,7 +5621,8 @@
                 "required": [
                     "name",
                     "company_name",
-                    "email"
+                    "email",
+                    "updated_at"
                 ],
                 "title": "UpdateCompanyDataRequest"
             },

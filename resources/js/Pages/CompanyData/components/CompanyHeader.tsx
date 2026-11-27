@@ -46,7 +46,7 @@ export default function CompanyHeader({ company, assets, canUpdate }: CompanyHea
                         </h2>
 
                         <Tag variant={canUpdate ? 'success' : 'outline'}>
-                            {canUpdate ? 'Super admin' : 'View only'}
+                            {canUpdate ? 'Can edit' : 'View only'}
                         </Tag>
 
                         <Tag variant={verifiedAddress ? 'success' : 'outline'}>

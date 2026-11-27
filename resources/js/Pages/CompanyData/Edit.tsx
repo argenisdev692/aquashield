@@ -18,7 +18,9 @@ import AppButton from '@/Components/Forms/AppButton';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/Components/ui/tabs';
-import { useZodForm, focusFieldByName } from '@/lib/forms';
+import { useUnsavedChangesWarning, useZodForm, focusFieldByName } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
+import CrudDialog from '@/Components/DataTable/CrudDialog';
 import { cn } from '@/lib/utils';
 import {
     companyProfileSchema,
@@ -126,7 +128,7 @@ export default function CompanyDataEdit({
     const [tab, setTab] = useState<TabValue>(tabFromHash);
     const [focusTarget, setFocusTarget] = useState<string | null>(null);
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch, setField, setFields } = useZodForm({
         initial: toCompanyProfileForm(company),
         schema: companyProfileSchema,
     });
@@ -136,6 +138,9 @@ export default function CompanyDataEdit({
      * panel read the same URLs after an upload. The hook still owns the request.
      */
     const companyAssets = useCompanyAssets(assets);
+
+    useUnsavedChangesWarning(form.isDirty);
+    const navigationGuard = useNavigationGuard(form.isDirty);
 
     useEffect(() => {
         const syncFromHash = (): void => setTab(tabFromHash());
@@ -184,7 +189,7 @@ export default function CompanyDataEdit({
         submit(() => {
             form.put('/company-data', {
                 preserveScroll: true,
-                onSuccess: () => form.setDefaults(),
+                preserveState: 'errors',
             });
         });
     };
@@ -208,17 +213,23 @@ export default function CompanyDataEdit({
                         <Lock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                         <p>
                             <span className="font-medium">View-only access.</span> Company details
-                            and brand assets are managed by a super admin. Every section stays
-                            available for reading.
+                            and brand assets are managed by users with the Company update
+                            permission. Every section stays available for reading.
                         </p>
                     </div>
                 )}
 
-                <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
+                <form
+                    onSubmit={onSubmit}
+                    className="flex flex-col gap-6"
+                    noValidate
+                    inert={form.processing}
+                >
                     <FormErrorSummary
                         errors={errors}
                         labels={FIELD_LABELS}
                         onFieldFocus={focusField}
+                        submitAttempts={submitAttempts}
                     />
 
                     <Tabs value={tab} onValueChange={changeTab}>
@@ -259,6 +270,7 @@ export default function CompanyDataEdit({
                                     errors={errors}
                                     onBlur={touch}
                                     readOnly={readOnly}
+                                    setField={setField}
                                 />
                             </div>
                         </TabsPanel>
@@ -271,6 +283,8 @@ export default function CompanyDataEdit({
                                     errors={errors}
                                     onBlur={touch}
                                     canUpdate={canUpdate}
+                                    setField={setField}
+                                    setFields={setFields}
                                 />
                             </div>
                         </TabsPanel>
@@ -282,6 +296,7 @@ export default function CompanyDataEdit({
                                     errors={errors}
                                     onBlur={touch}
                                     readOnly={readOnly}
+                                    setField={setField}
                                 />
                             </div>
                         </TabsPanel>
@@ -293,6 +308,7 @@ export default function CompanyDataEdit({
                                     errors={errors}
                                     onBlur={touch}
                                     readOnly={readOnly}
+                                    setField={setField}
                                 />
                             </div>
                         </TabsPanel>
@@ -302,6 +318,7 @@ export default function CompanyDataEdit({
                                 <CompanyBrandingPanel
                                     controller={companyAssets}
                                     canUpdate={canUpdate}
+                                    disabled={form.processing}
                                 />
                             </div>
                         </TabsPanel>
@@ -345,7 +362,7 @@ export default function CompanyDataEdit({
                                 <AppButton
                                     type="submit"
                                     loading={form.processing}
-                                    disabled={!form.isDirty}
+                                    disabled={!form.isDirty || companyAssets.pending !== null}
                                 >
                                     Save changes
                                 </AppButton>
@@ -353,6 +370,25 @@ export default function CompanyDataEdit({
                         </div>
                     )}
                 </form>
+
+                <CrudDialog
+                    open={navigationGuard.pendingUrl !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            navigationGuard.cancelLeave();
+                        }
+                    }}
+                    title="Discard changes?"
+                    description="This company profile has unsaved changes. Leaving now discards them."
+                    confirmLabel="Discard changes"
+                    cancelLabel="Keep editing"
+                    confirmVariant="destructive"
+                    onConfirm={navigationGuard.confirmLeave}
+                >
+                    <p className="text-sm text-surface-700 dark:text-surface-200">
+                        The unsaved company profile and billing details will be lost.
+                    </p>
+                </CrudDialog>
             </div>
         </AppLayout>
     );

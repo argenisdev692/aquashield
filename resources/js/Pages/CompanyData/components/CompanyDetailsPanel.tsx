@@ -16,10 +16,11 @@ import { isCountryCode } from '@/lib/phone';
 import type { CompanyProfileForm } from '@/Modules/CompanyData/schemas/companyProfile';
 
 interface CompanyDetailsPanelProps {
-    form: InertiaForm<CompanyProfileForm>;
+    form: Pick<InertiaForm<CompanyProfileForm>, 'data'>;
     errors: Partial<Record<string, string>>;
     onBlur: (field: keyof CompanyProfileForm) => void;
     readOnly: boolean;
+    setField: (field: keyof CompanyProfileForm, value: string) => void;
 }
 
 export default function CompanyDetailsPanel({
@@ -27,6 +28,7 @@ export default function CompanyDetailsPanel({
     errors,
     onBlur,
     readOnly,
+    setField,
 }: CompanyDetailsPanelProps) {
     /*
      * The address country seeds the phone picker when the record has no phone
@@ -46,7 +48,7 @@ export default function CompanyDetailsPanel({
                     label="Contact name"
                     name="name"
                     value={form.data.name}
-                    onChange={(value) => form.setData('name', value)}
+                    onChange={(value) => setField('name', value)}
                     onBlur={() => onBlur('name')}
                     error={errors.name}
                     hint="The person AquaShield correspondence is addressed to."
@@ -58,7 +60,7 @@ export default function CompanyDetailsPanel({
                     label="Legal company name"
                     name="company_name"
                     value={form.data.company_name}
-                    onChange={(value) => form.setData('company_name', value)}
+                    onChange={(value) => setField('company_name', value)}
                     onBlur={() => onBlur('company_name')}
                     error={errors.company_name}
                     hint="Printed on contracts, invoices and public pages."
@@ -71,7 +73,7 @@ export default function CompanyDetailsPanel({
                     name="email"
                     type="email"
                     value={form.data.email}
-                    onChange={(value) => form.setData('email', value)}
+                    onChange={(value) => setField('email', value)}
                     onBlur={() => onBlur('email')}
                     error={errors.email}
                     hint="Where customer replies and system notices are sent."
@@ -85,7 +87,7 @@ export default function CompanyDetailsPanel({
                     label="Phone"
                     name="phone"
                     value={form.data.phone}
-                    onChange={(value) => form.setData('phone', value)}
+                    onChange={(value) => setField('phone', value)}
                     onBlur={() => onBlur('phone')}
                     error={errors.phone}
                     hint="Pick the country, then type the number. It is stored in E.164."
@@ -105,7 +107,7 @@ export default function CompanyDetailsPanel({
                     name="website"
                     type="url"
                     value={form.data.website}
-                    onChange={(value) => form.setData('website', value)}
+                    onChange={(value) => setField('website', value)}
                     onBlur={() => onBlur('website')}
                     error={errors.website}
                     hint="Full URL, including https://."
@@ -120,7 +122,7 @@ export default function CompanyDetailsPanel({
                         label="Description"
                         name="description"
                         value={form.data.description}
-                        onChange={(value) => form.setData('description', value)}
+                        onChange={(value) => setField('description', value)}
                         onBlur={() => onBlur('description')}
                         error={errors.description}
                         hint="A short factual paragraph about the company and its services. It feeds the public company profile and email footers."

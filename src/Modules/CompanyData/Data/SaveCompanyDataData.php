@@ -51,5 +51,7 @@ final class SaveCompanyDataData extends Data
         public readonly ?string $linkedinLink = null,
         public readonly ?string $twitterLink = null,
         public readonly ?string $tiktokLink = null,
+        #[MapInputName('updated_at')]
+        public readonly ?string $updatedAt = null,
     ) {}
 }

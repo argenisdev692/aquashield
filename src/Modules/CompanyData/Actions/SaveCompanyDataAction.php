@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Modules\CompanyData\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\CompanyData\Data\CompanyDataDto;
 use Modules\CompanyData\Data\SaveCompanyDataData;
 use Modules\CompanyData\Models\CompanyData;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class SaveCompanyDataAction
 {
@@ -40,7 +42,21 @@ final class SaveCompanyDataAction
                 throw (new ModelNotFoundException)->setModel(CompanyData::class);
             }
 
-            $company->fill($data->toArray());
+            if (
+                $data->updatedAt !== null
+                && ($company->updated_at === null
+                    || ! Carbon::parse($data->updatedAt)->equalTo($company->updated_at))
+            ) {
+                throw new HttpException(
+                    409,
+                    'This company profile changed in another session. Reload the page before saving.',
+                );
+            }
+
+            $payload = $data->toArray();
+            unset($payload['updated_at']);
+
+            $company->fill($payload);
 
             $company->save();
 

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Modules\ActivityLog\Models\ActivityEntry;
 use Shared\Domain\Ports\CompanyBrandingPort;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -190,11 +191,11 @@ class CompanyData extends Model
     protected static function booted(): void
     {
         static::saved(static function (): void {
-            app(CompanyBrandingPort::class)->forget();
+            DB::afterCommit(static fn () => app(CompanyBrandingPort::class)->forget());
         });
 
         static::deleted(static function (): void {
-            app(CompanyBrandingPort::class)->forget();
+            DB::afterCommit(static fn () => app(CompanyBrandingPort::class)->forget());
         });
     }
 

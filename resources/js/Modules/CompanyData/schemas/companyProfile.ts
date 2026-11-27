@@ -20,6 +20,7 @@ const optionalUrl = (message: string) =>
     z
         .string()
         .trim()
+        .max(255, '255 characters maximum')
         .refine(
             (value) => {
                 if (value === '') {
@@ -60,6 +61,7 @@ const optionalCoordinate = (limit: number, message: string) =>
         );
 
 export const companyProfileSchema = z.object({
+    updated_at: z.string(),
     name: z.string().trim().min(1, 'Enter the contact name').max(255, '255 characters maximum'),
     company_name: z
         .string()
@@ -114,6 +116,7 @@ export function toCompanyProfileForm(company: CompanyDataDto): CompanyProfileFor
     const decimal = (value: number | null): string => (value === null ? '' : String(value));
 
     return {
+        updated_at: company.updated_at ?? '',
         name: text(company.name),
         company_name: company.company_name,
         email: text(company.email),

@@ -268,7 +268,8 @@ npx shadcn@latest add button dialog select table
 variables, aliases `@/components`, `@/components/ui`, `@/lib/utils`.
 
 - **Base UI is the default since July 2026.** New primitives import from `@base-ui/react/*`;
-  Radix is not installed. Composition uses Base UI's `render` prop, **not** Radix's `asChild`:
+  No direct Radix primitive is installed. `cmdk` remains the documented transitive Radix exception
+  for the command palette. Composition uses Base UI's `render` prop, **not** Radix's `asChild`:
   `<Button render={<Link href="/users" />}>Users</Button>`.
 - **`Skeleton` is the loading primitive.** Add it with `npx shadcn@latest add skeleton`; compose
   table, card and panel skeletons from it. Do not hand-roll `animate-pulse` divs at a call

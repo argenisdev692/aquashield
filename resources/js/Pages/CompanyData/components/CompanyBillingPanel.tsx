@@ -13,10 +13,11 @@ import TextField from '@/Components/Forms/TextField';
 import type { CompanyProfileForm } from '@/Modules/CompanyData/schemas/companyProfile';
 
 interface CompanyBillingPanelProps {
-    form: InertiaForm<CompanyProfileForm>;
+    form: Pick<InertiaForm<CompanyProfileForm>, 'data'>;
     errors: Partial<Record<string, string>>;
     onBlur: (field: keyof CompanyProfileForm) => void;
     readOnly: boolean;
+    setField: (field: keyof CompanyProfileForm, value: string) => void;
 }
 
 export default function CompanyBillingPanel({
@@ -24,6 +25,7 @@ export default function CompanyBillingPanel({
     errors,
     onBlur,
     readOnly,
+    setField,
 }: CompanyBillingPanelProps) {
     return (
         <div className="flex flex-col gap-6">
@@ -36,7 +38,7 @@ export default function CompanyBillingPanel({
                     label="NIF / NIPC"
                     name="nif_nipc"
                     value={form.data.nif_nipc}
-                    onChange={(value) => form.setData('nif_nipc', value)}
+                    onChange={(value) => setField('nif_nipc', value)}
                     onBlur={() => onBlur('nif_nipc')}
                     error={errors.nif_nipc}
                     hint="Company tax number, up to 20 characters."
@@ -48,7 +50,7 @@ export default function CompanyBillingPanel({
                     label="NIE"
                     name="nie"
                     value={form.data.nie}
-                    onChange={(value) => form.setData('nie', value)}
+                    onChange={(value) => setField('nie', value)}
                     onBlur={() => onBlur('nie')}
                     error={errors.nie}
                     hint="Foreigner identification number, when applicable."
@@ -67,7 +69,7 @@ export default function CompanyBillingPanel({
                     label="Beneficiary"
                     name="bank_beneficiary"
                     value={form.data.bank_beneficiary}
-                    onChange={(value) => form.setData('bank_beneficiary', value)}
+                    onChange={(value) => setField('bank_beneficiary', value)}
                     onBlur={() => onBlur('bank_beneficiary')}
                     error={errors.bank_beneficiary}
                     hint="The account holder exactly as the bank knows it."
@@ -79,7 +81,7 @@ export default function CompanyBillingPanel({
                     label="Bank name"
                     name="bank_name"
                     value={form.data.bank_name}
-                    onChange={(value) => form.setData('bank_name', value)}
+                    onChange={(value) => setField('bank_name', value)}
                     onBlur={() => onBlur('bank_name')}
                     error={errors.bank_name}
                     hint="The institution, not the branch."
@@ -91,7 +93,7 @@ export default function CompanyBillingPanel({
                     label="IBAN"
                     name="bank_iban"
                     value={form.data.bank_iban}
-                    onChange={(value) => form.setData('bank_iban', value)}
+                    onChange={(value) => setField('bank_iban', value)}
                     onBlur={() => onBlur('bank_iban')}
                     error={errors.bank_iban}
                     hint="Up to 34 characters, no spaces required."
@@ -105,7 +107,7 @@ export default function CompanyBillingPanel({
                     label="BIC / SWIFT"
                     name="bank_bic"
                     value={form.data.bank_bic}
-                    onChange={(value) => form.setData('bank_bic', value)}
+                    onChange={(value) => setField('bank_bic', value)}
                     onBlur={() => onBlur('bank_bic')}
                     error={errors.bank_bic}
                     hint="8 or 11 characters."
@@ -127,7 +129,7 @@ export default function CompanyBillingPanel({
                     label="Invoice notes"
                     name="invoice_notes"
                     value={form.data.invoice_notes}
-                    onChange={(value) => form.setData('invoice_notes', value)}
+                    onChange={(value) => setField('invoice_notes', value)}
                     onBlur={() => onBlur('invoice_notes')}
                     error={errors.invoice_notes}
                     hint="Payment terms, thank-you line or legal note. Leave empty to print nothing."

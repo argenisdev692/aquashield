@@ -72,6 +72,8 @@ export default function AddressAutocompleteField({
     const uid = useId();
     const inputRef = useRef<HTMLInputElement>(null);
     const requestSequence = useRef(0);
+    const selectionSequence = useRef(0);
+    const userEdited = useRef(false);
     const sessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
     const lastSelected = useRef<string | null>(null);
     const blurTimer = useRef<number | null>(null);
@@ -88,6 +90,7 @@ export default function AddressAutocompleteField({
         () => () => {
             // A late Google response must not touch an unmounted field.
             requestSequence.current += 1;
+            selectionSequence.current += 1;
 
             if (blurTimer.current !== null) {
                 window.clearTimeout(blurTimer.current);
@@ -96,11 +99,21 @@ export default function AddressAutocompleteField({
         [],
     );
 
+    useEffect(
+        () => () => {
+            // A new controlled value invalidates a Place Details selection that
+            // started for the previous value.
+            selectionSequence.current += 1;
+        },
+        [value],
+    );
+
     useEffect(() => {
         const query = value.trim();
 
         if (
             disabled ||
+            !userEdited.current ||
             apiKey.trim() === '' ||
             query.length < MIN_QUERY_LENGTH ||
             value === lastSelected.current
@@ -156,12 +169,17 @@ export default function AddressAutocompleteField({
     }, [apiKey, disabled, value]);
 
     const handleInput = (next: string): void => {
+        userEdited.current = true;
         lastSelected.current = null;
+        selectionSequence.current += 1;
         setActiveIndex(-1);
+        setLoading(false);
         onChange(next);
     };
 
     const selectSuggestion = async (suggestion: AddressSuggestion): Promise<void> => {
+        const sequence = ++selectionSequence.current;
+
         setOpen(false);
         setActiveIndex(-1);
         setLoading(true);
@@ -169,15 +187,26 @@ export default function AddressAutocompleteField({
 
         try {
             const selection = await toAddressSelection(suggestion);
+
+            if (selectionSequence.current !== sequence) {
+                return;
+            }
+
             lastSelected.current = selection.address;
             sessionToken.current = null;
             onChange(selection.address);
             onAddressSelect?.(selection);
         } catch (caught) {
+            if (selectionSequence.current !== sequence) {
+                return;
+            }
+
             setSuggestionError(messageFrom(caught));
             setOpen(true);
         } finally {
-            setLoading(false);
+            if (selectionSequence.current === sequence) {
+                setLoading(false);
+            }
         }
     };
 

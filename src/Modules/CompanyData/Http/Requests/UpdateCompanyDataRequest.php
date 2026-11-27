@@ -26,6 +26,7 @@ final class UpdateCompanyDataRequest extends FormRequest
             'company_name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'email' => ['required', 'email', 'max:255'],
+            'updated_at' => ['required', 'date'],
             'phone' => ['nullable', 'string', 'max:20'],
             'nif_nipc' => ['nullable', 'string', 'max:20'],
             'nie' => ['nullable', 'string', 'max:20'],

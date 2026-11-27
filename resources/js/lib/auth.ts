@@ -15,6 +15,7 @@ export function useLogout(endpoint = '/logout'): () => void {
 
     return (): void => {
         queryClient.clear();
+        router.clearHistory();
         router.post(endpoint);
     };
 }

@@ -76,6 +76,7 @@ it('answers 404 when an unprovisioned singleton is updated', function (): void {
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration USA',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => now()->toJSON(),
         ])
         ->assertNotFound();
 
@@ -113,6 +114,7 @@ it('rejects a client supplied user_id with 422', function (): void {
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration USA',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => now()->toJSON(),
             'user_id' => $this->user->id + 1,
         ])
         ->assertUnprocessable()
@@ -127,6 +129,7 @@ it('rejects a non-http public link with 422', function (): void {
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration USA',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => now()->toJSON(),
             'website' => 'javascript:alert(1)',
             'facebook_link' => 'data:text/html,<script>alert(1)</script>',
         ])
@@ -147,6 +150,7 @@ it('updates the provisioned singleton in place and preserves the owner', functio
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration LLC',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => $company->updated_at?->toJSON(),
             'city' => 'Houston',
         ])
         ->assertOk()
@@ -162,16 +166,33 @@ it('updates the provisioned singleton in place and preserves the owner', functio
     expect(CompanyData::current()?->uuid)->toBe($company->uuid);
 });
 
+it('rejects a stale full-profile write with 409', function (): void {
+    $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
+    $company = companyDataRecord($this->user, ['company_name' => 'Current']);
+
+    $this->actingAs($this->user)
+        ->putJson('/company-data', [
+            'name' => 'Victor Lara',
+            'company_name' => 'Stale',
+            'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => now()->subMinute()->toJSON(),
+        ])
+        ->assertStatus(409);
+
+    expect($company->refresh()->company_name)->toBe('Current');
+});
+
 it('audits financial field names without values', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
 
-    companyDataRecord($this->user, ['bank_iban' => 'PT50 OLD']);
+    $company = companyDataRecord($this->user, ['bank_iban' => 'PT50 OLD']);
 
     $this->actingAs($this->user)
         ->putJson('/company-data', [
             'name' => 'Victor Lara',
             'company_name' => 'AquaShield Restoration USA',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => $company->updated_at?->toJSON(),
             'bank_iban' => 'PT50 NEW SECRET',
         ])
         ->assertOk();
@@ -189,7 +210,7 @@ it('audits financial field names without values', function (): void {
 it('flushes the company profile cache when the singleton changes', function (): void {
     $this->user->givePermissionTo('UPDATE_COMPANY_DATA');
 
-    companyDataRecord($this->user, ['company_name' => 'Before']);
+    $company = companyDataRecord($this->user, ['company_name' => 'Before']);
 
     expect(CompanyProfile::data()['name'])->toBe('Before');
 
@@ -198,6 +219,7 @@ it('flushes the company profile cache when the singleton changes', function (): 
             'name' => 'Victor Lara',
             'company_name' => 'After',
             'email' => 'info@aquashieldrestorationusa.com',
+            'updated_at' => $company->updated_at?->toJSON(),
         ])
         ->assertOk();
 

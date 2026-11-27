@@ -73,21 +73,29 @@ final class CompanyProfile
      */
     public static function data(): array
     {
+        $company = self::firstCompanyRow() ?? [];
+        $version = hash('sha256', (string) json_encode($company));
+
         try {
-            return Cache::remember(self::CACHE_KEY, now()->addMinutes(30), static fn (): array => self::buildData());
+            // The row fingerprint is part of the key. A pre-commit reader can
+            // only populate the old key, never the key for newly committed data.
+            return Cache::remember(
+                self::CACHE_KEY.':'.$version,
+                now()->addMinutes(30),
+                static fn (): array => self::buildData($company),
+            );
         } catch (Throwable) {
             // A cache outage must not take the welcome page or email header down.
-            return self::buildData();
+            return self::buildData($company);
         }
     }
 
     /**
+     * @param array<string, mixed> $company
      * @return CompanyArray
      */
-    private static function buildData(): array
+    private static function buildData(array $company): array
     {
-        $company = self::firstCompanyRow() ?? [];
-
         return [
             'name' => self::stringOrNull($company, 'company_name') ?: (string) config('app.name'),
             // AI context for the Post module's topic ideation (never rendered
