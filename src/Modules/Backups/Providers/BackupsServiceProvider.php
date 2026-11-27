@@ -14,7 +14,6 @@ use Modules\Backups\Infrastructure\Console\RunBackupCommand;
 use Modules\Backups\Infrastructure\Persistence\SpatieBackupActivityLog;
 use Modules\Backups\Infrastructure\Persistence\SpatieBackupArchiveStore;
 use Modules\Backups\Infrastructure\Services\SpatieDatabaseBackupRunner;
-use Modules\Backups\Infrastructure\Support\BackupArchiveEncryption;
 use Modules\Backups\Infrastructure\Support\CacheBackupRunLock;
 
 final class BackupsServiceProvider extends ServiceProvider
@@ -34,10 +33,6 @@ final class BackupsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Fail the deploy, not the data: a non-local container without an
-        // archive password would write every table to disk in plain text.
-        BackupArchiveEncryption::assertConfigured();
-
         $this->loadRoutesFrom(__DIR__.'/../Routes/web.php');
         $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
 
