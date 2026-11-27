@@ -2,15 +2,18 @@
  * Dashboard — the real operations view.
  *
  * Server props only: the lead columns come from the same `LeadRepository::board`
- * used by `/leads/board`, and the calendar fetches the visible month through
- * `/appointments/calendar-events`. There is no mock row and no second pipeline
- * state in the browser.
+ * used by `/leads/board`, scoped to the selected period, and the calendar
+ * fetches the visible month through `/appointments/calendar-events`. There is
+ * no mock row and no second pipeline state in the browser.
  *
- * The page is ordered by operational priority: four real monthly metrics, then
- * the pipeline itself. The shell owns the page title and primary action; the
- * page owns the segmented view selector and the two content surfaces.
+ * The page is ordered by operational priority: four real period metrics, then
+ * the pipeline itself in three kept-alive views (board, table, calendar). The
+ * shell owns the page title and primary action; the page owns the toolbar
+ * (view selector, period, scope filters) and the content surfaces. The period
+ * and the scope filters live in the URL, so reload and back/forward resolve to
+ * the same dashboard.
  */
-import { lazy, Suspense, useState } from 'react';
+import { Activity, lazy, Suspense, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarCheck,
@@ -25,6 +28,13 @@ import {
 import KpiCard from '@/Components/KpiCard';
 import PasskeyPrompt from '@/Pages/Dashboard/components/PasskeyPrompt';
 import { Button } from '@/Components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/select';
 import { Skeleton } from '@/Components/ui/skeleton';
 import {
     Sheet,
@@ -34,6 +44,7 @@ import {
     SheetTitle,
 } from '@/Components/ui/sheet';
 import { Tag } from '@/Components/ui/tag';
+import { CrudFilters, type CrudFilterDef } from '@/Components/DataTable';
 import AppLayout from '@/Layouts/AppLayout';
 import { usePasskeyPrompt } from '@/Modules/Auth/hooks/usePasskeyPrompt';
 import LeadKanban from '@/Modules/LeadAppointment/components/LeadKanban';
@@ -45,9 +56,17 @@ import {
     type CalendarEvent,
 } from '@/Modules/LeadAppointment/hooks/useCalendarEvents';
 import LeadCreateDialog from '@/Pages/Dashboard/components/LeadCreateDialog';
+import LeadsPanel from '@/Pages/Dashboard/components/LeadsPanel';
 import { formatDateTime } from '@/lib/date';
+import {
+    buildTableUrl,
+    isBlankFilter,
+    parseTableParams,
+    type TableFilters,
+    type TableState,
+} from '@/lib/table';
 import { useTheme } from '@/lib/theme';
-import { cn } from '@/lib/utils';
+import { cn, humanize } from '@/lib/utils';
 
 const BoardCalendar = lazy(() => import('@/Pages/Dashboard/BoardCalendar'));
 
@@ -57,7 +76,11 @@ type LeadBoardColumn = Modules.LeadAppointment.Application.Dtos.LeadBoardColumnD
 interface StatComparison {
     current: number;
     previous: number;
+    /** Daily counts for the selected period, oldest first. */
+    series: number[];
 }
+
+type Option = { value: string; label: string };
 
 interface DashboardProps {
     [key: string]: unknown;
@@ -77,25 +100,66 @@ interface DashboardProps {
     canViewAppointment: boolean;
     canViewLead: boolean;
     options: {
-        kinds: { value: string; label: string }[];
-        regions: { value: string; label: string }[];
+        kinds: Option[];
+        regions: Option[];
+        statuses: Option[];
+        sources: Option[];
     };
     leadOptions: {
-        regions: { value: string; label: string }[];
+        regions: Option[];
         owners: Modules.LeadAppointment.Application.Dtos.AssignableOwnerData[];
     };
     googleMapsApiKey: string;
     defaultDuration: number;
     defaultTimezone: string;
+    /** Selected period, echoed from the URL (`range` query key). */
+    range: string;
+    rangeOptions: Option[];
+    /** The selected period's inclusive bounds (company timezone, YYYY-MM-DD). */
+    rangeFrom: string;
+    rangeTo: string;
     passkeyPrompt: boolean | null;
     errors: Record<string, string>;
 }
 
-type DashboardView = 'kanban' | 'calendar';
+type DashboardView = 'kanban' | 'table' | 'calendar';
 
-const humanize = (value: string): string => {
-    const label = value.replace(/_/g, ' ');
-    return label.charAt(0).toUpperCase() + label.slice(1);
+/** The server default; omitted from the URL so a clean link stays clean. */
+const DEFAULT_RANGE = 'last_30_days';
+
+/*
+ * KPI tiles deep-link into the filtered lists through the one table URL
+ * contract, so a filter-key rename on the list screens cannot silently
+ * break the tile destinations.
+ */
+const INSPECTIONS_HREF = buildTableUrl(
+    '/appointments',
+    { page: 1, perPage: 15, search: '', sort: null, filters: { kind: 'inspection' } },
+    { paginate: false },
+);
+const WON_LEADS_HREF = buildTableUrl(
+    '/leads',
+    { page: 1, perPage: 15, search: '', sort: null, filters: { status: 'won' } },
+    { paginate: false },
+);
+
+/** Period + scope filters are the dashboard URL; everything else is local. */
+const dashboardUrl = (range: string, filters: TableFilters): string => {
+    const params = new URLSearchParams();
+
+    if (range !== DEFAULT_RANGE) {
+        params.set('range', range);
+    }
+
+    for (const [key, value] of Object.entries(filters)) {
+        if (!isBlankFilter(value)) {
+            params.set(`filter[${key}]`, String(value));
+        }
+    }
+
+    const query = params.toString();
+
+    return query === '' ? '/dashboard' : `/dashboard?${query}`;
 };
 
 type DeltaDirection = 'up' | 'down' | 'flat';
@@ -106,24 +170,24 @@ type DeltaDirection = 'up' | 'down' | 'flat';
  * otherwise the absolute change is the honest number. A rounded 0% with a real
  * difference falls back to the count, so "+1" never renders as "0%".
  *
- * Two zero counts produce a neutral state, not a comparison: "same as last
- * month" on a fresh workspace is noise dressed as a delta.
+ * Two zero counts produce a neutral state, not a comparison: "same as previous
+ * period" on a fresh workspace is noise dressed as a delta.
  */
-const monthDelta = ({
+const periodDelta = ({
     current,
     previous,
 }: StatComparison): { trend: DeltaDirection; label: string } => {
     if (current === 0 && previous === 0) {
-        return { trend: 'flat', label: 'No activity this month' };
+        return { trend: 'flat', label: 'No activity in this period' };
     }
 
     if (current === previous) {
-        return { trend: 'flat', label: 'same as last month' };
+        return { trend: 'flat', label: 'same as previous period' };
     }
 
     const difference = current - previous;
     const trend: DeltaDirection = difference > 0 ? 'up' : 'down';
-    const absolute = `${difference > 0 ? '+' : ''}${difference} vs. last month`;
+    const absolute = `${difference > 0 ? '+' : ''}${difference} vs. previous period`;
 
     if (previous === 0) {
         return { trend, label: absolute };
@@ -135,7 +199,7 @@ const monthDelta = ({
     // (e.g. 300 → 1). Show the real count instead of a loss that never happened.
     return percent === 0 || (percent === -100 && current > 0)
         ? { trend, label: absolute }
-        : { trend, label: `${percent > 0 ? '+' : ''}${percent}% vs. last month` };
+        : { trend, label: `${percent > 0 ? '+' : ''}${percent}% vs. previous period` };
 };
 
 const segmentClass = (active: boolean): string =>
@@ -177,6 +241,7 @@ function PipelineEmptyState({
 }
 
 export default function Dashboard() {
+    const { url, props } = usePage<DashboardProps>();
     const {
         columns,
         transitions,
@@ -195,7 +260,11 @@ export default function Dashboard() {
         defaultTimezone,
         passkeyPrompt,
         errors,
-    } = usePage<DashboardProps>().props;
+        range,
+        rangeOptions,
+        rangeFrom,
+        rangeTo,
+    } = props;
     const prompt = usePasskeyPrompt();
     const { isDark } = useTheme();
     const invalidateCalendar = useCalendarEventsInvalidator();
@@ -214,10 +283,65 @@ export default function Dashboard() {
     } | null>(null);
     const [calendarRange, setCalendarRange] = useState<{ from: string; to: string } | null>(null);
 
+    /*
+     * The URL owns the period and the scope filters, exactly like the list
+     * screens own their table state: reload, back/forward and a pasted link
+     * all resolve to the same dashboard. The board, the KPI row and the
+     * embedded table read this one scope.
+     */
+    const urlFilters = parseTableParams(url).filters;
+    const filterState: TableState = {
+        page: 1,
+        perPage: 15,
+        search: '',
+        sort: null,
+        filters: urlFilters,
+    };
+
+    const commitScope = (nextRange: string, patch: TableFilters): void => {
+        const filters: TableFilters = { ...urlFilters };
+
+        for (const [key, value] of Object.entries(patch)) {
+            if (isBlankFilter(value)) {
+                delete filters[key];
+
+                continue;
+            }
+
+            filters[key] = value;
+        }
+
+        router.visit(dashboardUrl(nextRange, filters), {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
+    const boardFilterDefs: CrudFilterDef[] = [
+        {
+            key: 'region',
+            label: 'Region',
+            type: 'select',
+            placeholder: 'Any region',
+            options: options.regions,
+        },
+        {
+            key: 'source',
+            label: 'Source',
+            type: 'select',
+            placeholder: 'Any source',
+            options: options.sources,
+        },
+    ];
+
+    const rangeLabel = rangeOptions.find((option) => option.value === range)?.label ?? range;
+
     const calendar = useCalendarEvents(
         calendarRange?.from ?? '',
         calendarRange?.to ?? '',
-        canViewCalendar && calendarRange !== null,
+        // Only the visible calendar owns a live feed; a hidden pane must not
+        // refetch on window focus while the user works the board or table.
+        canViewCalendar && calendarRange !== null && view === 'calendar',
     );
     const detail = useAppointmentDetail(selectedEvent?.uuid ?? null, canViewAppointment);
     const appointment = detail.appointment;
@@ -238,10 +362,10 @@ export default function Dashboard() {
         setSelectedLead(null);
     };
 
-    const leadsDelta = monthDelta(stats.leads);
-    const inspectionsDelta = monthDelta(stats.inspections);
-    const wonDelta = monthDelta(stats.won);
-    const appointmentsDelta = monthDelta(stats.appointments);
+    const leadsDelta = periodDelta(stats.leads);
+    const inspectionsDelta = periodDelta(stats.inspections);
+    const wonDelta = periodDelta(stats.won);
+    const appointmentsDelta = periodDelta(stats.appointments);
 
     const pipelineTotal = columns.reduce((total, column) => total + column.total, 0);
     const hasAnyView = canViewLeads || canViewCalendar;
@@ -271,11 +395,12 @@ export default function Dashboard() {
                 ) : null}
 
                 {/*
-                 * Month-over-month, same scope on every card and every chip.
-                 * The board below is the live pipeline snapshot, so repeating
+                 * Period-over-period, same scope on every card and every chip.
+                 * The board below is the period's intake cohort, so repeating
                  * its column totals here would say the same thing twice. The
-                 * values are this calendar month (company timezone) and the
-                 * chips are computed from the previous month's counts.
+                 * values, the daily sparkline and the comparison window all
+                 * come from the server for the selected period (company
+                 * timezone).
                  */}
                 <section
                     id="kpis"
@@ -287,6 +412,7 @@ export default function Dashboard() {
                         value={stats.leads.current}
                         delta={leadsDelta.label}
                         trend={leadsDelta.trend}
+                        series={stats.leads.series}
                         index={0}
                         href={canViewLeads ? '/leads' : undefined}
                         icon={<UserPlus className="size-5" aria-hidden="true" />}
@@ -296,12 +422,9 @@ export default function Dashboard() {
                         value={stats.inspections.current}
                         delta={inspectionsDelta.label}
                         trend={inspectionsDelta.trend}
+                        series={stats.inspections.series}
                         index={1}
-                        href={
-                            canViewCalendar
-                                ? '/appointments?filter%5Bkind%5D=inspection'
-                                : undefined
-                        }
+                        href={canViewCalendar ? INSPECTIONS_HREF : undefined}
                         icon={<CalendarCheck className="size-5" aria-hidden="true" />}
                     />
                     <KpiCard
@@ -309,8 +432,9 @@ export default function Dashboard() {
                         value={stats.won.current}
                         delta={wonDelta.label}
                         trend={wonDelta.trend}
+                        series={stats.won.series}
                         index={2}
-                        href={canViewLeads ? '/leads?filter%5Bstatus%5D=won' : undefined}
+                        href={canViewLeads ? WON_LEADS_HREF : undefined}
                         icon={<Trophy className="size-5" aria-hidden="true" />}
                     />
                     <KpiCard
@@ -318,6 +442,7 @@ export default function Dashboard() {
                         value={stats.appointments.current}
                         delta={appointmentsDelta.label}
                         trend={appointmentsDelta.trend}
+                        series={stats.appointments.series}
                         index={3}
                         href={canViewCalendar ? '/appointments' : undefined}
                         icon={<CalendarClock className="size-5" aria-hidden="true" />}
@@ -329,63 +454,98 @@ export default function Dashboard() {
                     aria-label="Lead pipeline and inspection calendar"
                     className="scroll-mt-24"
                 >
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div
-                            role="group"
-                            aria-label="Pipeline view"
-                            className="inline-flex items-center gap-0.5 rounded-lg border border-surface-200 bg-surface-100/70 p-1 dark:border-surface-800 dark:bg-surface-900/60"
-                        >
-                            {canViewLeads && (
-                                <button
-                                    type="button"
-                                    aria-pressed={view === 'kanban'}
-                                    onClick={() => setView('kanban')}
-                                    className={segmentClass(view === 'kanban')}
-                                >
-                                    <KanbanSquare
-                                        className={segmentIconClass(view === 'kanban')}
-                                        aria-hidden="true"
-                                    />
-                                    Kanban
-                                </button>
-                            )}
+                    {hasAnyView && (
+                        <div className="mb-3 flex flex-col gap-3 rounded-xl border border-surface-200 bg-surface-0 p-2 xl:flex-row xl:items-center xl:justify-between dark:border-surface-800 dark:bg-surface-900">
+                            <div
+                                role="group"
+                                aria-label="Pipeline view"
+                                className="inline-flex self-start items-center gap-0.5 rounded-lg border border-surface-200 bg-surface-100/70 p-1 dark:border-surface-800 dark:bg-surface-900/60"
+                            >
+                                {canViewLeads && (
+                                    <button
+                                        type="button"
+                                        aria-pressed={view === 'kanban'}
+                                        onClick={() => setView('kanban')}
+                                        className={segmentClass(view === 'kanban')}
+                                    >
+                                        <KanbanSquare
+                                            className={segmentIconClass(view === 'kanban')}
+                                            aria-hidden="true"
+                                        />
+                                        Kanban
+                                    </button>
+                                )}
 
-                            {canViewLeads && (
-                                <Link href="/leads" className={segmentClass(false)}>
-                                    <Table2
-                                        className={segmentIconClass(false)}
-                                        aria-hidden="true"
-                                    />
-                                    Table
-                                </Link>
-                            )}
+                                {canViewLeads && (
+                                    <button
+                                        type="button"
+                                        aria-pressed={view === 'table'}
+                                        onClick={() => setView('table')}
+                                        className={segmentClass(view === 'table')}
+                                    >
+                                        <Table2
+                                            className={segmentIconClass(view === 'table')}
+                                            aria-hidden="true"
+                                        />
+                                        Table
+                                    </button>
+                                )}
 
-                            {canViewCalendar && (
-                                <button
-                                    type="button"
-                                    aria-pressed={view === 'calendar'}
-                                    onClick={() => setView('calendar')}
-                                    className={segmentClass(view === 'calendar')}
+                                {canViewCalendar && (
+                                    <button
+                                        type="button"
+                                        aria-pressed={view === 'calendar'}
+                                        onClick={() => setView('calendar')}
+                                        className={segmentClass(view === 'calendar')}
+                                    >
+                                        <CalendarClock
+                                            className={segmentIconClass(view === 'calendar')}
+                                            aria-hidden="true"
+                                        />
+                                        Calendar
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {canViewLeads && pipelineTotal > 0 && (
+                                    <p className="text-xs text-surface-600 dark:text-surface-300">
+                                        <span className="font-semibold text-surface-700 tabular-nums dark:text-surface-200">
+                                            {pipelineTotal}
+                                        </span>{' '}
+                                        {pipelineTotal === 1 ? 'lead' : 'leads'} across{' '}
+                                        {columns.length} {columns.length === 1 ? 'stage' : 'stages'}
+                                    </p>
+                                )}
+
+                                <Select
+                                    items={rangeOptions}
+                                    value={range}
+                                    onValueChange={(next) => commitScope(String(next), {})}
                                 >
-                                    <CalendarClock
-                                        className={segmentIconClass(view === 'calendar')}
-                                        aria-hidden="true"
+                                    <SelectTrigger className="w-40" aria-label="Metric period">
+                                        <SelectValue>{rangeLabel}</SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {rangeOptions.map((option) => (
+                                            <SelectItem key={option.value} value={option.value}>
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                {canViewLeads && (
+                                    <CrudFilters
+                                        defs={boardFilterDefs}
+                                        state={filterState}
+                                        onChange={(patch) => commitScope(range, patch)}
+                                        className="w-auto"
                                     />
-                                    Calendar
-                                </button>
-                            )}
+                                )}
+                            </div>
                         </div>
-
-                        {canViewLeads && columns.length > 0 && (
-                            <p className="text-xs text-surface-600 dark:text-surface-300">
-                                <span className="font-semibold text-surface-700 tabular-nums dark:text-surface-200">
-                                    {pipelineTotal}
-                                </span>{' '}
-                                {pipelineTotal === 1 ? 'lead' : 'leads'} across {columns.length}{' '}
-                                {columns.length === 1 ? 'stage' : 'stages'}
-                            </p>
-                        )}
-                    </div>
+                    )}
 
                     {!hasAnyView ? (
                         <PipelineEmptyState
@@ -393,79 +553,125 @@ export default function Dashboard() {
                             title="Pipeline unavailable"
                             description="Your role does not include access to the lead pipeline or the appointment calendar."
                         />
-                    ) : view === 'kanban' ? (
-                        canViewLeads ? (
-                            columns.length > 0 ? (
-                                <LeadKanban
-                                    columns={columns}
-                                    transitions={transitions}
-                                    canUpdate={canUpdate}
-                                    errors={errors}
-                                    onSelect={(lead) => {
-                                        setSelectedLead(lead);
-                                        setSelectedEvent(null);
-                                    }}
-                                />
-                            ) : (
-                                <PipelineEmptyState
-                                    icon={<KanbanSquare className="size-5" aria-hidden="true" />}
-                                    title="No leads yet"
-                                    description="Create your first lead to start the pipeline."
-                                />
-                            )
-                        ) : null
-                    ) : canViewCalendar ? (
-                        <div className="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900">
-                            {calendar.isError ? (
-                                <div
-                                    role="alert"
-                                    className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
-                                >
-                                    <span>The calendar could not be loaded.</span>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={calendar.retry}
-                                    >
-                                        Try again
-                                    </Button>
-                                </div>
-                            ) : null}
+                    ) : (
+                        <>
+                            {/*
+                             * Activity keeps each pane's DOM and state alive across
+                             * view switches: the calendar keeps the visited month,
+                             * the board keeps its drag state, the table keeps its
+                             * page. Hidden panes fetch nothing (enabled gates).
+                             */}
+                            <Activity mode={view === 'kanban' ? 'visible' : 'hidden'}>
+                                {canViewLeads ? (
+                                    pipelineTotal > 0 ? (
+                                        <LeadKanban
+                                            columns={columns}
+                                            transitions={transitions}
+                                            canUpdate={canUpdate}
+                                            errors={errors}
+                                            variant="fit"
+                                            onSelect={(lead) => {
+                                                setSelectedLead(lead);
+                                                setSelectedEvent(null);
+                                            }}
+                                        />
+                                    ) : (
+                                        <PipelineEmptyState
+                                            icon={
+                                                <KanbanSquare
+                                                    className="size-5"
+                                                    aria-hidden="true"
+                                                />
+                                            }
+                                            title="No leads in this period"
+                                            description={
+                                                canCreate
+                                                    ? 'Adjust the period or filters, or create a lead to get started.'
+                                                    : 'Adjust the period or filters to widen the view.'
+                                            }
+                                        />
+                                    )
+                                ) : null}
+                            </Activity>
 
-                            <Suspense
-                                fallback={
-                                    <div className="p-4" aria-busy="true">
-                                        <Skeleton className="mb-3 h-8 w-56" />
-                                        <div className="grid grid-cols-7 gap-2">
-                                            {Array.from({ length: 35 }, (_, index) => (
-                                                <Skeleton key={index} className="h-20 rounded-lg" />
-                                            ))}
-                                        </div>
+                            <Activity mode={view === 'table' ? 'visible' : 'hidden'}>
+                                {canViewLeads ? (
+                                    <LeadsPanel
+                                        options={options}
+                                        filters={urlFilters}
+                                        rangeFrom={rangeFrom}
+                                        rangeTo={rangeTo}
+                                        onFiltersChange={(patch) => commitScope(range, patch)}
+                                        canView={canViewLead}
+                                        canUpdate={canUpdate}
+                                        enabled={view === 'table'}
+                                    />
+                                ) : null}
+                            </Activity>
+
+                            <Activity mode={view === 'calendar' ? 'visible' : 'hidden'}>
+                                {canViewCalendar ? (
+                                    <div className="overflow-hidden rounded-xl border border-surface-200 bg-surface-0 dark:border-surface-800 dark:bg-surface-900">
+                                        {calendar.isError ? (
+                                            <div
+                                                role="alert"
+                                                className="mx-3 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-aq-danger/40 bg-aq-danger/5 px-3 py-2 text-sm text-aq-danger-strong"
+                                            >
+                                                <span>The calendar could not be loaded.</span>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={calendar.retry}
+                                                >
+                                                    Try again
+                                                </Button>
+                                            </div>
+                                        ) : null}
+
+                                        <Suspense
+                                            fallback={
+                                                <div className="p-4" aria-busy="true">
+                                                    <Skeleton className="mb-3 h-8 w-56" />
+                                                    <div className="grid grid-cols-7 gap-2">
+                                                        {Array.from({ length: 35 }, (_, index) => (
+                                                            <Skeleton
+                                                                key={index}
+                                                                className="h-20 rounded-lg"
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            }
+                                        >
+                                            <BoardCalendar
+                                                events={
+                                                    calendar.isPlaceholderData
+                                                        ? []
+                                                        : calendar.events
+                                                }
+                                                isFetching={calendar.isFetching}
+                                                colorScheme={isDark ? 'dark' : 'light'}
+                                                onSelect={openAppointment}
+                                                onDateClick={
+                                                    canScheduleAppointment
+                                                        ? (date) => openSchedule(date, null)
+                                                        : undefined
+                                                }
+                                                onRangeChange={(from, to) =>
+                                                    setCalendarRange((current) =>
+                                                        current?.from === from && current.to === to
+                                                            ? current
+                                                            : { from, to },
+                                                    )
+                                                }
+                                            />
+                                        </Suspense>
                                     </div>
-                                }
-                            >
-                                <BoardCalendar
-                                    events={calendar.isPlaceholderData ? [] : calendar.events}
-                                    isFetching={calendar.isFetching}
-                                    colorScheme={isDark ? 'dark' : 'light'}
-                                    onSelect={openAppointment}
-                                    onDateClick={
-                                        canScheduleAppointment
-                                            ? (date) => openSchedule(date, null)
-                                            : undefined
-                                    }
-                                    onRangeChange={(from, to) =>
-                                        setCalendarRange((current) =>
-                                            current?.from === from && current.to === to
-                                                ? current
-                                                : { from, to },
-                                        )
-                                    }
-                                />
-                            </Suspense>
-                        </div>
-                    ) : null}
+                                ) : null}
+                            </Activity>
+                        </>
+                    )}
                 </section>
             </div>
 

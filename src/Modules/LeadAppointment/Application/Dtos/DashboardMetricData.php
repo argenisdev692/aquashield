@@ -11,8 +11,12 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 #[MapOutputName(SnakeCaseMapper::class)]
 final class DashboardMetricData extends Data
 {
+    /**
+     * @param list<int> $series Daily counts for the current window, one entry per day.
+     */
     public function __construct(
         public int $current,
         public int $previous,
+        public array $series = [],
     ) {}
 }

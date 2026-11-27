@@ -22,6 +22,7 @@ import TextareaField from '@/Components/Forms/TextareaField';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime, formatIsoDate } from '@/lib/date';
 import { useZodForm } from '@/lib/forms';
+import { humanize } from '@/lib/utils';
 import { logActivitySchema, type LogActivityValues } from '@/Modules/LeadAppointment/schemas/lead';
 
 type Lead = Modules.LeadAppointment.Application.Dtos.LeadData;
@@ -34,12 +35,6 @@ type ShowProps = {
     canUpdate: boolean;
     canDelete: boolean;
     canRestore: boolean;
-};
-
-const humanize = (value: string): string => {
-    const label = value.replace(/_/g, ' ');
-
-    return label.charAt(0).toUpperCase() + label.slice(1);
 };
 
 const activityOptions = [

@@ -87,6 +87,12 @@ interface CrudFiltersProps {
     state: TableState;
     onChange: (patch: TableFilters) => void;
     disabled?: boolean;
+    /**
+     * Extra classes for the bar. The default is full width, which suits the
+     * table toolbar; an inline toolbar (the dashboard) passes `w-auto` so the
+     * trigger sits on the same row as the period select.
+     */
+    className?: string;
 }
 
 const labelClass = 'text-xs font-medium text-surface-600 dark:text-surface-300';
@@ -713,7 +719,13 @@ function DateRangeFilter({
     );
 }
 
-export default function CrudFilters({ defs, state, onChange, disabled = false }: CrudFiltersProps) {
+export default function CrudFilters({
+    defs,
+    state,
+    onChange,
+    disabled = false,
+    className,
+}: CrudFiltersProps) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<TableFilters>(state.filters);
 
@@ -763,7 +775,7 @@ export default function CrudFilters({ defs, state, onChange, disabled = false }:
     };
 
     return (
-        <div className="flex w-full flex-wrap items-center gap-2">
+        <div className={cn('flex w-full flex-wrap items-center gap-2', className)}>
             <Popover open={open} onOpenChange={handleOpenChange}>
                 <PopoverTrigger
                     render={

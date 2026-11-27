@@ -51,6 +51,18 @@ describe('KpiCard', () => {
         expect(screen.getByText('No activity this month')).toBeTruthy();
     });
 
+    it('summarises the daily series when one is provided', () => {
+        render(<KpiCard label="Won" value={4} series={[0, 1, 3, 2]} />);
+
+        expect(screen.getByRole('img', { name: 'Daily trend over 4 days, peak 3' })).toBeTruthy();
+    });
+
+    it('draws no sparkline for fewer than two days', () => {
+        render(<KpiCard label="Won" value={0} series={[0]} />);
+
+        expect(screen.queryByRole('img')).toBeNull();
+    });
+
     it('has no structural accessibility violations', async () => {
         const { container } = render(
             <KpiCard label="Won" value={4} delta="+2 vs. last month" trend="up" href="/leads" />,

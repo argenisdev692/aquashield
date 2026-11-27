@@ -250,6 +250,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
         CarbonImmutable $from,
         CarbonImmutable $to,
         ?AppointmentKind $kind = null,
+        ?string $region = null,
     ): int {
         return Appointment::query()
             ->whereBetween('starts_at', [$from->utc(), $to->utc()])
@@ -258,7 +259,36 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
                 AppointmentStatus::NoShow->value,
             ])
             ->when($kind !== null, fn ($query) => $query->where('kind', $kind->value))
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
             ->count();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function dailyScheduledBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        string $timezone,
+        ?AppointmentKind $kind = null,
+        ?string $region = null,
+    ): array {
+        return Appointment::query()
+            ->whereBetween('starts_at', [$from->utc(), $to->utc()])
+            ->whereNotIn('status', [
+                AppointmentStatus::Cancelled->value,
+                AppointmentStatus::NoShow->value,
+            ])
+            ->when($kind !== null, fn ($query) => $query->where('kind', $kind->value))
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->pluck('starts_at')
+            ->map(
+                static fn (mixed $startsAt): string => CarbonImmutable::parse((string) $startsAt)
+                    ->setTimezone($timezone)
+                    ->toDateString(),
+            )
+            ->countBy()
+            ->all();
     }
 
     public function setGoogleEventId(string $uuid, ?string $eventId): void

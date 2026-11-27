@@ -540,6 +540,7 @@ declare namespace Modules {
                 export type DashboardMetricData = {
                     current: number;
                     previous: number;
+                    series: number[];
                 };
                 export type DashboardStatsData = {
                     leads: Modules.LeadAppointment.Application.Dtos.DashboardMetricData;
@@ -804,6 +805,7 @@ declare namespace Modules {
                     | 'no_show'
                     | 'cancelled';
                 export type AvailabilitySource = 'manual' | 'holiday';
+                export type DashboardRange = 'last_30_days' | 'this_month' | 'previous_month';
                 export type InspectionStatus = 'pending' | 'confirmed' | 'completed' | 'declined';
                 export type LeadActivityType = 'call' | 'email' | 'sms' | 'note' | 'meeting';
                 export type LeadSource =

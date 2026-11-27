@@ -26,6 +26,7 @@ use Modules\LeadAppointment\Domain\Enums\InspectionStatus;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
+use Modules\LeadAppointment\Domain\ValueObjects\DateWindow;
 use Modules\LeadAppointment\Domain\ValueObjects\DuplicateCandidate;
 use Modules\LeadAppointment\Domain\ValueObjects\PhoneNumber;
 use Modules\LeadAppointment\Domain\ValueObjects\SpamAssessment;
@@ -56,12 +57,19 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
     /**
      * @return list<LeadBoardColumnData>
      */
-    public function board(int $perStage = 25): array
-    {
+    public function board(
+        int $perStage = 25,
+        ?DateWindow $window = null,
+        ?string $region = null,
+        ?string $source = null,
+    ): array {
         // One grouped count instead of one COUNT per stage. The card queries
         // stay per-stage because each column has its own LIMIT.
         $totals = Lead::query()
             ->selectRaw('status, COUNT(*) as aggregate')
+            ->when($window !== null, fn ($query) => $query->whereBetween('created_at', [$window->start->utc(), $window->end->utc()]))
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->when($source !== null, fn ($query) => $query->where('source', $source))
             ->groupBy('status')
             ->pluck('aggregate', 'status');
 
@@ -70,6 +78,9 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
         foreach (LeadStatus::cases() as $status) {
             $leads = Lead::query()
                 ->where('status', $status->value)
+                ->when($window !== null, fn ($query) => $query->whereBetween('created_at', [$window->start->utc(), $window->end->utc()]))
+                ->when($region !== null, fn ($query) => $query->where('region', $region))
+                ->when($source !== null, fn ($query) => $query->where('source', $source))
                 ->orderByDesc('created_at')
                 ->with('latestAppointment:id,lead_id,starts_at,ends_at,timezone,status')
                 ->limit($perStage)
@@ -89,19 +100,80 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
         return $columns;
     }
 
-    public function countCreatedBetween(CarbonImmutable $from, CarbonImmutable $to): int
-    {
+    public function countCreatedBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        ?string $region = null,
+        ?string $source = null,
+    ): int {
         return Lead::query()
             ->whereBetween('created_at', [$from->utc(), $to->utc()])
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->when($source !== null, fn ($query) => $query->where('source', $source))
             ->count();
     }
 
-    public function countWonBetween(CarbonImmutable $from, CarbonImmutable $to): int
-    {
+    public function countWonBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        ?string $region = null,
+        ?string $source = null,
+    ): int {
         return Lead::query()
             ->whereNotNull('converted_at')
             ->whereBetween('converted_at', [$from->utc(), $to->utc()])
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->when($source !== null, fn ($query) => $query->where('source', $source))
             ->count();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function dailyCreatedBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        string $timezone,
+        ?string $region = null,
+        ?string $source = null,
+    ): array {
+        return Lead::query()
+            ->whereBetween('created_at', [$from->utc(), $to->utc()])
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->when($source !== null, fn ($query) => $query->where('source', $source))
+            ->pluck('created_at')
+            ->map(
+                static fn (mixed $createdAt): string => CarbonImmutable::parse((string) $createdAt)
+                    ->setTimezone($timezone)
+                    ->toDateString(),
+            )
+            ->countBy()
+            ->all();
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function dailyWonBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        string $timezone,
+        ?string $region = null,
+        ?string $source = null,
+    ): array {
+        return Lead::query()
+            ->whereNotNull('converted_at')
+            ->whereBetween('converted_at', [$from->utc(), $to->utc()])
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
+            ->when($source !== null, fn ($query) => $query->where('source', $source))
+            ->pluck('converted_at')
+            ->map(
+                static fn (mixed $convertedAt): string => CarbonImmutable::parse((string) $convertedAt)
+                    ->setTimezone($timezone)
+                    ->toDateString(),
+            )
+            ->countBy()
+            ->all();
     }
 
     /**

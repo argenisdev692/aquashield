@@ -9,13 +9,19 @@
  * The card is an operational summary, not a detail page: name, reachability,
  * source, age and the one date that changes the next action. Everything else
  * lives behind the lead itself, so the board stays scannable at a glance.
+ *
+ * Two layouts: `scroll` (the Leads board) keeps every stage at card width in a
+ * horizontal scroller; `fit` (the dashboard) stretches the four primary stages
+ * across the panel and summarises the remaining stages as counted links into
+ * the table view, so the pipeline reads at a glance without a sideways scroll.
  */
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { CalendarClock, MapPin, Phone } from 'lucide-react';
 import { Tag } from '@/Components/ui/tag';
 import { formatDateTime } from '@/lib/date';
-import { cn } from '@/lib/utils';
+import { buildTableUrl } from '@/lib/table';
+import { cn, humanize } from '@/lib/utils';
 
 type LeadCard = Modules.LeadAppointment.Application.Dtos.LeadCardData;
 type LeadBoardColumn = Modules.LeadAppointment.Application.Dtos.LeadBoardColumnData;
@@ -28,13 +34,9 @@ interface LeadKanbanProps {
     errors?: Record<string, string>;
     /** When provided, the card title opens a drawer instead of navigating. */
     onSelect?: (lead: LeadCard) => void;
+    /** `fit` stretches the primary stages and summarises the rest. */
+    variant?: 'scroll' | 'fit';
 }
-
-const humanize = (value: string): string => {
-    const label = value.replace(/_/g, ' ');
-
-    return label.charAt(0).toUpperCase() + label.slice(1);
-};
 
 const ageInDays = (value: string | null): string => {
     if (value === null) {
@@ -62,6 +64,16 @@ const columnAccent: Record<string, string> = {
     nurture: 'bg-surface-400',
 };
 
+/** The stages the fitted dashboard layout stretches across the panel. */
+const FIT_PRIMARY: readonly string[] = ['new', 'contacted', 'qualified', 'won'];
+
+const stageTableUrl = (status: string): string =>
+    buildTableUrl(
+        '/leads',
+        { page: 1, perPage: 15, search: '', sort: null, filters: { status } },
+        { paginate: false },
+    );
+
 export default function LeadKanban({
     columns,
     transitions,
@@ -69,6 +81,7 @@ export default function LeadKanban({
     canView = true,
     errors,
     onSelect,
+    variant = 'scroll',
 }: LeadKanbanProps) {
     const [dragging, setDragging] = useState<LeadCard | null>(null);
     const [overStatus, setOverStatus] = useState<string | null>(null);
@@ -106,6 +119,15 @@ export default function LeadKanban({
         );
     };
 
+    const primaryColumns =
+        variant === 'fit'
+            ? FIT_PRIMARY.map((status) =>
+                  columns.find((column) => column.status === status),
+              ).filter((column): column is LeadBoardColumn => column !== undefined)
+            : columns;
+    const secondaryColumns =
+        variant === 'fit' ? columns.filter((column) => !FIT_PRIMARY.includes(column.status)) : [];
+
     return (
         <div className="flex flex-col gap-3">
             {visibleError !== null && (
@@ -129,7 +151,7 @@ export default function LeadKanban({
                 tabIndex={0}
                 className="aq-scroll-quiet flex gap-3 overflow-x-auto pb-3 transition-shadow duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none"
             >
-                {columns.map((column) => {
+                {primaryColumns.map((column) => {
                     const droppable = dragging !== null && canMove(dragging, column.status);
                     const isOver = droppable && overStatus === column.status;
 
@@ -165,7 +187,8 @@ export default function LeadKanban({
                                 }
                             }}
                             className={cn(
-                                'flex w-72 shrink-0 flex-col rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none',
+                                'flex flex-col rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none',
+                                variant === 'fit' ? 'min-w-60 flex-1' : 'w-72 shrink-0',
                                 'border-surface-200/80 bg-surface-100/60 dark:border-surface-800 dark:bg-surface-900/40',
                                 isOver
                                     ? 'border-aq-accent/60 bg-aq-accent/5 ring-2 ring-aq-accent/30 dark:bg-aq-accent/5'
@@ -397,6 +420,44 @@ export default function LeadKanban({
                         </section>
                     );
                 })}
+
+                {secondaryColumns.length > 0 && (
+                    <section
+                        aria-label="Other stages"
+                        className="flex w-48 shrink-0 flex-col rounded-xl border border-surface-200/80 bg-surface-100/60 p-2 dark:border-surface-800 dark:bg-surface-900/40"
+                    >
+                        <header className="px-1.5 pt-1 pb-2.5 text-[13px] font-semibold text-surface-900 dark:text-surface-0">
+                            Other stages
+                        </header>
+
+                        <ul className="flex flex-col gap-1">
+                            {secondaryColumns.map((column) => (
+                                <li key={column.status}>
+                                    <Link
+                                        href={stageTableUrl(column.status)}
+                                        className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-[11px] font-medium text-surface-600 transition-colors duration-150 hover:bg-surface-0 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0 motion-reduce:transition-none"
+                                    >
+                                        <span className="flex min-w-0 items-center gap-2">
+                                            <span
+                                                aria-hidden="true"
+                                                className={cn(
+                                                    'size-2 shrink-0 rounded-full',
+                                                    columnAccent[column.status] ?? 'bg-surface-400',
+                                                )}
+                                            />
+                                            <span className="truncate">{column.label}</span>
+                                        </span>
+                                        <span className="tabular-nums">{column.total}</span>
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+
+                        <p className="px-1.5 pt-2 text-[10px] text-surface-600 dark:text-surface-300">
+                            Open a stage in the table view.
+                        </p>
+                    </section>
+                )}
             </div>
         </div>
     );

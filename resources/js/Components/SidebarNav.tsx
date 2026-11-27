@@ -6,9 +6,9 @@
  *
  * Section headings are disclosures, not decoration: Workspace, Organization
  * and System fold away with a real `<button aria-expanded>` that controls the
- * `<ul>` of links (WAI-ARIA disclosure-navigation), so a long rail can be
- * shortened without hiding a destination from the keyboard. The open/closed
- * answer lives in `useSidebarSections`, shared by both surfaces and persisted.
+ * `<ul>` of links (WAI-ARIA disclosure-navigation). Sections are folded by
+ * default: the one that owns the current route opens, and a section the user
+ * leaves open stays open across visits (`useSidebarSections`, persisted).
  * A single-destination group (Account) keeps a plain heading — an arrow that
  * hides one row is noise.
  *
@@ -16,7 +16,7 @@
  * `aria-current="page"` all fire together, and the row keeps its shape when the
  * rail collapses to icons (labels swap to `sr-only` and the tooltip takes over).
  */
-import { useEffect, useId } from 'react';
+import { useId } from 'react';
 import { Link } from '@inertiajs/react';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -57,25 +57,9 @@ export default function SidebarNav({
     onNavigate,
 }: SidebarNavProps) {
     const baseId = useId();
-    const { collapsedSections, toggleSection, expandSection } = useSidebarSections();
+    const { sectionOverrides, setSectionOpen } = useSidebarSections();
 
     const active = (href: string): boolean => isActivePath(currentPath, href);
-
-    /*
-     * A folded section must never hide the page you are on. Every navigation
-     * opens the group that owns the active route; `expandSection` is a no-op
-     * when the group is already open, so this cannot fight a deliberate
-     * collapse on a re-render.
-     */
-    const activeSectionLabel = groups.find(
-        (group) => group.label !== undefined && group.items.some((item) => active(item.href)),
-    )?.label;
-
-    useEffect(() => {
-        if (activeSectionLabel !== undefined) {
-            expandSection(activeSectionLabel);
-        }
-    }, [activeSectionLabel, currentPath, expandSection]);
 
     const onActivate = (item: NavItem, event: React.MouseEvent): void => {
         if (item.anchor === true) {
@@ -163,11 +147,15 @@ export default function SidebarNav({
                 const hasActiveItem = group.items.some((item) => active(item.href));
 
                 /*
+                 * Folded by default: a group opens while it owns the current
+                 * route, or because the user left it open. The explicit choice
+                 * wins, so an opened section survives a visit to another group.
                  * The icon rail has no room for a heading, let alone an arrow,
                  * so every group stays open there: the toggle is a full-width
                  * text affordance, not something a 72px column can carry.
                  */
-                const isOpen = collapsed || !collapsible || collapsedSections[label ?? ''] !== true;
+                const isOpen =
+                    collapsed || !collapsible || (sectionOverrides[label ?? ''] ?? hasActiveItem);
 
                 return (
                     <div
@@ -181,7 +169,7 @@ export default function SidebarNav({
                             (collapsible && !collapsed ? (
                                 <button
                                     type="button"
-                                    onClick={() => toggleSection(label)}
+                                    onClick={() => setSectionOpen(label, !isOpen)}
                                     aria-expanded={isOpen}
                                     aria-controls={panelId}
                                     className="mb-0.5 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.16em] text-surface-600 uppercase transition-colors duration-150 hover:bg-surface-100 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0"

@@ -24,9 +24,8 @@ import SidebarNav from './SidebarNav';
 
 /**
  * The rail's sections are disclosures, so the tests cover the two things a
- * markup review cannot: the folded group is gone from the keyboard tree, and a
- * navigation into a folded group reopens it instead of hiding the page the user
- * just landed on.
+ * markup review cannot: a folded group is gone from the keyboard tree, and a
+ * group the user opens is remembered instead of collapsing on the next visit.
  */
 const PERMISSIONS = [
     'VIEW_ANY_LEAD',
@@ -50,7 +49,7 @@ afterEach(() => {
 });
 
 describe('SidebarNav sections', () => {
-    it('folds a section with a disclosure and reopens it when the route lands inside', async () => {
+    it('folds every group that is not current and remembers the one the user opens', async () => {
         const { container, rerender } = render(
             <SidebarNav
                 groups={groupedPrimaryNav([...PERMISSIONS], CAPABILITIES)}
@@ -58,27 +57,33 @@ describe('SidebarNav sections', () => {
             />,
         );
 
+        const workspace = screen.getByRole('button', { name: 'Workspace' });
         const organization = screen.getByRole('button', { name: 'Organization' });
 
-        expect(organization.getAttribute('aria-expanded')).toBe('true');
+        // Dashboard is a standalone row, so no group owns this route and every
+        // section starts folded.
+        expect(workspace.getAttribute('aria-expanded')).toBe('false');
+        expect(organization.getAttribute('aria-expanded')).toBe('false');
         expect(
             document.getElementById(organization.getAttribute('aria-controls') ?? ''),
         ).not.toBeNull();
-        expect(screen.getByRole('link', { name: 'Users' })).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Users' })).toBeNull();
 
         fireEvent.click(organization);
 
-        expect(organization.getAttribute('aria-expanded')).toBe('false');
-        expect(screen.queryByRole('link', { name: 'Users' })).toBeNull();
-        expect(JSON.parse(localStorage.getItem('aq:nav:collapsed-sections') ?? '[]')).toEqual([
-            'Organization',
-        ]);
+        expect(organization.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('link', { name: 'Users' })).toBeTruthy();
+        expect(JSON.parse(localStorage.getItem('aq:nav:sections') ?? '{}')).toEqual({
+            Organization: true,
+        });
         expect(await a11yViolations(container)).toEqual([]);
 
+        // Leaving the section keeps it open: that is the user's choice. The
+        // group that owns the new route opens alongside it.
         rerender(
             <SidebarNav
                 groups={groupedPrimaryNav([...PERMISSIONS], CAPABILITIES)}
-                currentPath="/users"
+                currentPath="/leads"
             />,
         );
 
@@ -86,6 +91,9 @@ describe('SidebarNav sections', () => {
             screen.getByRole('button', { name: 'Organization' }).getAttribute('aria-expanded'),
         ).toBe('true');
         expect(screen.getByRole('link', { name: 'Users' })).toBeTruthy();
+        expect(
+            screen.getByRole('button', { name: 'Workspace' }).getAttribute('aria-expanded'),
+        ).toBe('true');
     });
 
     it('keeps every destination reachable when the rail collapses to icons', () => {

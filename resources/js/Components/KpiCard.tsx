@@ -3,8 +3,9 @@
  *
  * A metric tile has one job: let the eye compare four numbers without reading
  * four cards. The label sits on a single line, the value is the only loud type
- * on the row, and the month chip answers "compared with what?" underneath. The
- * icon is a quiet anchor, not a second focal point.
+ * on the row, the sparkline shows the period's shape and the chip answers
+ * "compared with what?" underneath. The icon is a quiet anchor, not a second
+ * focal point.
  *
  * The tile is optionally a link. When the metric already maps to a filtered
  * list, the whole surface becomes the target (a 296px hit area is far easier to
@@ -12,6 +13,7 @@
  */
 import { Link } from '@inertiajs/react';
 import { ArrowUpRight } from 'lucide-react';
+import { sparklineGeometry } from '@/lib/sparkline';
 import { cn } from '@/lib/utils';
 
 type Trend = 'up' | 'down' | 'flat';
@@ -28,6 +30,11 @@ interface KpiCardProps {
     /** Legacy alias for `delta`. */
     subtitle?: string;
     trend?: Trend;
+    /**
+     * Daily counts for the current period, oldest first. Rendered as a quiet
+     * area line under the value; fewer than two points renders nothing.
+     */
+    series?: readonly number[];
     /** Zero-based position in the row, driving the CSS entrance stagger. */
     index?: number;
     icon?: React.ReactNode;
@@ -61,12 +68,14 @@ export default function KpiCard({
     delta,
     subtitle,
     trend = 'flat',
+    series,
     index = 0,
     icon,
     href,
 }: KpiCardProps) {
     const eyebrow = label ?? title ?? '';
     const chipLabel = delta ?? subtitle ?? null;
+    const sparkline = series === undefined ? null : sparklineGeometry(series);
 
     const card = (
         <div
@@ -102,6 +111,33 @@ export default function KpiCard({
                     </span>
                 )}
             </div>
+
+            {sparkline !== null && series !== undefined && (
+                /*
+                 * The line is the accent token, the fill a translucent wash of
+                 * the same colour, so the tile stays a metric, not a chart.
+                 * The accessible name summarises the shape; the numbers are
+                 * already in the value and the chip.
+                 */
+                <svg
+                    role="img"
+                    aria-label={`Daily trend over ${series.length} days, peak ${Math.max(...series)}`}
+                    viewBox="0 0 120 32"
+                    preserveAspectRatio="none"
+                    className="mt-3 h-8 w-full text-aq-accent"
+                >
+                    <path d={sparkline.area} fill="currentColor" opacity={0.12} />
+                    <path
+                        d={sparkline.line}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                    />
+                </svg>
+            )}
 
             <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                 {chipLabel !== null ? (

@@ -4,11 +4,7 @@
  * action a screen may offer.
  */
 
-export const humanize = (value: string): string => {
-    const label = value.replace(/_/g, ' ');
-
-    return label.charAt(0).toUpperCase() + label.slice(1);
-};
+export { humanize } from '@/lib/utils';
 
 export type StatusTone = 'success' | 'warning' | 'destructive' | 'outline';
 

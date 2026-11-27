@@ -64,13 +64,30 @@ interface AppointmentReader
     /**
      * Appointments whose visit starts inside the window. Cancelled and no-show
      * rows are excluded; completed visits count, because they belong to the
-     * month's workload. Null `$kind` counts every kind.
+     * period's workload. Null `$kind` counts every kind; null `$region` every
+     * metro.
      */
     public function countScheduledBetween(
         CarbonImmutable $from,
         CarbonImmutable $to,
         ?AppointmentKind $kind = null,
+        ?string $region = null,
     ): int;
+
+    /**
+     * Daily counts of scheduled visits inside the window, keyed by the company
+     * timezone's calendar date. Same kind/region filters and the same
+     * cancelled/no-show exclusions as `countScheduledBetween`.
+     *
+     * @return array<string, int>
+     */
+    public function dailyScheduledBetween(
+        CarbonImmutable $from,
+        CarbonImmutable $to,
+        string $timezone,
+        ?AppointmentKind $kind = null,
+        ?string $region = null,
+    ): array;
 
     public function count(AppointmentFilterData $filters): int;
 

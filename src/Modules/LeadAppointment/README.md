@@ -5,9 +5,9 @@
 > mitigation operation across Houston, Dallas and Florida.
 
 **Status:** backend complete; lead CRUD, pipeline board, detail screens, the
-appointment screens and the real dashboard (lead columns + current-month
-appointments) are live. The availability screen set (month grid, weekly hours,
-day exceptions and their CSV/XLSX/PDF export) is live too.
+appointment screens and the real dashboard (period-scoped lead columns, KPI
+sparklines and appointments) are live. The availability screen set (month grid,
+weekly hours, day exceptions and their CSV/XLSX/PDF export) is live too.
 **Last verified:** 2026-11-25 · module tests 161 / 868 assertions.
 `doctor` passes on 2026-11-25 (25 diagnostics, 0 failed, 1 skipped); the known
 Windows autoload timeout is excluded by the gate (see §11).
@@ -25,7 +25,7 @@ before opening the 180+ files.
 | Public lead intake | `POST /api/leads`                                | Honeypot, content scoring, dedupe, TCPA consent         |
 | Meta lead ads      | `GET/POST /api/meta/webhook`                     | HMAC, idempotent `lead_ingestion_events`                |
 | Sales pipeline     | Leads + `lead_activities`                        | Explicit status transition map; table + kanban screens  |
-| Dashboard          | `LeadRepository::board` + `appointments` month   | No mock rows; one server read per visit                 |
+| Dashboard          | `LeadRepository::board` + period KPIs            | Board, KPIs and table share one URL period/scope        |
 | Availability       | `availability_rules` + `availability_exceptions` | Company exception > company rule > closed               |
 | Scheduling         | `appointments`                                   | UTC `timestamptz` + local `timezone`, half-open overlap |
 | Calendar           | `GET /appointments/calendar`                     | Read model, no public slot picker                       |

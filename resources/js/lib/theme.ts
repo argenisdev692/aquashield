@@ -229,52 +229,58 @@ export const useSidebar = (): SidebarState => {
 };
 
 /**
- * Collapsible navigation sections — which of Workspace / Organization / System
- * the user has folded away.
+ * Collapsible navigation sections — Workspace / Organization / System.
+ *
+ * Folded by default. A section opens while it owns the current route, and it
+ * stays open only when the user leaves it open: this module store persists
+ * those explicit choices (`true` open, `false` closed) under `aq:nav:sections`.
+ * A section with no entry falls back to the active-route rule in `SidebarNav`,
+ * so a new group ships folded and never looks pre-expanded.
  *
  * A module store rather than `useState` for the same reason the theme is one:
  * the desktop rail and the mobile drawer mount the same list, and two private
- * copies would disagree the moment the drawer opens after a rail toggle. The
- * value is persisted as the list of *collapsed* labels under
- * `aq:nav:collapsed-sections`, so a section added later starts expanded, which
- * is the safe default — a hidden destination is a support ticket.
+ * copies would disagree the moment the drawer opens after a rail toggle.
  */
-const NAV_SECTIONS_STORAGE_KEY = 'aq:nav:collapsed-sections';
+const NAV_SECTIONS_STORAGE_KEY = 'aq:nav:sections';
 
-export type CollapsedSections = Readonly<Record<string, boolean>>;
+export type SectionOverrides = Readonly<Record<string, boolean>>;
 
-const NO_COLLAPSED_SECTIONS: CollapsedSections = {};
+const NO_SECTION_OVERRIDES: SectionOverrides = {};
 
-const readCollapsedSections = (): CollapsedSections => {
+const readSectionOverrides = (): SectionOverrides => {
     if (typeof window === 'undefined') {
-        return NO_COLLAPSED_SECTIONS;
+        return NO_SECTION_OVERRIDES;
     }
 
     try {
         const stored = localStorage.getItem(NAV_SECTIONS_STORAGE_KEY);
 
         if (stored === null) {
-            return NO_COLLAPSED_SECTIONS;
+            return NO_SECTION_OVERRIDES;
         }
 
         const parsed: unknown = JSON.parse(stored);
 
-        if (!Array.isArray(parsed)) {
-            return NO_COLLAPSED_SECTIONS;
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return NO_SECTION_OVERRIDES;
         }
 
-        return Object.fromEntries(
-            parsed
-                .filter((label): label is string => typeof label === 'string')
-                .map((label) => [label, true]),
-        );
+        const overrides: Record<string, boolean> = {};
+
+        for (const [label, value] of Object.entries(parsed)) {
+            if (typeof value === 'boolean') {
+                overrides[label] = value;
+            }
+        }
+
+        return overrides;
     } catch {
         // A corrupt value or a storage-denied context must not blank the rail.
-        return NO_COLLAPSED_SECTIONS;
+        return NO_SECTION_OVERRIDES;
     }
 };
 
-let collapsedSections: CollapsedSections = readCollapsedSections();
+let sectionOverrides: SectionOverrides = readSectionOverrides();
 const sectionListeners = new Set<() => void>();
 
 const subscribeSections = (listener: () => void): (() => void) => {
@@ -285,43 +291,28 @@ const subscribeSections = (listener: () => void): (() => void) => {
     };
 };
 
-const getSectionsSnapshot = (): CollapsedSections => collapsedSections;
-const getSectionsServerSnapshot = (): CollapsedSections => NO_COLLAPSED_SECTIONS;
+const getSectionsSnapshot = (): SectionOverrides => sectionOverrides;
+const getSectionsServerSnapshot = (): SectionOverrides => NO_SECTION_OVERRIDES;
 
-const commitSections = (next: CollapsedSections): void => {
-    collapsedSections = next;
-    writeStorage(
-        NAV_SECTIONS_STORAGE_KEY,
-        JSON.stringify(Object.keys(next).filter((label) => next[label] === true)),
-    );
+const commitSections = (next: SectionOverrides): void => {
+    sectionOverrides = next;
+    writeStorage(NAV_SECTIONS_STORAGE_KEY, JSON.stringify(next));
     sectionListeners.forEach((listener) => listener());
 };
 
-const toggleSection = (label: string): void => {
-    commitSections({ ...collapsedSections, [label]: collapsedSections[label] !== true });
-};
-
-/** No-op when already open, so an effect may call it on every navigation. */
-const expandSection = (label: string): void => {
-    if (collapsedSections[label] !== true) {
+/** Records the user's choice; the active-route default applies when absent. */
+const setSectionOpen = (label: string, open: boolean): void => {
+    if (sectionOverrides[label] === open) {
         return;
     }
 
-    const next: Record<string, boolean> = {};
-
-    for (const [key, value] of Object.entries(collapsedSections)) {
-        if (key !== label) {
-            next[key] = value;
-        }
-    }
-
-    commitSections(next);
+    commitSections({ ...sectionOverrides, [label]: open });
 };
 
 export interface SidebarSectionsState {
-    collapsedSections: CollapsedSections;
-    toggleSection: (label: string) => void;
-    expandSection: (label: string) => void;
+    /** Explicit open/closed choices; a missing label uses the route default. */
+    sectionOverrides: SectionOverrides;
+    setSectionOpen: (label: string, open: boolean) => void;
 }
 
 export const useSidebarSections = (): SidebarSectionsState => {
@@ -331,5 +322,5 @@ export const useSidebarSections = (): SidebarSectionsState => {
         getSectionsServerSnapshot,
     );
 
-    return { collapsedSections: sections, toggleSection, expandSection };
+    return { sectionOverrides: sections, setSectionOpen };
 };
