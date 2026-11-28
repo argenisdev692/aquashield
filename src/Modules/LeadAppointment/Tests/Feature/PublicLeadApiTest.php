@@ -142,6 +142,56 @@ it('accepts a role mailbox but flags it for review', function (): void {
         ->and($lead->spam_reasons)->toContain('email:role_address');
 });
 
+it('bounds consent metadata to its database columns', function (): void {
+    $sourcePage = str_repeat('b', 255);
+
+    $response = $this->withServerVariables(['HTTP_USER_AGENT' => str_repeat('a', 600)])
+        ->postJson('/api/leads', [
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada-metadata@aquashieldrestorationusa.com',
+            'sms_consent' => true,
+            'consent_text_version' => 'sms-v-test',
+            'source_page' => $sourcePage,
+        ])->assertCreated();
+
+    $lead = Lead::query()->where('uuid', $response->json('reference'))->firstOrFail();
+
+    expect(mb_strlen($lead->sms_consent_user_agent))->toBe(500)
+        ->and($lead->sms_consent_source)->toBe('website')
+        ->and($lead->attribution['source_page'])->toBe($sourcePage);
+});
+
+it('uses server-controlled consent evidence instead of client claims', function (): void {
+    config(['lead-appointment.sms_consent_version' => 'sms-v-server']);
+
+    $response = $this->postJson('/api/leads', [
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada-consent@aquashieldrestorationusa.com',
+        'sms_consent' => true,
+        'consent_text_version' => 'forged-version',
+        'source_page' => '/forged-source',
+    ])->assertCreated();
+
+    $lead = Lead::query()->where('uuid', $response->json('reference'))->firstOrFail();
+
+    expect($lead->consent_text_version)->toBe('sms-v-server')
+        ->and($lead->sms_consent_source)->toBe('website')
+        ->and($lead->attribution['source_page'])->toBe('/forged-source');
+});
+
+it('rejects a consent source page longer than its database column', function (): void {
+    $this->postJson('/api/leads', [
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada-long-source@aquashieldrestorationusa.com',
+        'sms_consent' => true,
+        'consent_text_version' => 'sms-v-test',
+        'source_page' => str_repeat('b', 256),
+    ])->assertUnprocessable()->assertJsonValidationErrors(['source_page']);
+});
+
 it('accepts yes/no booleans and defaults the SMS consent version', function (): void {
     config(['lead-appointment.sms_consent_version' => 'sms-v-test']);
 

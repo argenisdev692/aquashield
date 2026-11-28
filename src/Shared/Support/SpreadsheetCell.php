@@ -11,8 +11,9 @@ use DateTimeInterface;
  *
  * Normalises a date to `Y-m-d H:i`, a bool to 0/1 and null to an empty cell,
  * then neutralises the formula prefixes Excel and Sheets execute (`=`, `+`,
- * `-`, `@`, tab, carriage return). Every export transformer calls this; a
- * divergent copy is a formula-injection vulnerability, not a style choice.
+ * `-`, `@`, tab, carriage return, line feed, and formula prefixes hidden after
+ * leading whitespace). Every export transformer calls this; a divergent copy
+ * is a formula-injection vulnerability, not a style choice.
  */
 final class SpreadsheetCell
 {
@@ -22,6 +23,6 @@ final class SpreadsheetCell
             |> (fn (mixed $v): mixed => $v instanceof DateTimeInterface ? $v->format('Y-m-d H:i') : $v)
             |> (fn (mixed $v): mixed => is_bool($v) ? (int) $v : $v)
             |> (fn (mixed $v): int|float|string => $v ?? '')
-            |> (fn (int|float|string $v): int|float|string => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) === 1 ? "'".$v : $v);
+            |> (fn (int|float|string $v): int|float|string => is_string($v) && preg_match('/^(?:[=+\-@\t\r\n]|\s+[=+\-@])/', $v) === 1 ? "'".$v : $v);
     }
 }

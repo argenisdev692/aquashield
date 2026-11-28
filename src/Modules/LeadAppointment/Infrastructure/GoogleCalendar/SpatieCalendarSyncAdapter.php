@@ -15,8 +15,8 @@ use Throwable;
 /**
  * One shared company calendar. The package authenticates with one credential and
  * does not manage per-technician OAuth tokens; that is a deliberate scope
- * boundary. Every method swallows and logs failures: sync must never block a
- * booking.
+ * boundary. Failures are logged without provider payloads and rethrown so the
+ * queued listener can retry; sync never blocks the booking transaction itself.
  */
 final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
 {
@@ -39,10 +39,10 @@ final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
 
                 return (string) $saved->googleEvent->getId();
             },
-            function (Throwable $exception) use ($appointment): ?string {
+            function (Throwable $exception) use ($appointment): never {
                 $this->logFailure('create', $appointment, $exception);
 
-                return null;
+                throw $exception;
             },
         );
     }
@@ -62,10 +62,10 @@ final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
 
                 return true;
             },
-            function (Throwable $exception) use ($appointment): bool {
+            function (Throwable $exception) use ($appointment): never {
                 $this->logFailure('update', $appointment, $exception);
 
-                return true;
+                throw $exception;
             },
         );
     }
@@ -83,10 +83,10 @@ final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
 
                 return true;
             },
-            function (Throwable $exception) use ($appointment): bool {
+            function (Throwable $exception) use ($appointment): never {
                 $this->logFailure('delete', $appointment, $exception);
 
-                return true;
+                throw $exception;
             },
         );
     }
@@ -133,11 +133,8 @@ final readonly class SpatieCalendarSyncAdapter implements CalendarSyncPort
         Log::warning('lead-appointment.google_calendar.'.$operation.'_failed', [
             'appointment_uuid' => $appointment->uuid,
             'google_event_id' => $appointment->googleEventId,
-            'error' => (string) preg_replace(
-                '/((?:access_token|key|token)=)[^&\s]+/i',
-                '$1[REDACTED]',
-                $exception->getMessage(),
-            ),
+            'exception_class' => $exception::class,
+            'exception_code' => $exception->getCode(),
         ]);
     }
 }

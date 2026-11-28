@@ -12,7 +12,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 final class AvailabilityDayData extends Data
 {
     /**
-     * @param list<array{start: string, end: string}> $windows
+     * @param list<AvailabilityWindowData> $windows
      */
     public function __construct(
         public string $date,

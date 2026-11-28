@@ -43,8 +43,9 @@ final readonly class PublicLeadController
         $data = CaptureLeadData::from([
             ...$request->validated(),
             'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
+            'user_agent' => Str::limit((string) $request->userAgent(), 500, ''),
         ]);
+        $data->consentTextVersion = (string) config('lead-appointment.sms_consent_version', 'sms-v1-2026-11-20');
 
         $lead = $this->captureLead->execute(
             data: $data,

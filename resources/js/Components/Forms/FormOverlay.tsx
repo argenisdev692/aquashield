@@ -84,7 +84,7 @@ function FormBody({
 
             <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">{children}</div>
 
-            <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col-reverse gap-2 border-t border-aq-content-line pt-4 sm:flex-row sm:justify-end">
                 <Button
                     type="button"
                     variant="outline"

@@ -13,7 +13,10 @@ final class MergeLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::UpdateLead->value) ?? false;
+        $user = $this->user();
+
+        return $user->can(Permission::UpdateLead->value) === true
+            && $user->can(Permission::ViewLead->value) === true;
     }
 
     /**

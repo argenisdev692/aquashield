@@ -20,15 +20,11 @@ type Trend = 'up' | 'down' | 'flat';
 
 interface KpiCardProps {
     /** Small-caps eyebrow above the value, e.g. "New leads". */
-    label?: string;
-    /** Backwards-compatible alias for `label`. */
-    title?: string;
+    label: string;
     /** Pre-formatted display value — the page owns its Intl formatting. */
     value: string | number;
     /** Delta sentence in the chip; null renders no chip rather than inventing a trend. */
     delta?: string | null;
-    /** Legacy alias for `delta`. */
-    subtitle?: string;
     trend?: Trend;
     /**
      * Daily counts for the current period, oldest first. Rendered as a quiet
@@ -63,85 +59,86 @@ const staggerDelay = (position: number): string => `${Math.min(position * 70, 28
 
 export default function KpiCard({
     label,
-    title,
     value,
     delta,
-    subtitle,
     trend = 'flat',
     series,
     index = 0,
     icon,
     href,
 }: KpiCardProps) {
-    const eyebrow = label ?? title ?? '';
-    const chipLabel = delta ?? subtitle ?? null;
+    const eyebrow = label;
+    const chipLabel = delta ?? null;
     const sparkline = series === undefined ? null : sparklineGeometry(series);
 
     const card = (
         <div
             className={cn(
                 'group relative flex h-full flex-col overflow-hidden rounded-xl border p-4 sm:p-5',
-                'border-surface-200 bg-surface-0 transition-[translate,border-color,box-shadow] duration-200 ease-out',
-                'hover:-translate-y-0.5 hover:border-aq-accent/40 hover:shadow-(--aq-shadow-lift)',
-                'dark:border-surface-800 dark:bg-surface-900 dark:hover:border-aq-accent/35',
+                'border-aq-content-line bg-aq-card transition-[translate,border-color,box-shadow] duration-200 ease-out',
+                'hover:-translate-y-0.5 hover:border-aq-content-line-strong hover:shadow-(--aq-shadow-lift)',
                 'motion-reduce:transition-none',
             )}
         >
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="truncate text-[11px] font-semibold tracking-[0.14em] text-surface-600 uppercase dark:text-surface-300">
-                        {eyebrow}
-                    </p>
-                    {/*
-                     * 30px is the row's one loud step. The label is 11px
-                     * uppercase and the chip 11px, so the number dominates by
-                     * scale rather than by decoration.
-                     */}
-                    <p className="mt-2.5 text-3xl leading-none font-bold tracking-tight text-surface-900 tabular-nums dark:text-surface-0">
-                        {value}
-                    </p>
-                </div>
-
+            <div className="flex items-start gap-3">
                 {icon && (
                     <span
-                        className="grid size-9 shrink-0 place-items-center rounded-lg bg-aq-accent/10 text-aq-accent transition-colors duration-200 group-hover:bg-aq-accent/15 dark:bg-aq-accent/10 motion-reduce:transition-none"
+                        className="grid size-10 shrink-0 place-items-center rounded-xl bg-aq-accent/10 text-aq-accent transition-colors duration-200 group-hover:bg-aq-accent/15 motion-reduce:transition-none"
                         aria-hidden="true"
                     >
                         {icon}
                     </span>
                 )}
-            </div>
 
-            {sparkline !== null && series !== undefined && (
-                /*
-                 * The line is the accent token, the fill a translucent wash of
-                 * the same colour, so the tile stays a metric, not a chart.
-                 * The accessible name summarises the shape; the numbers are
-                 * already in the value and the chip.
-                 */
-                <svg
-                    role="img"
-                    aria-label={`Daily trend over ${series.length} days, peak ${Math.max(...series)}`}
-                    viewBox="0 0 120 32"
-                    preserveAspectRatio="none"
-                    className="mt-3 h-8 w-full text-aq-accent"
-                >
-                    <path d={sparkline.area} fill="currentColor" opacity={0.12} />
-                    <path
-                        d={sparkline.line}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                    />
-                </svg>
-            )}
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold tracking-[0.12em] text-surface-600 uppercase dark:text-surface-300">
+                        {eyebrow}
+                    </p>
+
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                        {/*
+                         * 32px is the row's one loud step. The label is 12px
+                         * and the chip 11px, so the number dominates by scale
+                         * rather than by decoration.
+                         */}
+                        <p className="text-[2rem] leading-none font-bold tracking-tight text-surface-900 tabular-nums dark:text-surface-0">
+                            {value}
+                        </p>
+
+                        {sparkline !== null && series !== undefined && (
+                            /*
+                             * The line is the accent token, the fill a
+                             * translucent wash of the same colour, so the tile
+                             * stays a metric, not a chart. The accessible name
+                             * summarises the shape; the numbers are already in
+                             * the value and the chip.
+                             */
+                            <svg
+                                role="img"
+                                aria-label={`Daily trend over ${series.length} days, peak ${Math.max(...series)}`}
+                                viewBox="0 0 120 32"
+                                preserveAspectRatio="none"
+                                className="h-8 w-24 shrink-0 text-aq-accent sm:w-28"
+                            >
+                                <path d={sparkline.area} fill="currentColor" opacity={0.12} />
+                                <path
+                                    d={sparkline.line}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={1.5}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    vectorEffect="non-scaling-stroke"
+                                />
+                            </svg>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                 {chipLabel !== null ? (
-                    <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-surface-200/80 bg-surface-50 px-2 py-0.5 text-[11px] font-medium text-surface-600 dark:border-surface-700/80 dark:bg-surface-800/60 dark:text-surface-200">
+                    <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-aq-content-line bg-surface-50 px-2 py-0.5 text-[11px] font-medium text-surface-600 dark:bg-aq-card-hover dark:text-surface-200">
                         <svg
                             aria-hidden="true"
                             viewBox="0 0 24 24"

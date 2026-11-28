@@ -57,10 +57,14 @@ final readonly class AvailabilityExceptionFilterFactory
     {
         $value = $request->query($key, $default);
 
-        if (! is_int($value) && ! is_string($value)) {
-            throw ValidationException::withMessages([$key => "The {$key} must be an integer."]);
+        if (is_int($value) && $value >= 0) {
+            return $value;
         }
 
-        return (int) $value;
+        if (is_string($value) && ctype_digit($value)) {
+            return (int) $value;
+        }
+
+        throw ValidationException::withMessages([$key => "The {$key} must be an integer."]);
     }
 }

@@ -30,6 +30,13 @@ return [
 
     'calendar_max_days' => 92,
 
+    'availability_rules' => [
+        'max_active' => (int) env('AVAILABILITY_RULES_MAX_ACTIVE', 50),
+        'max_per_weekday' => (int) env('AVAILABILITY_RULES_MAX_PER_WEEKDAY', 10),
+        'max_trashed_read' => (int) env('AVAILABILITY_RULES_MAX_TRASHED_READ', 100),
+        'throttle_per_minute' => (int) env('AVAILABILITY_RULES_THROTTLE_PER_MINUTE', 20),
+    ],
+
     // The source report is a cohort aggregate over the lead table. One year is
     // the largest window that stays a bounded read on the current indexes.
     'report_max_days' => 366,

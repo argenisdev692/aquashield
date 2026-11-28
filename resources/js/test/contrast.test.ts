@@ -330,6 +330,24 @@ describe('design token contrast (WCAG AA, normal text)', () => {
         }
     });
 
+    it('keeps control borders above the non-text 3:1 floor', () => {
+        const pairs = {
+            light: { border: '--p-surface-500', backgrounds: ['--p-surface-0', '--p-surface-50'] },
+            dark: {
+                border: '--p-surface-400',
+                backgrounds: ['--p-surface-950', '--p-surface-900'],
+            },
+        } as const;
+
+        for (const mode of ['light', 'dark'] as const) {
+            for (const background of pairs[mode].backgrounds) {
+                const ratio = contrast(token(pairs[mode].border, mode), token(background, mode));
+
+                expect(Number(ratio.toFixed(2))).toBeGreaterThanOrEqual(NON_TEXT);
+            }
+        }
+    });
+
     it('documents why surface-400 is not a text token on a card', () => {
         // The file says so next to `--p-text-muted-color`: -400 reads at 4.25:1
         // on surface-900. Pinning it keeps a future palette edit from promoting

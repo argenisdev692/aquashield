@@ -13,7 +13,9 @@ use Modules\Backups\Domain\Exceptions\BackupDestinationUnavailable;
 use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
 use Modules\LeadAppointment\Domain\Exceptions\AvailabilityConflictException;
 use Modules\LeadAppointment\Domain\Exceptions\CapacityExceededException;
+use Modules\LeadAppointment\Domain\Exceptions\InvalidSchedulingTimezoneException;
 use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadHasAppointmentsException;
 use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
 use Modules\LeadAppointment\Domain\Exceptions\PastDateSchedulingException;
 use Modules\LeadAppointment\Domain\Exceptions\SlotUnavailableException;
@@ -49,6 +51,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [
             SecurityHeaders::class,
         ]);
+        $middleware->api(prepend: [
+            SecurityHeaders::class,
+        ]);
         $middleware->web(append: [
             // Runs before Inertia renders: an expired session must never
             // produce a page payload for a user who is already signed out.
@@ -78,7 +83,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json(['message' => $exception->getMessage()], 404);
         });
 
-        $exceptions->render(function (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException|InvalidStatusTransitionException|AvailabilityConflictException $exception, Request $request) {
+        $exceptions->render(function (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException|InvalidStatusTransitionException|InvalidSchedulingTimezoneException|AvailabilityConflictException|LeadHasAppointmentsException $exception, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }

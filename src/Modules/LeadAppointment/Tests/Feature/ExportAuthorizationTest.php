@@ -28,6 +28,7 @@ it('refuses an export to a user who may export but not list', function (string $
 })->with([
     'leads' => ['EXPORT_LEAD', '/leads/export/csv'],
     'appointments' => ['EXPORT_APPOINTMENT', '/appointments/export/csv'],
+    'availability exceptions' => ['EXPORT_AVAILABILITY_EXCEPTION', '/availability/export/csv'],
     'lead sources report' => ['EXPORT_LEAD', '/reports/lead-sources/export/csv'],
 ]);
 

@@ -65,7 +65,7 @@ it('renders the pipeline board grouped by stage', function (): void {
             ->has('columns.0.leads', 1)
             ->where('columns.1.status', 'contacted')
             ->where('columns.1.total', 1)
-            ->has('transitions.new', 5)
+            ->has('transitions.new', 4)
             ->where('canUpdate', true)
         );
 });

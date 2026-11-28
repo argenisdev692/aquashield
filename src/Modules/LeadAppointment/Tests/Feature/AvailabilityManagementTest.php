@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\LeadAppointment\Domain\Enums\AvailabilitySource;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityException;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityRule;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -14,6 +16,65 @@ uses(TestCase::class, RefreshDatabase::class);
 beforeEach(function (): void {
     LeadAppointmentFixtures::seedPermissions();
     $this->admin = LeadAppointmentFixtures::superAdmin();
+});
+
+it('enforces active and per-weekday rule limits', function (): void {
+    config([
+        'lead-appointment.availability_rules.max_active' => 2,
+        'lead-appointment.availability_rules.max_per_weekday' => 2,
+    ]);
+
+    $payload = [
+        'day_of_week' => 1,
+        'start_time' => '08:00',
+        'end_time' => '12:00',
+        'is_available' => true,
+    ];
+
+    $this->actingAs($this->admin)->postJson('/availability-rules', $payload)->assertCreated();
+    $this->actingAs($this->admin)->postJson('/availability-rules', [
+        ...$payload,
+        'start_time' => '13:00',
+        'end_time' => '17:00',
+    ])->assertCreated();
+
+    $this->actingAs($this->admin)->postJson('/availability-rules', [
+        ...$payload,
+        'start_time' => '17:00',
+        'end_time' => '18:00',
+    ])->assertUnprocessable();
+
+    $this->actingAs($this->admin)->postJson('/availability-rules', [
+        ...$payload,
+        'day_of_week' => 2,
+    ])->assertUnprocessable();
+
+    expect(AvailabilityRule::query()->count())->toBe(2);
+});
+
+it('enforces rule capacity when restoring a deleted window', function (): void {
+    config([
+        'lead-appointment.availability_rules.max_active' => 1,
+        'lead-appointment.availability_rules.max_per_weekday' => 5,
+    ]);
+
+    $deleted = AvailabilityRule::factory()->create(['day_of_week' => 1]);
+    $deleted->delete();
+    AvailabilityRule::factory()->create(['day_of_week' => 1]);
+
+    $this->actingAs($this->admin)
+        ->patchJson("/availability-rules/{$deleted->uuid}/restore")
+        ->assertUnprocessable();
+
+    expect($deleted->refresh()->trashed())->toBeTrue();
+});
+
+it('throttles the availability-rule surface', function (): void {
+    config(['lead-appointment.availability_rules.throttle_per_minute' => 2]);
+
+    $this->actingAs($this->admin)->getJson('/availability-rules')->assertOk();
+    $this->actingAs($this->admin)->getJson('/availability-rules')->assertOk();
+    $this->actingAs($this->admin)->getJson('/availability-rules')->assertTooManyRequests();
 });
 
 it('creates and lists a weekly availability rule', function (): void {
@@ -30,21 +91,69 @@ it('creates and lists a weekly availability rule', function (): void {
         ->assertJsonPath('data.0.uuid', $created->json('uuid'));
 });
 
-it('creates a date exception and a bulk closure range', function (): void {
-    $this->actingAs($this->admin)->postJson('/availability-exceptions', [
+it('creates a bulk closure range without overwriting existing dates', function (): void {
+    $this->actingAs($this->admin)->postJson('/availability-exceptions/bulk-range', [
+        'from' => '2026-12-27',
+        'to' => '2026-12-29',
+        'is_available' => false,
+        'reason' => 'Holiday shutdown',
+    ])->assertCreated()->assertJsonPath('created', 3);
+
+    expect(AvailabilityException::query()->count())->toBe(3);
+});
+
+it('rejects a bulk range that touches an existing exception', function (): void {
+    AvailabilityException::factory()->create([
         'date' => '2026-12-24',
         'is_available' => false,
         'reason' => 'Christmas Eve',
-    ])->assertCreated()->assertJsonPath('date', '2026-12-24');
+    ]);
 
     $this->actingAs($this->admin)->postJson('/availability-exceptions/bulk-range', [
         'from' => '2026-12-24',
         'to' => '2026-12-26',
         'is_available' => false,
         'reason' => 'Holiday shutdown',
-    ])->assertCreated()->assertJsonPath('created', 3);
+    ])->assertUnprocessable();
 
-    expect(AvailabilityException::query()->count())->toBe(3);
+    expect(AvailabilityException::query()->count())->toBe(1)
+        ->and(AvailabilityException::query()->sole()->reason)->toBe('Christmas Eve');
+});
+
+it('promotes an edited holiday to a durable manual override', function (): void {
+    $holiday = AvailabilityException::factory()->create([
+        'date' => '2026-12-25',
+        'is_available' => false,
+        'reason' => 'Christmas Day',
+        'source' => AvailabilitySource::Holiday->value,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->putJson("/availability-exceptions/{$holiday->uuid}", [
+            'date' => '2026-12-25',
+            'is_available' => true,
+            'start_time' => '09:00',
+            'end_time' => '13:00',
+            'reason' => 'Crew works Christmas by approval',
+        ])
+        ->assertOk();
+
+    expect($holiday->refresh()->source->value)->toBe('manual');
+
+    $this->actingAs($this->admin)->postJson('/availability/sync-holidays')->assertOk();
+
+    expect($holiday->refresh()->source->value)->toBe('manual')
+        ->and($holiday->is_available)->toBeTrue()
+        ->and($holiday->reason)->toBe('Crew works Christmas by approval');
+});
+
+it('requires delete authority to purge and rebuild holidays', function (): void {
+    $creator = User::factory()->create();
+    $creator->givePermissionTo(PermissionName::CreateAvailabilityException->value);
+
+    $this->actingAs($creator)
+        ->postJson('/availability/sync-holidays')
+        ->assertForbidden();
 });
 
 it('materialises US federal holidays and keeps manual rows', function (): void {
@@ -72,6 +181,21 @@ it('bounds the availability exceptions JSON window', function (): void {
     $this->actingAs($this->admin)
         ->getJson('/availability-exceptions')
         ->assertOk();
+});
+
+it('enforces the inclusive calendar-day cap', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/availability-exceptions?from=2026-01-01&to=2026-04-02')
+        ->assertOk();
+
+    $this->actingAs($this->admin)
+        ->getJson('/availability-exceptions?from=2026-01-01&to=2026-04-03')
+        ->assertUnprocessable();
+});
+
+it('rejects non-canonical pagination integers', function (): void {
+    $this->actingAs($this->admin)->getJson('/availability?page=1.5')->assertUnprocessable();
+    $this->actingAs($this->admin)->getJson('/availability?per_page=10junk')->assertUnprocessable();
 });
 
 it('returns the resolved availability calendar', function (): void {
@@ -134,6 +258,42 @@ it('rejects restoring an exception that collides with an active one', function (
     $this->actingAs($this->admin)
         ->patchJson("/availability-exceptions/{$original->uuid}/restore")
         ->assertStatus(422);
+});
+
+it('rolls back a bulk exception restore when one date collides', function (): void {
+    $collision = AvailabilityException::factory()->create(['date' => '2026-12-24']);
+    $collision->delete();
+    $other = AvailabilityException::factory()->create(['date' => '2026-12-26']);
+    $other->delete();
+
+    AvailabilityException::factory()->create(['date' => '2026-12-24']);
+
+    $this->actingAs($this->admin)
+        ->postJson('/availability-exceptions/bulk-restore', ['uuids' => [$other->uuid, $collision->uuid]])
+        ->assertUnprocessable();
+
+    expect(AvailabilityException::query()->where('uuid', $other->uuid)->onlyTrashed()->exists())->toBeTrue()
+        ->and(AvailabilityException::query()->where('uuid', $collision->uuid)->onlyTrashed()->exists())->toBeTrue();
+});
+
+it('keeps valid holiday rows stable and purges only stale holiday rows', function (): void {
+    $valid = AvailabilityException::factory()->create([
+        'date' => '2026-12-25',
+        'source' => AvailabilitySource::Holiday->value,
+        'reason' => 'Christmas Day',
+    ]);
+    $stale = AvailabilityException::factory()->create([
+        'date' => '2027-01-02',
+        'source' => AvailabilitySource::Holiday->value,
+        'reason' => 'Stale holiday',
+    ]);
+    $validUuid = $valid->uuid;
+
+    $this->actingAs($this->admin)->postJson('/availability/sync-holidays')->assertOk();
+
+    expect($valid->refresh()->trashed())->toBeFalse()
+        ->and($valid->uuid)->toBe($validUuid)
+        ->and($stale->refresh()->trashed())->toBeTrue();
 });
 
 it('answers 401 and 403 for availability management', function (): void {

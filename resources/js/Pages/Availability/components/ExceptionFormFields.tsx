@@ -19,7 +19,7 @@ interface ExceptionFormFieldsProps {
     onChange: (values: AvailabilityExceptionFormValues) => void;
     onBlur: (key: keyof AvailabilityExceptionFormValues) => void;
     disabled?: boolean;
-    /** `holiday` came from the federal sync; editing it is possible but not durable. */
+    /** `holiday` came from the federal sync; editing promotes it to a durable manual override. */
     source?: string | null;
 }
 
@@ -42,8 +42,8 @@ export default function ExceptionFormFields({
                     role="status"
                     className="rounded-lg border border-aq-warning/40 bg-aq-warning/5 px-3 py-2 text-sm text-surface-700 dark:text-surface-200"
                 >
-                    This day was created by the federal holiday sync. Editing it keeps the holiday
-                    source, and the next sync can replace the reason.
+                    This day was created by the federal holiday sync. Editing it creates a durable
+                    manual override that future syncs will preserve.
                 </p>
             )}
 

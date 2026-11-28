@@ -30,7 +30,7 @@ If a skill covers the task, read it first. No exceptions.
 
 **What exists today:** `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and
 `Users` (FLAT), plus `Backups` and `LeadAppointment` (PROGRESSIVE) — each with its own `ARCHITECTURE.md` and tests. The architecture suite in
-`tests/Architecture/` runs against them (47 tests green on 2026-11-25), and
+`tests/Architecture/` runs against them (51 tests green on 2026-11-27), and
 `resources/js/generated/generated.d.ts` is populated. `src/Shared/` is populated. Never claim a
 module, screen or DTO exists because a rule above names it — check the disk.
 
@@ -309,7 +309,7 @@ error" as evidence — **the exit code is the verdict.** See `owasp/STACK.md` §
 
 `laravel/pao` also means a "skipped" Pest test prints as skipped rather than vanishing. A suite that
 is entirely skipped has passed _vacuously_ — check the skip count before reporting green.
-`tests/Architecture/` runs 47 tests in four suites against the six modules today; a run that reports
+`tests/Architecture/` runs 51 tests in four suites against the six modules today; a run that reports
 them all skipped has a broken glob, not a green suite.
 
 ### `laravel/doctor` — the agent sanity check
@@ -434,7 +434,7 @@ What that means for you:
   never change the project to satisfy it.
 - A new module must be clean **on its own files**. `phpstan analyse src/Modules/{Module}` and
   `pint --test src/Modules/{Module}` prove that.
-- `tests/Architecture/` is a real suite and currently runs **47 tests in four suites** against the
+- `tests/Architecture/` is a real suite and currently runs **51 tests in four suites** against the
   six modules. If it disappears from the count, check `phpunit.xml` before assuming green.
 
 # Working on the skills themselves

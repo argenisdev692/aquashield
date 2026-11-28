@@ -45,12 +45,7 @@ interface AppLayoutProps {
     children: React.ReactNode;
 }
 
-interface IdleSessionConfig {
-    warnAfterSeconds: number;
-    graceSeconds: number;
-    keepAliveEndpoint: string;
-    logoutEndpoint: string;
-}
+type IdleSessionConfig = App.Data.Auth.IdleSessionData;
 
 export default function AppLayout({ title, subtitle, actions, children }: AppLayoutProps) {
     const page = usePage<{

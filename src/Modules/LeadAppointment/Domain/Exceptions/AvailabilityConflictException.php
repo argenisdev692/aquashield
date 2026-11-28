@@ -22,4 +22,14 @@ final class AvailabilityConflictException extends RuntimeException
     {
         return new self('An availability exception already exists for this date.');
     }
+
+    public static function forTotalRuleLimit(): self
+    {
+        return new self('The maximum number of active availability rules has been reached.');
+    }
+
+    public static function forWeekdayRuleLimit(): self
+    {
+        return new self('The maximum number of availability rules for this weekday has been reached.');
+    }
 }

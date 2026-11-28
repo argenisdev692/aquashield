@@ -85,6 +85,20 @@ describe('DataTableKit search', () => {
         expect(props.setSearch).not.toHaveBeenCalled();
     });
 
+    it('clears a committed search when the draft drops below the minimum', () => {
+        const props = createProps();
+
+        render(<DataTableKit {...props} search="acme" />);
+
+        fireEvent.change(searchInput(), { target: { value: 'a' } });
+
+        act(() => {
+            vi.advanceTimersByTime(300);
+        });
+
+        expect(props.setSearch).toHaveBeenCalledWith('');
+    });
+
     it('does not re-send the value the server just echoed back', () => {
         const props = createProps();
 
@@ -140,6 +154,16 @@ describe('DataTableKit accessibility', () => {
 
         expect(await a11yViolations(container)).toEqual([]);
     }, 15_000);
+
+    it('exposes the table scroller and loading state to assistive technology', () => {
+        const { container } = render(<DataTableKit {...createProps()} title="All leads" loading />);
+
+        const region = screen.getByRole('region', { name: 'All leads' });
+
+        expect(region.getAttribute('tabindex')).toBe('0');
+        expect(screen.getByRole('status').textContent).toContain('Loading table rows');
+        expect(container.querySelector('section')?.getAttribute('aria-busy')).toBe('true');
+    });
 });
 
 describe('DataTableKit pagination', () => {

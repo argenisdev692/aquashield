@@ -12,7 +12,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 final class CalendarDayData extends Data
 {
     /**
-     * @param list<array{start: string, end: string}> $windows
+     * @param list<AvailabilityWindowData> $windows
      * @param list<AppointmentData> $appointments
      */
     public function __construct(

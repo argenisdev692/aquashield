@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Http\Controllers;
 
+use Dedoc\Scramble\Attributes\Parameter;
+use Dedoc\Scramble\Attributes\Response as OpenApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\LeadAppointment\Application\Exports\AvailabilityExceptionExportTransformer;
@@ -26,6 +28,19 @@ final readonly class AvailabilityExceptionExportController
         private AuditPort $audit,
     ) {}
 
+    #[Parameter('query', 'search', type: 'string')]
+    #[Parameter('query', 'filter[availability]', type: 'string', description: 'One of: open, closed.')]
+    #[Parameter('query', 'filter[source]', type: 'string', description: 'One of: manual, holiday.')]
+    #[Parameter('query', 'filter[record_state]', type: 'string', description: 'One of: active, trashed, all.')]
+    #[Parameter('query', 'filter[date_from]', type: 'string', format: 'date')]
+    #[Parameter('query', 'filter[date_to]', type: 'string', format: 'date')]
+    #[Parameter('query', 'sort', type: 'string', description: 'One of: date, created_at, with optional - prefix.')]
+    #[Parameter('query', 'page', type: 'integer', default: 1)]
+    #[Parameter('query', 'per_page', type: 'integer', default: 15)]
+    #[OpenApiResponse(200, 'CSV export', mediaType: 'text/csv', type: 'string', format: 'binary')]
+    #[OpenApiResponse(200, 'XLSX export', mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', type: 'string', format: 'binary')]
+    #[OpenApiResponse(200, 'PDF export', mediaType: 'application/pdf', type: 'string', format: 'binary')]
+    #[OpenApiResponse(403, 'Forbidden', type: 'array{message: string}')]
     public function __invoke(Request $request, string $format): StreamedResponse|Response
     {
         $filters = AvailabilityExceptionFilterFactory::fromRequest($request);

@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-and-frontend:
+    runs-on: windows-latest
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      COMPOSER_PROCESS_TIMEOUT: '900'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP 8.6
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.6'
+          extensions: mbstring, intl, pdo_sqlite, fileinfo, gd
+          tools: composer
+          coverage: none
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Validate Composer manifest
+        run: composer validate --no-check-publish
+
+      - name: Audit production PHP dependencies
+        run: composer audit --no-dev --no-interaction
+
+      - name: Audit production JavaScript dependencies
+        run: npm audit --omit=dev
+
+      - name: Check generated TypeScript and OpenAPI contracts
+        run: |
+          composer codegen:check
+          php artisan scramble:clear
+          php artisan scramble:export
+          git diff --exit-code -- api.json
+
+      - name: Verify AI mirrors, formatting, lint and TypeScript
+        run: npm run verify
+
+      - name: Run frontend unit tests
+        run: npm run test:unit
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Run PHP static analysis
+        run: composer analyse
+
+      - name: Check PHP formatting
+        run: composer pint:test
+
+      - name: Run backend tests
+        run: php artisan test --compact

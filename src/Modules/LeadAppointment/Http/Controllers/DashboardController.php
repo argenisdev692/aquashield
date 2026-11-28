@@ -73,7 +73,7 @@ final readonly class DashboardController
 
         return inertia('Dashboard', [
             'columns' => $columns,
-            'transitions' => LeadStatus::transitionMap(),
+            'transitions' => LeadStatus::manualTransitionMap(),
             'stats' => $this->stats->execute(
                 $now,
                 $canViewLeads,

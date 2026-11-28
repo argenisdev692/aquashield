@@ -5,9 +5,12 @@ declare(strict_types=1);
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
+use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -40,6 +43,17 @@ it('forbids lead reads and writes without the matching permission', function ():
     $this->actingAs($outsider)->patchJson('/leads/'.$lead->uuid.'/restore')->assertForbidden();
     $this->actingAs($outsider)->postJson('/leads/bulk-delete', ['uuids' => [$lead->uuid]])->assertForbidden();
     $this->actingAs($outsider)->postJson('/leads/bulk-restore', ['uuids' => [$lead->uuid]])->assertForbidden();
+});
+
+it('requires VIEW_LEAD for PII-bearing writes and the edit screen', function (): void {
+    $lead = Lead::factory()->create();
+    $writer = User::factory()->create();
+    $writer->givePermissionTo(PermissionName::UpdateLead->value);
+
+    $this->actingAs($writer)->putJson('/leads/'.$lead->uuid, [])->assertForbidden();
+    $this->actingAs($writer)->postJson('/leads/'.$lead->uuid.'/status', ['status' => 'contacted'])->assertForbidden();
+    $this->actingAs($writer)->postJson('/leads/'.$lead->uuid.'/merge', ['duplicate_uuid' => $lead->uuid])->assertForbidden();
+    $this->actingAs($writer)->get('/leads/'.$lead->uuid.'/edit')->assertForbidden();
 });
 
 it('rejects invalid create input with 422', function (): void {
@@ -184,9 +198,25 @@ it('enforces the lead status transition map', function (): void {
         ->assertOk()
         ->assertJsonPath('status', 'contacted');
 
+    $this->assertDatabaseHas('lead_activities', [
+        'lead_id' => $lead->id,
+        'user_id' => $this->admin->id,
+        'notes' => 'Called the customer.',
+    ]);
+
     $this->actingAs($this->admin)
         ->postJson('/leads/'.$lead->uuid.'/status', ['status' => 'new'])
         ->assertUnprocessable();
+});
+
+it('keeps inspection_scheduled out of manual pipeline moves', function (): void {
+    $lead = Lead::factory()->create(['status' => 'new', 'region' => 'houston', 'state' => 'TX']);
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/'.$lead->uuid.'/status', ['status' => 'inspection_scheduled'])
+        ->assertUnprocessable();
+
+    expect($lead->refresh()->status)->toBe(LeadStatus::New);
 });
 
 it('logs a contact activity and updates the last contact timestamp', function (): void {
@@ -215,6 +245,31 @@ it('merges a duplicate into the target lead and soft-deletes it', function (): v
 
     expect($duplicate->refresh()->deleted_at)->not->toBeNull()
         ->and($duplicate->duplicate_of_id)->toBe($target->id);
+});
+
+it('blocks lead deletion and bulk deletion when appointments exist', function (): void {
+    $lead = Lead::factory()->create();
+    $other = Lead::factory()->create();
+    Appointment::factory()->create(['lead_id' => $lead->id]);
+
+    $this->actingAs($this->admin)->deleteJson('/leads/'.$lead->uuid)->assertUnprocessable();
+    $this->actingAs($this->admin)->postJson('/leads/bulk-delete', ['uuids' => [$other->uuid, $lead->uuid]])->assertUnprocessable();
+
+    expect($lead->refresh()->trashed())->toBeFalse()
+        ->and($other->refresh()->trashed())->toBeFalse();
+});
+
+it('blocks merging leads that have appointments', function (): void {
+    $target = Lead::factory()->create();
+    $duplicate = Lead::factory()->create();
+    $appointment = Appointment::factory()->create(['lead_id' => $duplicate->id]);
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/'.$target->uuid.'/merge', ['duplicate_uuid' => $duplicate->uuid])
+        ->assertUnprocessable();
+
+    expect($duplicate->refresh()->trashed())->toBeFalse()
+        ->and($appointment->refresh()->lead_id)->toBe($duplicate->id);
 });
 
 it('rejects a self-merge and a trashed duplicate with 422', function (): void {

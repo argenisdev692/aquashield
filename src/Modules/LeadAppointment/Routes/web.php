@@ -37,7 +37,7 @@ Route::middleware('web')->group(function (): void {
                 ->middleware('permission:'.Permission::CreateLead->value)->name('create');
             Route::get('/{uuid}/edit', [LeadController::class, 'edit'])
                 ->whereUuid('uuid')
-                ->middleware('permission:'.Permission::UpdateLead->value)->name('edit');
+                ->middleware(['permission:'.Permission::UpdateLead->value, 'permission:'.Permission::ViewLead->value])->name('edit');
         });
 
         Route::prefix('appointments')->name('appointments.')->group(function (): void {
@@ -48,7 +48,7 @@ Route::middleware('web')->group(function (): void {
                 ])->name('create');
             Route::get('/{uuid}/edit', [AppointmentController::class, 'edit'])
                 ->whereUuid('uuid')
-                ->middleware('permission:'.Permission::UpdateAppointment->value)->name('edit');
+                ->middleware(['permission:'.Permission::UpdateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('edit');
         });
 
         /*

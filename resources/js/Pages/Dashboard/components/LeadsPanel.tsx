@@ -10,7 +10,7 @@
  * badge. The query hook owns the transport; this component owns only
  * presentation state.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { Eye, Pencil } from 'lucide-react';
 import {
@@ -64,6 +64,24 @@ export default function LeadsPanel({
         search: '',
         sort: { field: 'created_at', order: -1 },
     });
+
+    /*
+     * A new dashboard period is a new result set. The table is a preserved
+     * Activity pane, so `local.page` would otherwise stay on page 3 and the
+     * first request would ask for a page the new window may not have.
+     */
+    useEffect(() => {
+        setLocal((current) => (current.page === 1 ? current : { ...current, page: 1 }));
+    }, [rangeFrom, rangeTo]);
+
+    const resetPage = (): void => {
+        setLocal((current) => (current.page === 1 ? current : { ...current, page: 1 }));
+    };
+
+    const handleFiltersChange = (patch: TableFilters): void => {
+        resetPage();
+        onFiltersChange(patch);
+    };
 
     const state: TableState = { ...local, filters };
 
@@ -143,11 +161,10 @@ export default function LeadsPanel({
                 <CrudFilters
                     defs={defs}
                     state={state}
-                    onChange={onFiltersChange}
+                    onChange={handleFiltersChange}
                     disabled={panel.isFetching}
                 />
             }
-            onResetFilters={() => onFiltersChange({ status: null, source: null, region: null })}
             exportFormats={[]}
             rowState={(row) => (row.deleted_at !== null ? 'deleted' : 'default')}
             rowActions={(row: LeadRow) => (

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Application\Dtos;
 
+use Modules\LeadAppointment\Domain\Enums\Region;
 use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
@@ -22,6 +23,7 @@ final class CalendarWindowFilterData extends Data
     public function __construct(
         public string $from,
         public string $to,
+        public ?string $region = null,
     ) {}
 
     /**
@@ -32,6 +34,7 @@ final class CalendarWindowFilterData extends Data
         return [
             'from' => ['required', 'date_format:Y-m-d'],
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+            'region' => ['nullable', 'string', 'in:'.implode(',', array_column(Region::cases(), 'value'))],
         ];
     }
 }

@@ -398,8 +398,22 @@ export default function DataTableKit<TData extends RowData>({
             return;
         }
 
+        /*
+         * A one-character draft is never sent. If a longer search was already
+         * committed, leaving that filter in place makes the input describe a
+         * result set it no longer matches; clear the committed search instead.
+         */
         if (next.length > 0 && next.length < SEARCH_MIN_LENGTH) {
-            return;
+            if (sentSearch.current.trim() === '') {
+                return;
+            }
+
+            const clearTimer = window.setTimeout(() => {
+                sentSearch.current = '';
+                pushSearch('');
+            }, SEARCH_DEBOUNCE_MS);
+
+            return () => window.clearTimeout(clearTimer);
         }
 
         const timer = window.setTimeout(() => {
@@ -497,10 +511,11 @@ export default function DataTableKit<TData extends RowData>({
     /*
      * Mirror the height of what is on screen. The previous fixed six rows
      * collapsed a 100-row page into a six-row card on every visit, jumping the
-     * scroll position when the real rows landed.
+     * scroll position when the real rows landed. Fifteen is the default page
+     * size; a larger page keeps a bounded skeleton instead of painting 100 rows.
      */
     const skeletonRowCount =
-        data.length > 0 ? Math.min(data.length, perPage) : Math.min(perPage, 10);
+        data.length > 0 ? Math.min(data.length, perPage) : Math.min(perPage, 15);
 
     const handleClearFilters = (): void => {
         table.resetRowSelection();
@@ -566,7 +581,14 @@ export default function DataTableKit<TData extends RowData>({
     };
 
     return (
-        <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-aq-shell-line bg-surface-0 shadow-sm dark:bg-surface-900">
+        <section
+            aria-busy={loading || undefined}
+            className="min-w-0 max-w-full overflow-hidden rounded-xl border border-aq-content-line bg-aq-card shadow-sm"
+        >
+            <p className="sr-only" role="status" aria-live="polite">
+                {loading ? 'Loading table rows' : ''}
+            </p>
+
             <header className="border-b border-aq-shell-line px-4 py-4 sm:px-5">
                 {title || description ? (
                     <div className="mb-3.5">
@@ -770,7 +792,16 @@ export default function DataTableKit<TData extends RowData>({
                 </div>
             ) : null}
 
-            <div className="max-w-full overflow-x-auto overscroll-x-contain contain-paint">
+            {/*
+             * A horizontal scroller must be reachable from the keyboard
+             * (WCAG 2.1.1); the LeadKanban board uses the same contract.
+             */}
+            <div
+                role="region"
+                aria-label={title ?? 'Data table'}
+                tabIndex={0}
+                className="max-w-full overflow-x-auto overscroll-x-contain contain-paint transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus motion-reduce:transition-none"
+            >
                 <table className="w-full min-w-full border-collapse text-left text-sm">
                     <thead className="bg-surface-50/90 dark:bg-surface-800/70">
                         {table.getHeaderGroups().map((headerGroup) => (

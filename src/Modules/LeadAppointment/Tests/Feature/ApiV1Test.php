@@ -19,6 +19,13 @@ beforeEach(function (): void {
 
 it('rejects a guest with 401', function (): void {
     $this->getJson('/api/v1/leads')->assertUnauthorized();
+    $this->getJson('/api/v1/availability-rules')->assertUnauthorized();
+});
+
+it('denies availability access without the matching permission', function (): void {
+    Sanctum::actingAs(User::factory()->create());
+
+    $this->getJson('/api/v1/availability-rules')->assertForbidden();
 });
 
 it('lists leads for a Sanctum token with VIEW_ANY_LEAD', function (): void {

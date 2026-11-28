@@ -167,3 +167,14 @@ it('strips the path from the configured r2 public url', function () {
         ->toContain('https://cdn.aquashield.test:8443')
         ->not->toContain('https://cdn.aquashield.test:8443/assets');
 });
+
+it('emits transport-safe headers on API responses without an Inertia CSP', function (): void {
+    $response = $this->getJson('/api/v1/availability-rules');
+
+    $response->assertUnauthorized()
+        ->assertHeader('X-Content-Type-Options', 'nosniff')
+        ->assertHeader('X-Frame-Options', 'DENY')
+        ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    expect($response->headers->get('Content-Security-Policy'))->toBeNull();
+});

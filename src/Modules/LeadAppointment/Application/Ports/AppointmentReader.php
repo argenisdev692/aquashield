@@ -59,6 +59,7 @@ interface AppointmentReader
     public function calendarEventsBetween(
         CarbonImmutable $from,
         CarbonImmutable $to,
+        ?string $region = null,
     ): array;
 
     /**

@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { CalendarClock, MapPin, Phone } from 'lucide-react';
 import { Tag } from '@/Components/ui/tag';
-import { formatDateTime } from '@/lib/date';
+import { formatWallClockDateTime } from '@/lib/date';
 import { buildTableUrl } from '@/lib/table';
 import { cn, humanize } from '@/lib/utils';
 
@@ -189,7 +189,7 @@ export default function LeadKanban({
                             className={cn(
                                 'flex flex-col rounded-xl border p-2 transition-colors duration-150 motion-reduce:transition-none',
                                 variant === 'fit' ? 'min-w-60 flex-1' : 'w-72 shrink-0',
-                                'border-surface-200/80 bg-surface-100/60 dark:border-surface-800 dark:bg-surface-900/40',
+                                'border-aq-content-line/80 bg-surface-100/60 dark:bg-transparent',
                                 isOver
                                     ? 'border-aq-accent/60 bg-aq-accent/5 ring-2 ring-aq-accent/30 dark:bg-aq-accent/5'
                                     : '',
@@ -232,8 +232,8 @@ export default function LeadKanban({
                                                     setOverStatus(null);
                                                 }}
                                                 className={cn(
-                                                    'group/card rounded-lg border bg-surface-0 p-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150 dark:bg-surface-900',
-                                                    'border-surface-200 hover:border-aq-accent/40 dark:border-surface-700 dark:hover:border-aq-accent/35',
+                                                    'group/card rounded-lg border bg-aq-card p-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150',
+                                                    'border-aq-content-line hover:border-aq-content-line-strong',
                                                     canUpdate
                                                         ? 'cursor-grab active:cursor-grabbing'
                                                         : '',
@@ -340,7 +340,7 @@ export default function LeadKanban({
                                                             aria-hidden="true"
                                                         />
                                                         <span className="truncate">
-                                                            {formatDateTime(
+                                                            {formatWallClockDateTime(
                                                                 card.inspection_at,
                                                                 'en-US',
                                                                 {
@@ -393,7 +393,7 @@ export default function LeadKanban({
                             )}
 
                             {column.leads.length === 0 && (
-                                <p className="rounded-lg border border-dashed border-surface-300/80 px-3 py-6 text-center text-[11px] leading-relaxed text-surface-600 dark:border-surface-700 dark:text-surface-300">
+                                <p className="rounded-lg border border-dashed border-aq-content-line/80 px-3 py-6 text-center text-[11px] leading-relaxed text-surface-600 dark:text-surface-300">
                                     {droppable ? (
                                         'Drop a card here'
                                     ) : (
@@ -424,7 +424,7 @@ export default function LeadKanban({
                 {secondaryColumns.length > 0 && (
                     <section
                         aria-label="Other stages"
-                        className="flex w-48 shrink-0 flex-col rounded-xl border border-surface-200/80 bg-surface-100/60 p-2 dark:border-surface-800 dark:bg-surface-900/40"
+                        className="flex w-48 shrink-0 flex-col rounded-xl border border-aq-content-line/80 bg-surface-100/60 p-2 dark:bg-transparent"
                     >
                         <header className="px-1.5 pt-1 pb-2.5 text-[13px] font-semibold text-surface-900 dark:text-surface-0">
                             Other stages

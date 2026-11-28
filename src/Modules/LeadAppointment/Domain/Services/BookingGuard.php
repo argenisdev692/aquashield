@@ -52,8 +52,13 @@ final readonly class BookingGuard
 
             $localStart = $intent->startsAt->setTimezone($day->timezone);
             $localEnd = $intent->endsAt->setTimezone($day->timezone);
+            $localBlockedEnd = $localEnd->addMinutes($intent->travelBufferMinutes);
 
-            if (! $this->fitsOneWindow($day->windows, $localStart->format('H:i'), $localEnd->format('H:i'))) {
+            if ($localBlockedEnd->toDateString() !== $localStart->toDateString()) {
+                throw SlotUnavailableException::outsideWindow();
+            }
+
+            if (! $this->fitsOneWindow($day->windows, $localStart->format('H:i'), $localBlockedEnd->format('H:i'))) {
                 throw SlotUnavailableException::outsideWindow();
             }
 

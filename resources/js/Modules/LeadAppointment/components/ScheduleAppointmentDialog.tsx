@@ -7,8 +7,7 @@
  */
 import { useState } from 'react';
 import { FormDialog } from '@/Components/Forms/FormOverlay';
-import { HttpRequestError } from '@/lib/http';
-import { useZodForm } from '@/lib/forms';
+import { serverErrorFrom, useZodForm } from '@/lib/forms';
 import { isServiceRegion } from '@/lib/regions';
 import AppointmentFormFields from './AppointmentFormFields';
 import {
@@ -83,19 +82,12 @@ export default function ScheduleAppointmentDialog({
                     onScheduled?.();
                 })
                 .catch((caught: unknown) => {
-                    if (caught instanceof HttpRequestError) {
-                        const fields = { ...caught.fieldErrors };
-                        setFieldErrors(fields);
-                        setServerError(Object.keys(fields).length === 0 ? caught.message : null);
-
-                        return;
-                    }
-
-                    setServerError(
-                        caught instanceof Error && caught.message !== ''
-                            ? caught.message
-                            : 'The appointment could not be scheduled. Try again.',
+                    const next = serverErrorFrom(
+                        caught,
+                        'The appointment could not be scheduled. Try again.',
                     );
+                    setFieldErrors(next.fieldErrors);
+                    setServerError(next.serverError);
                 });
         });
     };

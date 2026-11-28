@@ -33,7 +33,7 @@ final readonly class CalendarEventsController
 
         $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
 
-        if (CarbonImmutable::parse($filters->from)->diffInDays(CarbonImmutable::parse($filters->to)) > $maxDays) {
+        if (CarbonImmutable::parse($filters->from)->diffInDays(CarbonImmutable::parse($filters->to)) + 1 > $maxDays) {
             throw ValidationException::withMessages([
                 'to' => "The calendar window is limited to {$maxDays} days.",
             ]);
@@ -43,7 +43,7 @@ final readonly class CalendarEventsController
         $to = CarbonImmutable::parse($filters->to, $timezone)->addDay()->endOfDay();
 
         return new CalendarEventsData(
-            $this->appointments->calendarEventsBetween($from, $to),
+            $this->appointments->calendarEventsBetween($from, $to, $filters->region),
         );
     }
 }

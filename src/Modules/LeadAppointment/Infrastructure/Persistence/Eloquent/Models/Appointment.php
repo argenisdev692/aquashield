@@ -28,6 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $lead_id
  * @property AppointmentKind $kind
  * @property AppointmentStatus $status
+ * @property bool $is_emergency
  * @property CarbonImmutable $starts_at
  * @property CarbonImmutable $ends_at
  * @property string $timezone
@@ -48,7 +49,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Table('appointments')]
 #[Fillable([
-    'lead_id', 'kind', 'status', 'starts_at', 'ends_at',
+    'lead_id', 'kind', 'status', 'is_emergency', 'starts_at', 'ends_at',
     'timezone', 'previous_starts_at', 'previous_ends_at', 'region', 'google_event_id',
     'cancel_reason', 'cancelled_at', 'completed_at', 'created_by', 'notes',
 ])]
@@ -158,6 +159,7 @@ final class Appointment extends Model
         return [
             'kind' => AppointmentKind::class,
             'status' => AppointmentStatus::class,
+            'is_emergency' => 'boolean',
             'region' => Region::class,
             'starts_at' => 'immutable_datetime',
             'ends_at' => 'immutable_datetime',
@@ -171,7 +173,7 @@ final class Appointment extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'starts_at', 'ends_at', 'google_event_id', 'cancel_reason'])
+            ->logOnly(['status', 'is_emergency', 'starts_at', 'ends_at', 'google_event_id', 'cancel_reason'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('appointment');

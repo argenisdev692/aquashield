@@ -40,17 +40,17 @@ return function (): void {
         Route::get('/{uuid}', [LeadController::class, 'show'])
             ->whereUuid('uuid')->middleware('permission:'.Permission::ViewLead->value)->name('show');
         Route::put('/{uuid}', [LeadController::class, 'update'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateLead->value)->name('update');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateLead->value, 'permission:'.Permission::ViewLead->value])->name('update');
         Route::delete('/{uuid}', [LeadController::class, 'destroy'])
             ->whereUuid('uuid')->middleware('permission:'.Permission::DeleteLead->value)->name('destroy');
         Route::patch('/{uuid}/restore', [LeadController::class, 'restore'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::RestoreLead->value)->name('restore');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::RestoreLead->value, 'permission:'.Permission::ViewLead->value])->name('restore');
         Route::post('/{uuid}/status', [LeadController::class, 'updateStatus'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateLead->value)->name('status');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateLead->value, 'permission:'.Permission::ViewLead->value])->name('status');
         Route::post('/{uuid}/activities', [LeadController::class, 'logActivity'])
             ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateLead->value)->name('activities.store');
         Route::post('/{uuid}/merge', [LeadController::class, 'merge'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateLead->value)->name('merge');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateLead->value, 'permission:'.Permission::ViewLead->value])->name('merge');
     });
 
     Route::prefix('appointments')->name('appointments.')->group(function (): void {
@@ -61,7 +61,7 @@ return function (): void {
         Route::get('/calendar-events', CalendarEventsController::class)
             ->middleware('permission:'.Permission::ViewAnyAppointment->value)->name('calendar-events');
         Route::post('/', [AppointmentController::class, 'store'])
-            ->middleware('permission:'.Permission::CreateAppointment->value)->name('store');
+            ->middleware(['permission:'.Permission::CreateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('store');
         Route::post('/bulk-delete', [AppointmentController::class, 'bulkDelete'])
             ->middleware('permission:'.Permission::BulkDeleteAppointment->value)->name('bulk-delete');
         Route::post('/bulk-restore', [AppointmentController::class, 'bulkRestore'])
@@ -74,33 +74,36 @@ return function (): void {
         Route::delete('/{uuid}', [AppointmentController::class, 'destroy'])
             ->whereUuid('uuid')->middleware('permission:'.Permission::DeleteAppointment->value)->name('destroy');
         Route::patch('/{uuid}/restore', [AppointmentController::class, 'restore'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::RestoreAppointment->value)->name('restore');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::RestoreAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('restore');
         Route::post('/{uuid}/confirm', [AppointmentController::class, 'confirm'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAppointment->value)->name('confirm');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('confirm');
         Route::post('/{uuid}/reschedule', [AppointmentController::class, 'reschedule'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAppointment->value)->name('reschedule');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('reschedule');
         Route::post('/{uuid}/cancel', [AppointmentController::class, 'cancel'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAppointment->value)->name('cancel');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('cancel');
         Route::post('/{uuid}/complete', [AppointmentController::class, 'complete'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAppointment->value)->name('complete');
+            ->whereUuid('uuid')->middleware(['permission:'.Permission::UpdateAppointment->value, 'permission:'.Permission::ViewAppointment->value])->name('complete');
     });
 
-    Route::prefix('availability-rules')->name('availability-rules.')->group(function (): void {
-        Route::get('/', [AvailabilityController::class, 'rules'])
-            ->middleware('permission:'.Permission::ViewAnyAvailabilityRule->value)->name('index');
-        Route::post('/', [AvailabilityController::class, 'storeRule'])
-            ->middleware('permission:'.Permission::CreateAvailabilityRule->value)->name('store');
-        Route::post('/bulk-delete', [AvailabilityController::class, 'bulkDeleteRules'])
-            ->middleware('permission:'.Permission::BulkDeleteAvailabilityRule->value)->name('bulk-delete');
-        Route::post('/bulk-restore', [AvailabilityController::class, 'bulkRestoreRules'])
-            ->middleware('permission:'.Permission::BulkRestoreAvailabilityRule->value)->name('bulk-restore');
-        Route::put('/{uuid}', [AvailabilityController::class, 'updateRule'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAvailabilityRule->value)->name('update');
-        Route::delete('/{uuid}', [AvailabilityController::class, 'destroyRule'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::DeleteAvailabilityRule->value)->name('destroy');
-        Route::patch('/{uuid}/restore', [AvailabilityController::class, 'restoreRule'])
-            ->whereUuid('uuid')->middleware('permission:'.Permission::RestoreAvailabilityRule->value)->name('restore');
-    });
+    Route::prefix('availability-rules')
+        ->name('availability-rules.')
+        ->middleware('throttle:availability-rules')
+        ->group(function (): void {
+            Route::get('/', [AvailabilityController::class, 'rules'])
+                ->middleware('permission:'.Permission::ViewAnyAvailabilityRule->value)->name('index');
+            Route::post('/', [AvailabilityController::class, 'storeRule'])
+                ->middleware('permission:'.Permission::CreateAvailabilityRule->value)->name('store');
+            Route::post('/bulk-delete', [AvailabilityController::class, 'bulkDeleteRules'])
+                ->middleware('permission:'.Permission::BulkDeleteAvailabilityRule->value)->name('bulk-delete');
+            Route::post('/bulk-restore', [AvailabilityController::class, 'bulkRestoreRules'])
+                ->middleware('permission:'.Permission::BulkRestoreAvailabilityRule->value)->name('bulk-restore');
+            Route::put('/{uuid}', [AvailabilityController::class, 'updateRule'])
+                ->whereUuid('uuid')->middleware('permission:'.Permission::UpdateAvailabilityRule->value)->name('update');
+            Route::delete('/{uuid}', [AvailabilityController::class, 'destroyRule'])
+                ->whereUuid('uuid')->middleware('permission:'.Permission::DeleteAvailabilityRule->value)->name('destroy');
+            Route::patch('/{uuid}/restore', [AvailabilityController::class, 'restoreRule'])
+                ->whereUuid('uuid')->middleware('permission:'.Permission::RestoreAvailabilityRule->value)->name('restore');
+        });
 
     Route::prefix('availability-exceptions')->name('availability-exceptions.')->group(function (): void {
         Route::get('/', [AvailabilityController::class, 'exceptions'])
@@ -131,7 +134,11 @@ return function (): void {
     Route::get('/availability/calendar', [AvailabilityController::class, 'calendar'])
         ->middleware('permission:'.Permission::ViewAnyAvailabilityRule->value)->name('availability.calendar');
     Route::post('/availability/sync-holidays', [AvailabilityController::class, 'syncHolidays'])
-        ->middleware(['permission:'.Permission::CreateAvailabilityException->value, 'throttle:10,1'])->name('availability.sync-holidays');
+        ->middleware([
+            'permission:'.Permission::CreateAvailabilityException->value,
+            'permission:'.Permission::DeleteAvailabilityException->value,
+            'throttle:10,1',
+        ])->name('availability.sync-holidays');
 
     Route::prefix('reports')->name('reports.')->group(function (): void {
         Route::get('/lead-sources', [ReportController::class, 'index'])

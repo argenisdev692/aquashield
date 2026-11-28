@@ -34,7 +34,8 @@ mode: PROGRESSIVE
   `Shared\Infrastructure\Company\CompanyProfile` and
   `Shared\Infrastructure\Resilience\CircuitBreakerInterface`.
 - Events emitted: `LeadCaptured`, `AppointmentScheduled`,
-  `AppointmentRescheduled`, `AppointmentCancelled`.
+  `AppointmentRescheduled`, `AppointmentCancelled`, `AppointmentDeleted`,
+  `AppointmentRestored`.
   Listeners live in this module's `Infrastructure/Listeners/` because they are
   side-effect adapters (mail, Google Calendar).
 - What is NEVER exposed: Eloquent models from an API response, internal numeric
@@ -51,7 +52,7 @@ mode: PROGRESSIVE
    Action is a dumb pass-through, not a use case.
 4. Repository implementations live in `Infrastructure/Persistence/Eloquent/` and
    implement a port with a different name.
-5. Transactions and row locks live in repositories, never in Application actions.
+5. Transactions, the singleton company-calendar lock and row locks live in repositories, never in Application actions.
 6. No module reaches another module's `Domain/` or `Application/`.
 7. Every class has a consumer; no `Contracts/`, `Interfaces/`, `Abstracts/`,
    `Base/` or `Traits/` folder.
@@ -108,6 +109,15 @@ mode: PROGRESSIVE
   shortcut. PII is excluded from `LogsActivity` and from application logs.
 - Export transformers live in `Application/Exports/`; the writer/PDF
   mechanics stay behind `Shared\Domain\Ports\ExportPort`.
+- A singleton `scheduling_locks` row serialises every write that changes company
+  availability or consumes the single crew's capacity. Booking, rescheduling,
+  restoring, availability writes and holiday sync all acquire it before reading
+  bookable state and keep it through commit.
+- Emergency status is persisted on the appointment and survives reschedule,
+  delete and restore. Region and timezone are validated together; Houston and
+  Dallas use America/Chicago, while Florida also allows America/New_York.
+- Leads with appointments cannot be deleted or merged. This prevents orphaned
+  appointments from consuming capacity or breaking appointment hydration.
 - US federal holidays are computed in `UsFederalHolidayProvider` from Carbon + OPM
   observed rules (no external holiday package). `lead-appointment:sync-holidays`
   runs yearly on Jan 1 at 00:10 America/Chicago with `withoutOverlapping(60)` and
@@ -124,7 +134,9 @@ mode: PROGRESSIVE
 - `Tests/Unit/BookingGuardTest.php` — 7 h + 1 h travel, one-per-day cap, past/closed.
 - `Tests/Unit/ScheduleAppointmentActionTest.php` — DB-free with mocked ports.
 - `Tests/Feature/PublicLeadApiTest.php` — 201/422/429 + duplicate linking.
-- `Tests/Feature/AppointmentSchedulingTest.php` — 401/403/422 + happy path.
+- `Tests/Feature/AppointmentSchedulingTest.php` — 401/403/422 + happy path,
+  locked transitions, restore collisions, overnight emergencies, timezone
+  allowlists, persisted emergency state and delete/restore events.
 - `Tests/Feature/LeadPagesTest.php` — Inertia lead screens: index/board/create/
   edit/show props, Inertia create, legal and illegal stage moves.
 - `Tests/Feature/AvailabilityPageTest.php` — Inertia availability screens: month

@@ -43,7 +43,9 @@ interface AvailabilityReader
      *
      * @return list<AvailabilityRuleData>
      */
-    public function trashedRules(): array;
+    public function trashedRules(int $limit): array;
+
+    public function trashedRulesCount(): int;
 
     public function findRule(string $uuid): ?AvailabilityRuleData;
 

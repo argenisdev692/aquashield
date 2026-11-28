@@ -22,11 +22,14 @@ use Modules\LeadAppointment\Domain\Ports\AvailabilityScheduleReader;
 use Modules\LeadAppointment\Domain\Ports\HolidayScheduleWriter;
 use Modules\LeadAppointment\Domain\ValueObjects\AvailabilityException as AvailabilityExceptionVo;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeWindow;
+use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\CalendarLock;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityException;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityRule;
 
 final readonly class EloquentAvailabilityRepository implements AvailabilityReader, AvailabilityScheduleReader, AvailabilityWriter, HolidayScheduleWriter
 {
+    public function __construct(private CalendarLock $calendarLock) {}
+
     private const array DAY_LABELS = [
         0 => 'Sunday',
         1 => 'Monday',
@@ -105,35 +108,63 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
     public function syncHolidays(array $holidays, ?string $purgeFrom = null): array
     {
         return DB::transaction(function () use ($holidays, $purgeFrom): array {
-            $purged = 0;
+            $this->calendarLock->acquire();
 
-            if ($purgeFrom !== null) {
-                $purged = AvailabilityException::query()
-                    ->where('source', AvailabilitySource::Holiday->value)
-                    ->whereDate('date', '>=', $purgeFrom)
-                    ->delete();
-            }
+            $dates = array_keys($holidays);
+            $existing = $dates === []
+                ? collect()
+                : AvailabilityException::query()
+                    ->whereDate('date', '>=', min($dates))
+                    ->whereDate('date', '<=', max($dates))
+                    ->get()
+                    ->keyBy(fn (AvailabilityException $exception): string => $exception->date->toDateString());
 
             $created = 0;
             $skipped = 0;
 
             foreach ($holidays as $date => $name) {
-                if (AvailabilityException::query()->whereDate('date', $date)->exists()) {
-                    $skipped++;
+                $exception = $existing->get($date);
+
+                if ($exception === null) {
+                    AvailabilityException::query()->create([
+                        'date' => $date,
+                        'is_available' => false,
+                        'start_time' => null,
+                        'end_time' => null,
+                        'reason' => $name,
+                        'source' => AvailabilitySource::Holiday->value,
+                    ]);
+                    $created++;
 
                     continue;
                 }
 
-                AvailabilityException::query()->create([
-                    'date' => $date,
-                    'is_available' => false,
-                    'start_time' => null,
-                    'end_time' => null,
-                    'reason' => $name,
-                    'source' => AvailabilitySource::Holiday->value,
-                ]);
+                $skipped++;
 
-                $created++;
+                if ($exception->source === AvailabilitySource::Holiday) {
+                    $exception->fill([
+                        'is_available' => false,
+                        'start_time' => null,
+                        'end_time' => null,
+                        'reason' => $name,
+                    ])->save();
+                }
+            }
+
+            $purged = 0;
+
+            if ($purgeFrom !== null) {
+                $stale = AvailabilityException::query()
+                    ->where('source', AvailabilitySource::Holiday->value)
+                    ->whereDate('date', '>=', $purgeFrom)
+                    ->get()
+                    ->reject(fn (AvailabilityException $exception): bool => in_array($exception->date->toDateString(), $dates, true));
+
+                foreach ($stale as $exception) {
+                    $exception->delete();
+                }
+
+                $purged = $stale->count();
             }
 
             return ['purged' => $purged, 'created' => $created, 'skipped' => $skipped];
@@ -148,6 +179,7 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
         return AvailabilityRule::query()
             ->orderBy('day_of_week')
             ->orderBy('start_time')
+            ->limit((int) config('lead-appointment.availability_rules.max_active', 50))
             ->get()
             ->map(fn (AvailabilityRule $rule): AvailabilityRuleData => $this->toRuleData($rule))
             ->values()
@@ -157,15 +189,21 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
     /**
      * @return list<AvailabilityRuleData>
      */
-    public function trashedRules(): array
+    public function trashedRules(int $limit): array
     {
         return AvailabilityRule::onlyTrashed()
             ->orderBy('day_of_week')
             ->orderBy('start_time')
+            ->limit($limit)
             ->get()
             ->map(fn (AvailabilityRule $rule): AvailabilityRuleData => $this->toRuleData($rule))
             ->values()
             ->all();
+    }
+
+    public function trashedRulesCount(): int
+    {
+        return AvailabilityRule::onlyTrashed()->count();
     }
 
     public function findRule(string $uuid): ?AvailabilityRuleData
@@ -179,32 +217,41 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
 
     public function saveRule(SaveAvailabilityRuleData $data, ?string $uuid = null): AvailabilityRuleData
     {
-        $rule = $uuid === null
-            ? new AvailabilityRule
-            : AvailabilityRule::query()->where('uuid', $uuid)->firstOrFail();
+        return $this->withCalendarLock(function () use ($data, $uuid): AvailabilityRuleData {
+            $rule = $uuid === null
+                ? new AvailabilityRule
+                : AvailabilityRule::query()->where('uuid', $uuid)->firstOrFail();
 
-        $rule->fill([
-            'day_of_week' => $data->dayOfWeek,
-            'start_time' => $this->time($data->startTime),
-            'end_time' => $this->time($data->endTime),
-            'is_available' => $data->isAvailable,
-        ]);
-        $rule->save();
+            $this->assertRuleCapacityAllowed($uuid, $data->dayOfWeek);
 
-        return $this->findRule($rule->uuid) ?? throw new \RuntimeException('Availability rule was not persisted.');
+            $rule->fill([
+                'day_of_week' => $data->dayOfWeek,
+                'start_time' => $this->time($data->startTime),
+                'end_time' => $this->time($data->endTime),
+                'is_available' => $data->isAvailable,
+            ]);
+            $rule->save();
+
+            return $this->toRuleData($rule);
+        });
     }
 
     public function deleteRule(string $uuid): void
     {
-        AvailabilityRule::query()->where('uuid', $uuid)->first()?->delete();
+        $this->withCalendarLock(function () use ($uuid): void {
+            AvailabilityRule::query()->where('uuid', $uuid)->first()?->delete();
+        });
     }
 
     public function restoreRule(string $uuid): AvailabilityRuleData
     {
-        $rule = AvailabilityRule::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
-        $rule->restore();
+        return $this->withCalendarLock(function () use ($uuid): AvailabilityRuleData {
+            $rule = AvailabilityRule::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
+            $this->assertRuleCapacityAllowed($rule->uuid, $rule->day_of_week);
+            $rule->restore();
 
-        return $this->findRule($rule->uuid) ?? throw new \RuntimeException('Availability rule was not restored.');
+            return $this->toRuleData($rule);
+        });
     }
 
     /**
@@ -212,9 +259,11 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
      */
     public function bulkDeleteRules(array $uuids): void
     {
-        AvailabilityRule::query()->whereIn('uuid', $uuids)->get()->each(
-            static fn (AvailabilityRule $rule) => $rule->delete(),
-        );
+        $this->withCalendarLock(function () use ($uuids): void {
+            AvailabilityRule::query()->whereIn('uuid', $uuids)->get()->each(
+                static fn (AvailabilityRule $rule) => $rule->delete(),
+            );
+        });
     }
 
     /**
@@ -222,9 +271,14 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
      */
     public function bulkRestoreRules(array $uuids): void
     {
-        AvailabilityRule::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
-            static fn (AvailabilityRule $rule) => $rule->restore(),
-        );
+        $this->withCalendarLock(function () use ($uuids): void {
+            $rules = AvailabilityRule::onlyTrashed()->whereIn('uuid', $uuids)->get();
+
+            foreach ($rules as $rule) {
+                $this->assertRuleCapacityAllowed($rule->uuid, $rule->day_of_week);
+                $rule->restore();
+            }
+        });
     }
 
     /**
@@ -290,49 +344,52 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
         SaveAvailabilityExceptionData $data,
         ?string $uuid = null,
     ): AvailabilityExceptionData {
-        $exception = $uuid === null
-            ? new AvailabilityException
-            : AvailabilityException::query()->where('uuid', $uuid)->firstOrFail();
-
-        $exception->fill([
-            'date' => $data->date,
-            'is_available' => $data->isAvailable,
-            'start_time' => $data->startTime === null ? null : $this->time($data->startTime),
-            'end_time' => $data->endTime === null ? null : $this->time($data->endTime),
-            'reason' => $data->reason,
-        ]);
-
-        if (! $exception->exists) {
-            $exception->source = AvailabilitySource::Manual;
-        }
-
         try {
-            $exception->save();
+            return $this->withCalendarLock(function () use ($data, $uuid): AvailabilityExceptionData {
+                $exception = $uuid === null
+                    ? new AvailabilityException
+                    : AvailabilityException::query()->where('uuid', $uuid)->firstOrFail();
+
+                $exception->fill([
+                    'date' => $data->date,
+                    'is_available' => $data->isAvailable,
+                    'start_time' => $data->startTime === null ? null : $this->time($data->startTime),
+                    'end_time' => $data->endTime === null ? null : $this->time($data->endTime),
+                    'reason' => $data->reason,
+                ]);
+
+                if (! $exception->exists || $exception->source === AvailabilitySource::Holiday) {
+                    $exception->source = AvailabilitySource::Manual;
+                }
+
+                $exception->save();
+
+                return $this->toExceptionData($exception);
+            });
         } catch (UniqueConstraintViolationException) {
             throw AvailabilityConflictException::forDate($data->date);
         }
-
-        return $this->findException($exception->uuid)
-            ?? throw new \RuntimeException('Availability exception was not persisted.');
     }
 
     public function deleteException(string $uuid): void
     {
-        AvailabilityException::query()->where('uuid', $uuid)->first()?->delete();
+        $this->withCalendarLock(function () use ($uuid): void {
+            AvailabilityException::query()->where('uuid', $uuid)->first()?->delete();
+        });
     }
 
     public function restoreException(string $uuid): AvailabilityExceptionData
     {
-        $exception = AvailabilityException::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
-
         try {
-            $exception->restore();
+            return $this->withCalendarLock(function () use ($uuid): AvailabilityExceptionData {
+                $exception = AvailabilityException::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
+                $exception->restore();
+
+                return $this->toExceptionData($exception);
+            });
         } catch (UniqueConstraintViolationException) {
             throw AvailabilityConflictException::forScope();
         }
-
-        return $this->findException($exception->uuid)
-            ?? throw new \RuntimeException('Availability exception was not restored.');
     }
 
     /**
@@ -340,9 +397,11 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
      */
     public function bulkDeleteExceptions(array $uuids): void
     {
-        AvailabilityException::query()->whereIn('uuid', $uuids)->get()->each(
-            static fn (AvailabilityException $exception) => $exception->delete(),
-        );
+        $this->withCalendarLock(function () use ($uuids): void {
+            AvailabilityException::query()->whereIn('uuid', $uuids)->get()->each(
+                static fn (AvailabilityException $exception) => $exception->delete(),
+            );
+        });
     }
 
     /**
@@ -350,9 +409,15 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
      */
     public function bulkRestoreExceptions(array $uuids): void
     {
-        AvailabilityException::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
-            static fn (AvailabilityException $exception) => $exception->restore(),
-        );
+        try {
+            $this->withCalendarLock(function () use ($uuids): void {
+                AvailabilityException::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
+                    static fn (AvailabilityException $exception) => $exception->restore(),
+                );
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw AvailabilityConflictException::forScope();
+        }
     }
 
     public function createRangeExceptions(
@@ -361,33 +426,28 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
         string $to,
     ): int {
         try {
-            return DB::transaction(function () use ($data, $from, $to): int {
+            return $this->withCalendarLock(function () use ($data, $from, $to): int {
+                $existingDate = AvailabilityException::query()
+                    ->whereBetween('date', [$from, $to])
+                    ->value('date');
+
+                if ($existingDate !== null) {
+                    throw AvailabilityConflictException::forDate((string) $existingDate);
+                }
+
                 $cursor = CarbonImmutable::parse($from);
                 $end = CarbonImmutable::parse($to);
                 $created = 0;
 
                 while ($cursor->lessThanOrEqualTo($end)) {
-                    // `updateOrCreate` compares the raw `date` column, and SQLite stores
-                    // the cast value as a datetime string; `whereDate` is the portable
-                    // match. The unique expression index still protects the write.
-                    $exception = AvailabilityException::query()
-                        ->whereDate('date', $cursor->toDateString())
-                        ->first();
-
-                    if ($exception === null) {
-                        $exception = new AvailabilityException([
-                            'date' => $cursor->toDateString(),
-                        ]);
-                    }
-
-                    $exception->fill([
+                    AvailabilityException::query()->create([
+                        'date' => $cursor->toDateString(),
                         'is_available' => $data->isAvailable,
                         'start_time' => $data->startTime,
                         'end_time' => $data->endTime,
                         'reason' => $data->reason,
                         'source' => AvailabilitySource::Manual->value,
                     ]);
-                    $exception->save();
 
                     $created++;
                     $cursor = $cursor->addDay();
@@ -398,6 +458,35 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
         } catch (UniqueConstraintViolationException) {
             throw AvailabilityConflictException::forScope();
         }
+    }
+
+    private function assertRuleCapacityAllowed(?string $uuid, int $dayOfWeek): void
+    {
+        $query = AvailabilityRule::query()
+            ->when($uuid !== null, fn (Builder $builder): Builder => $builder->where('uuid', '!=', $uuid));
+
+        if ((clone $query)->where('day_of_week', $dayOfWeek)->count() >= (int) config('lead-appointment.availability_rules.max_per_weekday', 10)) {
+            throw AvailabilityConflictException::forWeekdayRuleLimit();
+        }
+
+        if ($query->count() >= (int) config('lead-appointment.availability_rules.max_active', 50)) {
+            throw AvailabilityConflictException::forTotalRuleLimit();
+        }
+    }
+
+    /**
+     * @template T
+     *
+     * @param callable(): T $operation
+     * @return T
+     */
+    private function withCalendarLock(callable $operation): mixed
+    {
+        return DB::transaction(function () use ($operation): mixed {
+            $this->calendarLock->acquire();
+
+            return $operation();
+        });
     }
 
     private function time(string $value): string

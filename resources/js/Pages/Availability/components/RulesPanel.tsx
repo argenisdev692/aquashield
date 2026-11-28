@@ -151,6 +151,7 @@ interface RulesPanelProps {
     rules: Rule[];
     /** Soft-deleted windows, read back so a delete is not one-way in the UI. */
     trashedRules: Rule[];
+    trashedRulesLimited: boolean;
     canCreate: boolean;
     canUpdate: boolean;
     canDelete: boolean;
@@ -161,6 +162,7 @@ interface RulesPanelProps {
 export default function RulesPanel({
     rules,
     trashedRules,
+    trashedRulesLimited,
     canCreate,
     canUpdate,
     canDelete,
@@ -322,7 +324,8 @@ export default function RulesPanel({
              * A window delete is soft (`AvailabilityRule` uses SoftDeletes) and
              * the restore endpoint already existed, so hiding the trashed rows
              * made the dialog's "you can add the window again" the only path
-             * back. The list is short by nature (7 days), so it needs no table.
+             * back. The server bounds this list; older rows remain restorable
+             * through the API even when they are outside this panel.
              */}
             {canRestore && trashedRules.length > 0 && (
                 <div className="border-t border-surface-200 px-4 py-3 dark:border-surface-800">
@@ -332,6 +335,12 @@ export default function RulesPanel({
                     <p className="mt-0.5 text-xs text-surface-500 dark:text-surface-300">
                         These weekdays stay closed until a window is restored.
                     </p>
+                    {trashedRulesLimited && (
+                        <p className="mt-1 text-xs text-aq-warning-strong">
+                            Showing a bounded set of deleted windows. Older deleted windows are not
+                            shown here.
+                        </p>
+                    )}
 
                     {restoreError !== null && (
                         <p

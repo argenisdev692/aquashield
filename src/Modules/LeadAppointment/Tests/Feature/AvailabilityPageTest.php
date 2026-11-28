@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityException;
+use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\AvailabilityRule;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
 use Shared\Domain\Enums\Permission as PermissionName;
 use Spatie\Activitylog\Models\Activity;
@@ -278,6 +279,20 @@ it('keeps the JSON resource and the page route on separate contracts', function 
         ->get('/availability')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('Availability/Index'));
+});
+
+it('bounds the deleted-window panel and reports truncation', function (): void {
+    config(['lead-appointment.availability_rules.max_trashed_read' => 2]);
+
+    $rules = AvailabilityRule::factory()->count(3)->create();
+    $rules->each->delete();
+
+    $this->actingAs($this->admin)
+        ->get('/availability')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('trashedRules', 2)
+            ->where('trashedRulesLimited', true));
 });
 
 it('reads back a deleted weekly window and restores it', function (): void {

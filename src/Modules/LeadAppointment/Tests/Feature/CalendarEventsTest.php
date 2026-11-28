@@ -71,6 +71,43 @@ it('rejects a window over the configured maximum', function (): void {
         ->assertUnprocessable();
 });
 
+it('applies the configured maximum as inclusive calendar days', function (): void {
+    config(['lead-appointment.calendar_max_days' => 2]);
+
+    $this->actingAs($this->admin)
+        ->getJson('/appointments/calendar-events?from=2026-01-01&to=2026-01-02')
+        ->assertOk();
+
+    $this->actingAs($this->admin)
+        ->getJson('/appointments/calendar-events?from=2026-01-01&to=2026-01-03')
+        ->assertUnprocessable();
+});
+
+it('scopes the feed to the dashboard region filter', function (): void {
+    calendarEventRecord(['region' => 'houston']);
+    $dallas = calendarEventRecord(['region' => 'dallas']);
+
+    $this->actingAs($this->admin)
+        ->getJson('/appointments/calendar-events?'.http_build_query([
+            'from' => $this->start->toDateString(),
+            'to' => $this->start->toDateString(),
+            'region' => 'dallas',
+        ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.uuid', $dallas->uuid);
+});
+
+it('refuses an unknown region', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/appointments/calendar-events?'.http_build_query([
+            'from' => $this->start->toDateString(),
+            'to' => $this->start->toDateString(),
+            'region' => 'mars',
+        ]))
+        ->assertUnprocessable();
+});
+
 it('refuses the feed without the appointment permission', function (): void {
     $this->actingAs(User::factory()->create())
         ->getJson('/appointments/calendar-events?from=2026-11-01&to=2026-11-30')

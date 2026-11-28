@@ -8,7 +8,7 @@
 appointment screens and the real dashboard (period-scoped lead columns, KPI
 sparklines and appointments) are live. The availability screen set (month grid,
 weekly hours, day exceptions and their CSV/XLSX/PDF export) is live too.
-**Last verified:** 2026-11-25 · module tests 161 / 868 assertions.
+**Last verified:** 2026-11-27 · full backend suite 955 tests / 4,392 assertions.
 `doctor` passes on 2026-11-25 (25 diagnostics, 0 failed, 1 skipped); the known
 Windows autoload timeout is excluded by the gate (see §11).
 
@@ -43,8 +43,8 @@ before opening the 180+ files.
 | Admin web routes  | 57    | `auth` + `verified` + `permission:*` |
 | Admin API v1      | 44    | `auth:sanctum` + `permission:*`      |
 | Console commands  | 1     | Scheduler                            |
-| Database tables   | 6     | —                                    |
-| Domain events     | 6     | —                                    |
+| Database tables   | 7     | —                                    |
+| Domain events     | 8     | —                                    |
 | Listeners         | 6     | Mail and Google Calendar adapters    |
 
 The web surface is now dual-transport: `GET /leads` and `GET /leads/{uuid}`
@@ -154,7 +154,7 @@ Measured on 2026-11-25, excluding `vendor/` and `node_modules/`:
 | FormRequests            |                                             **13** |
 | Ports                   |                                             **11** |
 | Query objects           | **2** (`CalendarFeedQuery`, `DashboardStatsQuery`) |
-| Migrations              |                  **13** (7 create + 6 lead alters) |
+| Migrations              |       **15** (7 create + 8 alters and lock tables) |
 
 The file count is high; the line count is not. This is a wide, shallow module:
 many small classes with one reason to change, not a few large classes with many.
@@ -329,11 +329,11 @@ overlap query, same tests. The lean mode is a dial, not a rewrite.
 
 ## 10. Out of scope
 
-- Inertia screens for availability and the standalone calendar (the lead and
-  appointment screens are live; availability stays on `/api/v1` for now).
+- A public real-time slot picker; staff scheduling remains the only booking
+  surface. The Inertia availability screen and `/api/v1` JSON surface are live.
 - A service catalog and technician assignment to jobs (they belong to the
   Claim + Scope Sheet flow, after the inspection).
-- Postgres concurrency proof for `createWithLock` (SQLite is the local engine).
+- PostgreSQL concurrency proof for `createWithLock` remains a follow-up phase.
 - Per-technician Google OAuth; one shared company calendar.
 - Public real-time slot picker; scheduling is staff-driven and request-only.
 - Meetings, Jobs, Customers, multi-property accounts.
@@ -348,15 +348,15 @@ Pint --blade --test      clean
 PHPStan level 5          0 errors
 tsc --noEmit             clean
 Vite build               green
-Module tests             161 tests / 868 assertions
-Architecture tests       45 tests / 265 assertions
+Full backend suite     955 tests / 4,392 assertions
+Architecture tests       51 tests / 274 assertions
 SavedViews tests         10 tests / 67 assertions
 Composer audit           clean
 doctor                   green: 25 diagnostics, 0 failed, 1 skipped
 ```
 
-The last full Pest run was 750 tests / 3,573 assertions (`phpunit.xml` sets
-`memory_limit=1G` for the test process). `doctor` passes on 2026-11-25; the Windows
+The last full Pest run was 955 tests / 4,392 assertions (`phpunit.xml` sets
+`memory_limit=1G` for the test process). `doctor` passes on 2026-11-27; the Windows
 \`Composer autoload works\` timeout is documented in `.opencode/rules/rules.md`
 and is not
 a module finding and must not be silenced by changing the project.

@@ -1,10 +1,9 @@
 /**
  * BulkClosureDialog — close a range of days in one write.
  *
- * The range endpoint already overwrites an existing row for each date and
- * marks it manual, so the copy says that instead of pretending the operation is
- * purely additive. Server errors (range cap, validation) land on the same
- * field kit through `HttpRequestError.fieldErrors`.
+ * The range endpoint refuses the whole range when any active exception already
+ * exists, so the copy promises no overwrite. Server errors (range cap,
+ * validation) land on the same field kit through `HttpRequestError.fieldErrors`.
  */
 import { useState } from 'react';
 import DateField from '@/Components/Forms/DateField';
@@ -63,7 +62,7 @@ export default function BulkClosureDialog({
             open={open}
             onOpenChange={onOpenChange}
             title="Close a range of days"
-            description={`Every date in the range becomes unavailable. Existing rows for those dates are replaced with a manual closure, and the range is limited to ${maxDays} days.`}
+            description={`Every date in the range becomes unavailable. If any date already has an active exception, the whole range is refused and nothing is overwritten. The range is limited to ${maxDays} days.`}
             form={{
                 processing: form.processing || mutations.closeRange.isPending,
                 isDirty: form.isDirty,

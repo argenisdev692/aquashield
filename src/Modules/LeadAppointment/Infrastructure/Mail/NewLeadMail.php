@@ -19,7 +19,7 @@ final class NewLeadMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'New lead — '.$this->lead->fullName.' ('.ucfirst($this->lead->region).')');
+        return new Envelope(subject: 'New lead — '.$this->lead->fullName.' ('.ucfirst((string) ($this->lead->region ?? config('lead-appointment.default_region', 'houston'))).')');
     }
 
     public function content(): Content

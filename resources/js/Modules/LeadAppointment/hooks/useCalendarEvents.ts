@@ -28,9 +28,15 @@ const isCalendarEvent = (value: unknown): value is CalendarEvent =>
 const fetchCalendarEvents = async (
     from: string,
     to: string,
+    region: string,
     signal: AbortSignal,
 ): Promise<CalendarEvent[]> => {
     const params = new URLSearchParams({ from, to });
+
+    if (region !== '') {
+        params.set('region', region);
+    }
+
     const payload = await requestJson(`/appointments/calendar-events?${params.toString()}`, {
         signal,
     });
@@ -54,13 +60,14 @@ const fetchCalendarEvents = async (
 
 const CALENDAR_PREFIX = ['lead-appointment', 'calendar-events'] as const;
 
-const calendarEventsKey = (from: string, to: string) => [...CALENDAR_PREFIX, from, to] as const;
+const calendarEventsKey = (from: string, to: string, region: string) =>
+    [...CALENDAR_PREFIX, from, to, region] as const;
 
-export const calendarEventsQuery = (from: string, to: string, enabled = true) =>
+export const calendarEventsQuery = (from: string, to: string, region: string, enabled = true) =>
     queryOptions({
-        queryKey: calendarEventsKey(from, to),
+        queryKey: calendarEventsKey(from, to, region),
         enabled: enabled && from !== '' && to !== '',
-        queryFn: ({ signal }) => fetchCalendarEvents(from, to, signal),
+        queryFn: ({ signal }) => fetchCalendarEvents(from, to, region, signal),
         staleTime: 30_000,
         gcTime: 300_000,
         placeholderData: keepPreviousData,
@@ -78,9 +85,10 @@ export interface CalendarEventsController {
 export function useCalendarEvents(
     from: string,
     to: string,
+    region: string,
     enabled = true,
 ): CalendarEventsController {
-    const query = useQuery(calendarEventsQuery(from, to, enabled));
+    const query = useQuery(calendarEventsQuery(from, to, region, enabled));
 
     return {
         events: query.data ?? [],

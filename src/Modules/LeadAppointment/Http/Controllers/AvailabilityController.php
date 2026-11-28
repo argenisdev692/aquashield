@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Http\Controllers;
 
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Attributes\Parameter;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Modules\LeadAppointment\Application\Actions\SyncHolidaysAction;
 use Modules\LeadAppointment\Application\Dtos\AvailabilityCalendarData;
 use Modules\LeadAppointment\Application\Dtos\AvailabilityDayData;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityWindowData;
 use Modules\LeadAppointment\Application\Dtos\AvailabilityWindowFilterData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityExceptionData;
 use Modules\LeadAppointment\Application\Dtos\SaveAvailabilityRuleData;
@@ -34,6 +37,7 @@ final readonly class AvailabilityController
         private SyncHolidaysAction $syncHolidays,
     ) {}
 
+    #[Response(403, 'Forbidden', type: 'array{message: string}')]
     public function rules(): JsonResponse
     {
         return response()->json([
@@ -84,6 +88,10 @@ final readonly class AvailabilityController
         return response()->json(null, 204);
     }
 
+    #[Parameter('query', 'from', type: 'string', format: 'date')]
+    #[Parameter('query', 'to', type: 'string', format: 'date')]
+    #[Parameter('query', 'region', type: 'string', description: 'One of: houston, dallas, florida.')]
+    #[Response(403, 'Forbidden', type: 'array{message: string}')]
     public function exceptions(Request $request): JsonResponse
     {
         [, $from, $to] = $this->window($request);
@@ -143,7 +151,7 @@ final readonly class AvailabilityController
         $to = CarbonImmutable::parse((string) $validated['to']);
         $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
 
-        if ($from->diffInDays($to) > $maxDays) {
+        if ($from->diffInDays($to) + 1 > $maxDays) {
             return response()->json([
                 'message' => "A bulk closure is limited to {$maxDays} days.",
             ], 422);
@@ -164,6 +172,11 @@ final readonly class AvailabilityController
         return response()->json(['created' => $created], 201);
     }
 
+    #[Parameter('query', 'from', type: 'string', format: 'date')]
+    #[Parameter('query', 'to', type: 'string', format: 'date')]
+    #[Parameter('query', 'region', type: 'string', description: 'One of: houston, dallas, florida.')]
+    #[Response(403, 'Forbidden', type: 'array{message: string}')]
+    #[Response(422, 'Validation error', type: 'array{message: string, errors: array<string, list<string>>}')]
     public function calendar(Request $request): AvailabilityCalendarData
     {
         [, $from, $to, $timezone] = $this->window($request);
@@ -175,7 +188,10 @@ final readonly class AvailabilityController
                 source: $day->source,
                 reason: $day->reason,
                 windows: array_map(
-                    static fn (TimeWindow $window): array => ['start' => $window->start, 'end' => $window->end],
+                    static fn (TimeWindow $window): AvailabilityWindowData => new AvailabilityWindowData(
+                        start: $window->start,
+                        end: $window->end,
+                    ),
                     $day->windows,
                 ),
             ),
@@ -203,7 +219,7 @@ final readonly class AvailabilityController
         $to = $filters->to ?? $now->endOfMonth()->toDateString();
         $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
 
-        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > $maxDays) {
+        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) + 1 > $maxDays) {
             throw ValidationException::withMessages([
                 'to' => "The availability window is limited to {$maxDays} days.",
             ]);
@@ -212,6 +228,7 @@ final readonly class AvailabilityController
         return [$filters, $from, $to, $timezone];
     }
 
+    #[Response(403, 'Forbidden', type: 'array{message: string}')]
     public function syncHolidays(): JsonResponse
     {
         // Explicit 200: the command is idempotent, not a resource creation, and

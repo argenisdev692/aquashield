@@ -31,12 +31,16 @@ final class SecurityHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
-        /** @var string $nonce */
-        $nonce = app('csp-nonce');
+        $isApi = $request->is('api/*');
 
-        // Bind the nonce to Vite before the response is generated so emitted
-        // asset tags inherit it.
-        Vite::useCspNonce($nonce);
+        if (! $isApi) {
+            /** @var string $nonce */
+            $nonce = app('csp-nonce');
+
+            // Bind the nonce to Vite before the response is generated so emitted
+            // asset tags inherit it.
+            Vite::useCspNonce($nonce);
+        }
 
         $response = $next($request);
 
@@ -44,14 +48,16 @@ final class SecurityHeaders
             $response->headers->set($header, $value);
         }
 
-        $response->headers->set(
-            'Content-Security-Policy',
-            match (true) {
-                $this->isApiDocsRequest($request) => $this->apiDocsContentSecurityPolicy(),
-                $this->isMonitoringRequest($request) => $this->monitoringContentSecurityPolicy(),
-                default => $this->contentSecurityPolicy($nonce, $request),
-            },
-        );
+        if (! $isApi) {
+            $response->headers->set(
+                'Content-Security-Policy',
+                match (true) {
+                    $this->isApiDocsRequest($request) => $this->apiDocsContentSecurityPolicy(),
+                    $this->isMonitoringRequest($request) => $this->monitoringContentSecurityPolicy(),
+                    default => $this->contentSecurityPolicy($nonce, $request),
+                },
+            );
+        }
 
         return $response;
     }

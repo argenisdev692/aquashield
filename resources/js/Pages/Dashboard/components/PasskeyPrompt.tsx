@@ -19,7 +19,7 @@ export default function PasskeyPrompt({ pending, error, onDismiss }: PasskeyProm
     return (
         <aside
             aria-labelledby="passkey-prompt-title"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-aq-accent/20 bg-aq-accent/[0.04] px-3 py-2"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-aq-content-line bg-transparent px-3 py-2"
         >
             <span className="grid size-7 shrink-0 place-items-center rounded-md bg-aq-accent/10 text-aq-accent">
                 <ScanFace className="size-4" aria-hidden="true" />

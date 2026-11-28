@@ -433,10 +433,7 @@ declare namespace Modules {
                     is_open: boolean;
                     source: string;
                     reason: string | null;
-                    windows: {
-                        start: string;
-                        end: string;
-                    }[];
+                    windows: Modules.LeadAppointment.Application.Dtos.AvailabilityWindowData[];
                 };
                 export type AvailabilityExceptionData = {
                     uuid: string;
@@ -469,6 +466,10 @@ declare namespace Modules {
                     end_time: string;
                     is_available: boolean;
                 };
+                export type AvailabilityWindowData = {
+                    start: string;
+                    end: string;
+                };
                 export type AvailabilityWindowFilterData = {
                     from: string | null;
                     to: string | null;
@@ -479,10 +480,7 @@ declare namespace Modules {
                     is_open: boolean;
                     source: string;
                     reason: string | null;
-                    windows: {
-                        start: string;
-                        end: string;
-                    }[];
+                    windows: Modules.LeadAppointment.Application.Dtos.AvailabilityWindowData[];
                     appointments: Modules.LeadAppointment.Application.Dtos.AppointmentData[];
                 };
                 export type CalendarEventData = {
@@ -507,6 +505,7 @@ declare namespace Modules {
                 export type CalendarWindowFilterData = {
                     from: string;
                     to: string;
+                    region: string | null;
                 };
                 export type CancelAppointmentData = {
                     reason: string;

@@ -21,7 +21,9 @@ use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Application\Ports\LeadSourceGateway;
 use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Events\AppointmentCancelled;
+use Modules\LeadAppointment\Domain\Events\AppointmentDeleted;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
+use Modules\LeadAppointment\Domain\Events\AppointmentRestored;
 use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
 use Modules\LeadAppointment\Domain\Events\LeadCaptured;
 use Modules\LeadAppointment\Domain\Ports\AvailabilityScheduleReader;
@@ -147,6 +149,10 @@ final class LeadAppointmentServiceProvider extends ServiceProvider
             Limit::perDay((int) config('lead-appointment.public.throttle_per_day', 100))->by($request->ip()),
         ]);
 
+        RateLimiter::for('availability-rules', static fn (Request $request): Limit => Limit::perMinute(
+            (int) config('lead-appointment.availability_rules.throttle_per_minute', 20),
+        )->by($request->user()->id ?? $request->ip()));
+
         Event::listen(LeadCaptured::class, SendLeadReceivedEmail::class);
         Event::listen(LeadCaptured::class, NotifyOfficeOfNewLead::class);
         Event::listen(AppointmentScheduled::class, SendAppointmentConfirmation::class);
@@ -158,5 +164,7 @@ final class LeadAppointmentServiceProvider extends ServiceProvider
         Event::listen(AppointmentCancelled::class, SendAppointmentCancelledEmail::class);
         Event::listen(AppointmentCancelled::class, NotifyOfficeOfCancelledAppointment::class);
         Event::listen(AppointmentCancelled::class, SyncAppointmentToGoogleCalendar::class);
+        Event::listen(AppointmentDeleted::class, SyncAppointmentToGoogleCalendar::class);
+        Event::listen(AppointmentRestored::class, SyncAppointmentToGoogleCalendar::class);
     }
 }

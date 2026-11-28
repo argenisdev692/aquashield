@@ -22,7 +22,12 @@ export function useCreateLead(): CreateLeadController {
         mutationFn: (input: LeadFormValues) =>
             requestJson('/leads', { method: 'POST', body: input }),
         onSettled: () => {
-            void queryClient.invalidateQueries({ queryKey: ['lead-appointment', 'lead-options'] });
+            void queryClient.invalidateQueries({
+                queryKey: ['lead-appointment', 'leads-panel'],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['lead-appointment', 'lead-options'],
+            });
         },
     });
 

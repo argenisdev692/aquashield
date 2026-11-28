@@ -22,10 +22,10 @@
         globals.css, because they are read before the stylesheet exists: a
         custom property cannot resolve until app.css has loaded, and the point
         of this meta is the first paint. They must stay equal to
-        `--color-aq-void` (#081829) and `--p-surface-50` (#f1f6fa); the
+        `--color-aq-void` (#071827) and `--p-surface-50` (#f1f6fa); the
         post-load source is resources/js/lib/theme.ts, which reads those tokens
         instead of repeating these hexes. Change the palette, change all three. --}}
-    <meta name="theme-color" content="#081829" />
+    <meta name="theme-color" content="#071827" />
 
     {{-- Internal staff surface. The title is server-rendered because
         Inertia SSR is off: a non-JS crawler (and every link preview) would
@@ -56,7 +56,7 @@
                 document.documentElement.style.colorScheme = theme;
                 var meta = document.querySelector('meta[name="theme-color"]');
                 if (meta) {
-                    meta.setAttribute('content', theme === 'dark' ? '#081829' : '#f1f6fa');
+                    meta.setAttribute('content', theme === 'dark' ? '#071827' : '#f1f6fa');
                 }
             } catch (e) {
                 /* localStorage blocked: leave the document as-is */

@@ -33,8 +33,8 @@ function appointmentPageRecord(CarbonImmutable $start, array $overrides = []): A
 {
     return Appointment::factory()->create([
         'lead_id' => LeadAppointmentFixtures::lead()->id,
-        'starts_at' => $start,
-        'ends_at' => $start->addMinutes(60),
+        'starts_at' => $start->utc(),
+        'ends_at' => $start->addMinutes(60)->utc(),
         'timezone' => 'America/Chicago',
         'region' => 'houston',
         ...$overrides,

@@ -23,7 +23,7 @@ final readonly class CalendarController
         $to = $filters->to ?? CarbonImmutable::now()->endOfMonth()->toDateString();
         $maxDays = (int) config('lead-appointment.calendar_max_days', 92);
 
-        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > $maxDays) {
+        if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) + 1 > $maxDays) {
             throw ValidationException::withMessages([
                 'to' => "The calendar window is limited to {$maxDays} days.",
             ]);

@@ -39,6 +39,8 @@ interface LeadWriter
         ?string $inspectionDate = null,
         ?string $inspectionTime = null,
         ?InspectionStatus $inspectionStatus = null,
+        ?LogLeadActivityData $activity = null,
+        ?int $actorId = null,
     ): LeadData;
 
     public function logActivity(string $leadUuid, LogLeadActivityData $data, ?int $userId): LeadActivityData;

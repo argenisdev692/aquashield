@@ -158,7 +158,8 @@ export default function AppSidebar({ open, onOpenChange, currentPath, panelId }:
                      * `surface-950` in dark. The old `border-e` was the only
                      * thing separating two nearly identical translucent fills.
                      */
-                    'bg-surface-0 dark:bg-surface-900',
+                    'bg-aq-card border-e border-aq-content-line/80 shadow-(--aq-shadow-rail)',
+                    'dark:bg-linear-to-b dark:from-aq-card dark:via-aq-card dark:to-surface-950',
                     collapsed ? 'w-18' : 'w-64',
                 )}
                 aria-label="Main navigation"
@@ -203,9 +204,7 @@ export default function AppSidebar({ open, onOpenChange, currentPath, panelId }:
                 <div
                     className={cn(
                         'shrink-0',
-                        collapsed
-                            ? 'p-2'
-                            : 'mx-3 mb-3 rounded-xl bg-surface-100/70 p-2 dark:bg-surface-800/40',
+                        collapsed ? 'p-2' : 'mx-3 mb-3 border-t border-aq-content-line p-2',
                     )}
                 >
                     <SidebarAccountFooter collapsed={collapsed} />
@@ -230,7 +229,7 @@ export default function AppSidebar({ open, onOpenChange, currentPath, panelId }:
                             />
                         </div>
 
-                        <div className="mx-3 mb-3 shrink-0 rounded-xl bg-surface-100/70 p-2 dark:bg-surface-800/40">
+                        <div className="mx-3 mb-3 shrink-0 border-t border-aq-content-line p-2">
                             <SidebarAccountFooter collapsed={false} />
                         </div>
                     </SheetContent>

@@ -300,7 +300,7 @@ final readonly class LeadController
      */
     private function transitions(): array
     {
-        return LeadStatus::transitionMap();
+        return LeadStatus::manualTransitionMap();
     }
 
     private function can(Request $request, string $permission): bool

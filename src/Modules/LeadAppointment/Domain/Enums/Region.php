@@ -44,4 +44,12 @@ enum Region: string
             self::Florida => 'America/New_York',
         };
     }
+
+    public function allowsTimezone(string $timezone): bool
+    {
+        return in_array($timezone, match ($this) {
+            self::Houston, self::Dallas => ['America/Chicago'],
+            self::Florida => ['America/Chicago', 'America/New_York'],
+        }, true);
+    }
 }

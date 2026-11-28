@@ -7,6 +7,7 @@ namespace Modules\LeadAppointment\Application\Actions;
 use Modules\LeadAppointment\Application\Dtos\CaptureLeadData;
 use Modules\LeadAppointment\Application\Dtos\LeadData;
 use Modules\LeadAppointment\Application\Dtos\MetaLeadData;
+use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\Region;
 
@@ -16,10 +17,19 @@ use Modules\LeadAppointment\Domain\Enums\Region;
  */
 final readonly class IngestMetaLeadAction
 {
-    public function __construct(private CaptureLeadAction $capture) {}
+    public function __construct(
+        private CaptureLeadAction $capture,
+        private LeadReader $leads,
+    ) {}
 
     public function execute(MetaLeadData $meta): LeadData
     {
+        $existing = $this->leads->findByExternalId('meta', $meta->externalId);
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
         $region = $this->regionFor($meta);
 
         $data = new CaptureLeadData(

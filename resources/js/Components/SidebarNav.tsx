@@ -79,7 +79,7 @@ export default function SidebarNav({
                 {isItemActive && (
                     <span
                         aria-hidden="true"
-                        className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-aq-accent"
+                        className="aq-nav-indicator absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-aq-accent"
                     />
                 )}
 
@@ -160,10 +160,7 @@ export default function SidebarNav({
                 return (
                     <div
                         key={label ?? `group-${groupIndex}`}
-                        className={cn(
-                            groupIndex > 0 &&
-                                'border-t border-surface-100 pt-3 dark:border-surface-800/80',
-                        )}
+                        className={cn(groupIndex > 0 && 'border-t border-aq-content-line/60 pt-3')}
                     >
                         {label !== undefined &&
                             (collapsible && !collapsed ? (

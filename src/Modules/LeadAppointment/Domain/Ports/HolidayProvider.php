@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Domain\Ports;
 
 /**
- * Country holiday source. The production adapter wraps spatie/holidays; a test
- * can substitute a fixed array without knowing the package.
+ * Country holiday source. The production adapter computes US federal dates
+ * from Carbon and OPM observed rules; a test can substitute a fixed array.
  */
 interface HolidayProvider
 {

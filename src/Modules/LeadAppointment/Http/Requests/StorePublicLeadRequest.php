@@ -61,7 +61,7 @@ final class StorePublicLeadRequest extends FormRequest
             'sms_consent' => ['sometimes', 'boolean'],
             'consent_text_version' => ['nullable', 'string', 'max:20', 'required_if:sms_consent,true'],
             'preferred_language' => ['nullable', 'string', 'in:en,es'],
-            'source_page' => ['nullable', 'string', 'max:500'],
+            'source_page' => ['nullable', 'string', 'max:255'],
             'utm_source' => ['nullable', 'string', 'max:255'],
             'utm_medium' => ['nullable', 'string', 'max:255'],
             'utm_campaign' => ['nullable', 'string', 'max:255'],

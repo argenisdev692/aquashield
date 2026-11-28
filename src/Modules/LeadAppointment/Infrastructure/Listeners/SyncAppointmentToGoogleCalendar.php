@@ -6,11 +6,14 @@ namespace Modules\LeadAppointment\Infrastructure\Listeners;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
+use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Application\Ports\CalendarSyncPort;
 use Modules\LeadAppointment\Domain\Events\AppointmentCancelled;
+use Modules\LeadAppointment\Domain\Events\AppointmentDeleted;
 use Modules\LeadAppointment\Domain\Events\AppointmentRescheduled;
+use Modules\LeadAppointment\Domain\Events\AppointmentRestored;
 use Modules\LeadAppointment\Domain\Events\AppointmentScheduled;
 use Throwable;
 
@@ -33,31 +36,36 @@ final class SyncAppointmentToGoogleCalendar implements ShouldQueue
         private readonly CalendarSyncPort $calendar,
     ) {}
 
-    public function handle(AppointmentScheduled|AppointmentRescheduled|AppointmentCancelled $event): void
+    public function handle(AppointmentScheduled|AppointmentRescheduled|AppointmentCancelled|AppointmentDeleted|AppointmentRestored $event): void
     {
-        $appointment = $this->appointments->find($event->appointmentUuid);
+        $appointment = $this->appointments->find($event->appointmentUuid, true);
 
         if ($appointment === null) {
             return;
         }
 
-        if ($event instanceof AppointmentCancelled) {
+        $this->syncCurrentState($appointment);
+    }
+
+    private function syncCurrentState(AppointmentData $appointment): void
+    {
+        if ($appointment->status === 'cancelled' || $appointment->deletedAt !== null) {
             $this->calendar->delete($appointment);
 
             return;
         }
 
-        if ($event instanceof AppointmentRescheduled) {
-            $this->calendar->update($appointment);
+        if ($appointment->googleEventId === null) {
+            $eventId = $this->calendar->create($appointment);
+
+            if ($eventId !== null) {
+                $this->appointmentWriter->setGoogleEventId($appointment->uuid, $eventId);
+            }
 
             return;
         }
 
-        $eventId = $this->calendar->create($appointment);
-
-        if ($eventId !== null) {
-            $this->appointmentWriter->setGoogleEventId($appointment->uuid, $eventId);
-        }
+        $this->calendar->update($appointment);
     }
 
     public function failed(Throwable $exception): void

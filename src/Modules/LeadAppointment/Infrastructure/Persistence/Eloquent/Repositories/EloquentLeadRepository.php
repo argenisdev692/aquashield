@@ -26,16 +26,24 @@ use Modules\LeadAppointment\Domain\Enums\InspectionStatus;
 use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
+use Modules\LeadAppointment\Domain\Exceptions\LeadHasAppointmentsException;
+use Modules\LeadAppointment\Domain\Services\StatusTransition;
 use Modules\LeadAppointment\Domain\ValueObjects\DateWindow;
 use Modules\LeadAppointment\Domain\ValueObjects\DuplicateCandidate;
 use Modules\LeadAppointment\Domain\ValueObjects\PhoneNumber;
 use Modules\LeadAppointment\Domain\ValueObjects\SpamAssessment;
+use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\CalendarLock;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\LeadActivity;
 
 final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 {
+    public function __construct(
+        private CalendarLock $calendarLock,
+        private StatusTransition $transitions,
+    ) {}
+
     /**
      * @return LengthAwarePaginator<int, LeadListItemData>
      */
@@ -300,7 +308,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
             'sms_consent_at' => $data->smsConsent ? CarbonImmutable::now() : null,
             'sms_consent_ip' => $data->smsConsent ? $data->ip : null,
             'sms_consent_user_agent' => $data->smsConsent ? $data->userAgent : null,
-            'sms_consent_source' => $data->smsConsent ? $data->sourcePage : null,
+            'sms_consent_source' => $data->smsConsent && $source === LeadSource::Website ? 'website' : null,
             'consent_text_version' => $data->smsConsent ? $data->consentTextVersion : null,
             'notes' => $data->notes,
         ]);
@@ -358,53 +366,89 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
         ?string $inspectionDate = null,
         ?string $inspectionTime = null,
         ?InspectionStatus $inspectionStatus = null,
+        ?LogLeadActivityData $activity = null,
+        ?int $actorId = null,
     ): LeadData {
-        $lead = Lead::query()->where('uuid', $uuid)->firstOrFail();
-        $lead->status = $status;
+        return DB::transaction(function () use ($uuid, $status, $inspectionDate, $inspectionTime, $inspectionStatus, $activity, $actorId): LeadData {
+            $this->calendarLock->acquire();
 
-        if ($inspectionDate !== null) {
-            $lead->inspection_date = CarbonImmutable::parse($inspectionDate)->startOfDay();
-        }
+            $lead = Lead::query()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
 
-        if ($inspectionTime !== null) {
-            $lead->inspection_time = $inspectionTime;
-        }
+            if ($lead->status !== $status) {
+                $this->transitions->assertLead($lead->status, $status);
+            }
 
-        if ($inspectionStatus !== null) {
-            $lead->inspection_status = $inspectionStatus;
-        }
+            $lead->status = $status;
 
-        if ($status === LeadStatus::Won && $lead->converted_at === null) {
-            $lead->converted_at = CarbonImmutable::now();
-        }
+            if ($inspectionDate !== null) {
+                $lead->inspection_date = CarbonImmutable::parse($inspectionDate)->startOfDay();
+            }
 
-        $lead->save();
+            if ($inspectionTime !== null) {
+                $lead->inspection_time = $inspectionTime;
+            }
 
-        return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
+            if ($inspectionStatus !== null) {
+                $lead->inspection_status = $inspectionStatus;
+            }
+
+            if ($status === LeadStatus::Won && $lead->converted_at === null) {
+                $lead->converted_at = CarbonImmutable::now();
+            }
+
+            $lead->save();
+
+            if ($activity !== null) {
+                $this->createActivity($lead, $activity, $actorId);
+            }
+
+            return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
+        });
     }
 
     public function logActivity(string $leadUuid, LogLeadActivityData $data, ?int $userId): LeadActivityData
     {
         return DB::transaction(function () use ($leadUuid, $data, $userId): LeadActivityData {
             $lead = Lead::query()->where('uuid', $leadUuid)->firstOrFail();
-            $occurredAt = $data->occurredAt === null
-                ? CarbonImmutable::now()
-                : CarbonImmutable::parse($data->occurredAt);
 
-            $activity = LeadActivity::query()->create([
-                'lead_id' => $lead->id,
-                'user_id' => $userId,
-                'type' => $data->type->value,
-                'outcome' => $data->outcome,
-                'notes' => $data->notes,
-                'occurred_at' => $occurredAt,
-            ]);
-
-            $lead->last_contacted_at = $occurredAt;
-            $lead->save();
-
-            return $this->toActivityData($activity->load('user:id,first_name,last_name'));
+            return $this->toActivityData($this->createActivity($lead, $data, $userId)->load('user:id,first_name,last_name'));
         });
+    }
+
+    private function createActivity(Lead $lead, LogLeadActivityData $data, ?int $userId): LeadActivity
+    {
+        $occurredAt = $data->occurredAt === null
+            ? CarbonImmutable::now()
+            : CarbonImmutable::parse($data->occurredAt);
+
+        $activity = LeadActivity::query()->create([
+            'lead_id' => $lead->id,
+            'user_id' => $userId,
+            'type' => $data->type->value,
+            'outcome' => $data->outcome,
+            'notes' => $data->notes,
+            'occurred_at' => $occurredAt,
+        ]);
+
+        $lead->last_contacted_at = $occurredAt;
+        $lead->save();
+
+        return $activity;
+    }
+
+    public function findByExternalId(string $source, string $externalId): ?LeadData
+    {
+        $lead = Lead::query()
+            ->with([
+                'owner:id,uuid,first_name,last_name',
+                'duplicateOf:id,uuid',
+                'latestAppointment:id,lead_id,starts_at,ends_at,timezone,status',
+            ])
+            ->where('external_source', $source)
+            ->where('external_id', $externalId)
+            ->first();
+
+        return $lead === null ? null : $this->toData($lead);
     }
 
     /**
@@ -448,11 +492,16 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
     public function merge(string $targetUuid, string $duplicateUuid): LeadData
     {
         return DB::transaction(function () use ($targetUuid, $duplicateUuid): LeadData {
-            $target = Lead::query()->where('uuid', $targetUuid)->firstOrFail();
-            $duplicate = Lead::query()->where('uuid', $duplicateUuid)->firstOrFail();
+            $this->calendarLock->acquire();
+
+            $target = Lead::query()->where('uuid', $targetUuid)->lockForUpdate()->firstOrFail();
+            $duplicate = Lead::query()->where('uuid', $duplicateUuid)->lockForUpdate()->firstOrFail();
+
+            if (Appointment::query()->whereIn('lead_id', [$target->id, $duplicate->id])->exists()) {
+                throw new LeadHasAppointmentsException;
+            }
 
             LeadActivity::query()->where('lead_id', $duplicate->id)->update(['lead_id' => $target->id]);
-            Appointment::query()->where('lead_id', $duplicate->id)->update(['lead_id' => $target->id]);
 
             $duplicate->duplicate_of_id = $target->id;
             $duplicate->save();
@@ -464,7 +513,21 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 
     public function delete(string $uuid): void
     {
-        Lead::query()->where('uuid', $uuid)->first()?->delete();
+        DB::transaction(function () use ($uuid): void {
+            $this->calendarLock->acquire();
+
+            $lead = Lead::query()->where('uuid', $uuid)->lockForUpdate()->first();
+
+            if ($lead === null) {
+                return;
+            }
+
+            if (Appointment::query()->where('lead_id', $lead->id)->exists()) {
+                throw new LeadHasAppointmentsException;
+            }
+
+            $lead->delete();
+        });
     }
 
     public function restore(string $uuid): LeadData
@@ -480,9 +543,23 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
      */
     public function bulkDelete(array $uuids): void
     {
-        Lead::query()->whereIn('uuid', $uuids)->get()->each(
-            static fn (Lead $lead) => $lead->delete(),
-        );
+        DB::transaction(function () use ($uuids): void {
+            $this->calendarLock->acquire();
+
+            $leads = Lead::query()->whereIn('uuid', $uuids)->orderBy('id')->lockForUpdate()->get();
+
+            if ($leads->isEmpty()) {
+                return;
+            }
+
+            if (Appointment::query()->whereIn('lead_id', $leads->modelKeys())->exists()) {
+                throw new LeadHasAppointmentsException;
+            }
+
+            foreach ($leads as $lead) {
+                $lead->delete();
+            }
+        });
     }
 
     /**

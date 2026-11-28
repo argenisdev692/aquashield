@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Infrastructure\Jobs;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\LeadAppointment\Application\Actions\IngestMetaLeadAction;
 use Modules\LeadAppointment\Application\Ports\LeadSourceGateway;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\LeadIngestionEvent;
 use Throwable;
 
-final class IngestMetaLeadJob implements ShouldQueue
+final class IngestMetaLeadJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -24,13 +26,33 @@ final class IngestMetaLeadJob implements ShouldQueue
 
     public int $backoff = 60;
 
+    public int $timeout = 60;
+
     public function __construct(public string $eventUuid) {}
+
+    public function uniqueId(): string
+    {
+        return $this->eventUuid;
+    }
 
     public function handle(LeadSourceGateway $gateway, IngestMetaLeadAction $action): void
     {
-        $event = LeadIngestionEvent::query()->where('uuid', $this->eventUuid)->first();
+        $event = DB::transaction(function (): ?LeadIngestionEvent {
+            $event = LeadIngestionEvent::query()->where('uuid', $this->eventUuid)->lockForUpdate()->first();
 
-        if ($event === null || $event->status === 'processed') {
+            if ($event === null || $event->status === 'processed') {
+                return null;
+            }
+
+            $event->status = 'processing';
+            $event->attempts++;
+            $event->last_error = null;
+            $event->save();
+
+            return $event;
+        });
+
+        if ($event === null) {
             return;
         }
 
@@ -40,8 +62,6 @@ final class IngestMetaLeadJob implements ShouldQueue
 
             $event->status = 'processed';
             $event->processed_at = CarbonImmutable::now();
-            $event->attempts++;
-            $event->last_error = null;
             $event->save();
         } catch (Throwable $exception) {
             // A duplicate dispatch can lose the race to a successful one; never
@@ -50,7 +70,6 @@ final class IngestMetaLeadJob implements ShouldQueue
                 return;
             }
 
-            $event->attempts++;
             $event->status = 'failed';
             $event->last_error = $this->safeError($exception);
             $event->save();

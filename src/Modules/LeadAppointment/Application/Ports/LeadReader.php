@@ -104,6 +104,8 @@ interface LeadReader
 
     public function find(string $uuid, bool $withTrashed = false): ?LeadData;
 
+    public function findByExternalId(string $source, string $externalId): ?LeadData;
+
     /**
      * @return list<DuplicateCandidate>
      */

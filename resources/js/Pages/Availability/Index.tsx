@@ -55,6 +55,7 @@ interface AvailabilityIndexProps {
     total: number;
     rules: Rule[];
     trashedRules: Rule[];
+    trashedRulesLimited: boolean;
     options: {
         availability: Option[];
         sources: Option[];
@@ -182,6 +183,7 @@ export default function AvailabilityIndex() {
         total,
         rules,
         trashedRules,
+        trashedRulesLimited,
         options,
         calendar,
         canCreate,
@@ -338,25 +340,27 @@ export default function AvailabilityIndex() {
                     <div className="flex flex-wrap items-center gap-2">
                         {canCreate && (
                             <>
-                                {/* The route re-checks CREATE_AVAILABILITY_EXCEPTION and
-                                    throttles at 10/min — this is a convenience, not the gate. */}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="header"
-                                    onClick={runHolidaySync}
-                                    disabled={syncHolidays.isPending || visitsPending}
-                                >
-                                    {syncHolidays.isPending ? (
-                                        <Loader2
-                                            className="size-4 animate-spin motion-reduce:animate-none"
-                                            aria-hidden="true"
-                                        />
-                                    ) : (
-                                        <RefreshCw className="size-4" aria-hidden="true" />
-                                    )}
-                                    {syncHolidays.isPending ? 'Syncing…' : 'Sync holidays'}
-                                </Button>
+                                {/* The route re-checks create + delete authority and throttles
+                                    at 10/min — this is a convenience, not the gate. */}
+                                {canCreate && canDelete && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="header"
+                                        onClick={runHolidaySync}
+                                        disabled={syncHolidays.isPending || visitsPending}
+                                    >
+                                        {syncHolidays.isPending ? (
+                                            <Loader2
+                                                className="size-4 animate-spin motion-reduce:animate-none"
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <RefreshCw className="size-4" aria-hidden="true" />
+                                        )}
+                                        {syncHolidays.isPending ? 'Syncing…' : 'Sync holidays'}
+                                    </Button>
+                                )}
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -501,6 +505,7 @@ export default function AvailabilityIndex() {
                     <RulesPanel
                         rules={rules}
                         trashedRules={trashedRules}
+                        trashedRulesLimited={trashedRulesLimited}
                         canCreate={canCreateRule}
                         canUpdate={canUpdateRule}
                         canDelete={canDeleteRule}

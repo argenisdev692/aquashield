@@ -11,7 +11,10 @@ final class CancelAppointmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::UpdateAppointment->value) ?? false;
+        $user = $this->user();
+
+        return $user->can(Permission::UpdateAppointment->value) === true
+            && $user->can(Permission::ViewAppointment->value) === true;
     }
 
     /**

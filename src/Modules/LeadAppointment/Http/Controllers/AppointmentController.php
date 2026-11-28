@@ -226,7 +226,15 @@ final readonly class AppointmentController
 
     public function restore(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $appointment = $this->appointmentWriter->restore($uuid);
+        try {
+            $appointment = $this->appointmentWriter->restore($uuid);
+        } catch (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException $exception) {
+            if ($request->wantsJson()) {
+                throw $exception;
+            }
+
+            return back()->withErrors(['starts_at' => $exception->getMessage()]);
+        }
 
         if ($request->wantsJson()) {
             return response()->json($appointment);

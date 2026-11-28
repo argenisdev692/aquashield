@@ -11,6 +11,7 @@ use Modules\LeadAppointment\Application\Ports\LeadReader;
 use Modules\LeadAppointment\Application\Ports\LeadWriter;
 use Modules\LeadAppointment\Domain\Enums\LeadActivityType;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
+use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
 use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
 use Modules\LeadAppointment\Domain\Services\StatusTransition;
 
@@ -32,26 +33,26 @@ final readonly class UpdateLeadStatusAction
 
         $from = LeadStatus::from($lead->status);
 
+        if ($data->status === LeadStatus::InspectionScheduled) {
+            throw InvalidStatusTransitionException::for($from->value, $data->status->value);
+        }
+
         if ($from !== $data->status) {
             $this->transitions->assertLead($from, $data->status);
         }
 
-        $updated = $this->leadWriter->updateStatus(
+        $activity = $data->note !== null && $data->note !== ''
+            ? new LogLeadActivityData(LeadActivityType::Note, null, $data->note, null)
+            : null;
+
+        return $this->leadWriter->updateStatus(
             $uuid,
             $data->status,
             $data->inspectionDate,
             $data->inspectionTime,
             $data->inspectionStatus,
+            $activity,
+            $actorId,
         );
-
-        if ($data->note !== null && $data->note !== '') {
-            $this->leadWriter->logActivity(
-                $uuid,
-                new LogLeadActivityData(LeadActivityType::Note, null, $data->note, null),
-                $actorId,
-            );
-        }
-
-        return $updated;
     }
 }

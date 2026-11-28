@@ -75,6 +75,23 @@ enum LeadStatus: string
         return $map;
     }
 
+    /**
+     * Manual pipeline moves. Inspection scheduling is owned by the appointment
+     * use case, never by a board drop or a direct status request.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function manualTransitionMap(): array
+    {
+        $map = self::transitionMap();
+
+        foreach ($map as $from => $targets) {
+            $map[$from] = array_values(array_diff($targets, [self::InspectionScheduled->value]));
+        }
+
+        return $map;
+    }
+
     public function canTransitionTo(self $next): bool
     {
         if ($this === $next) {

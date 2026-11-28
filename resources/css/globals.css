@@ -23,9 +23,9 @@
 
     /* AquaShield navy. This is the SCALE Volt/PrimeUI read, so it is the single
        place the whole app's surface colour is decided: -950 is the void, -900
-       the page background, -800 the card, -700 the hover/overlay — matching
-       GUIDE/globals.css. A zinc scale under an aqua brand reads as a neutral
-       admin template with marketing pasted on top. */
+       the card/rail, -800 the hover/active step, -700 the stronger chrome.
+       A zinc scale under an aqua brand reads as a neutral admin template with
+       marketing pasted on top. */
     --p-surface-0: #ffffff;
     --p-surface-50: #f1f6fa;
     --p-surface-100: #e2eaf1;
@@ -35,9 +35,9 @@
     --p-surface-500: #46708f;
     --p-surface-600: #2f5480;
     --p-surface-700: #244166;
-    --p-surface-800: #1a3a5c;
-    --p-surface-900: #0c2340;
-    --p-surface-950: #081829;
+    --p-surface-800: #0c2942;
+    --p-surface-900: #0a2033;
+    --p-surface-950: #071827;
 
     --p-content-border-radius: 6px;
 
@@ -131,7 +131,7 @@
    instead of every call site reaching for an arbitrary value.
    ══════════════════════════════════════════════════════════════════ */
 @theme {
-    --color-aq-void: #081829;
+    --color-aq-void: #071827;
     --color-aq-base: #0c2340;
     --color-aq-elevated: #1a3a5c;
     --color-aq-overlay: #244166;
@@ -200,6 +200,14 @@
        token is for content, not for framing the screen. */
     --color-aq-shell-line: var(--aq-shell-line);
 
+    /* Content surfaces and their hairline. The surface is deliberately only a
+       small step above the canvas; the line carries the structure. This keeps
+       the navy palette from turning every card into another filled block. */
+    --color-aq-card: var(--aq-card);
+    --color-aq-card-hover: var(--aq-card-hover);
+    --color-aq-content-line: var(--aq-content-line);
+    --color-aq-content-line-strong: var(--aq-content-line-strong);
+
     /* PrimeUI's control-border semantic, bridged for the same reason: chrome
        controls need a 3:1 border and had no utility to reach for. */
     --color-content-border: var(--p-content-border-color);
@@ -255,12 +263,18 @@
     --aq-action-hover: #1a3a5c;
     --aq-action-ink: #ffffff;
 
-    /* The one neutral hairline: table rows, card edges and the few dividers
-       that earn their keep inside dense content. The shell does not use it —
-       header, rail and footer separate themselves by surface lightness — so
-       the frame stays quiet while data-dense surfaces keep a crisp line.
-       Same computed colour the shell shipped before the token existed. */
+    /* One neutral hairline: table rows, card edges and the few dividers that
+       earn their keep inside dense content. Light mode stays quiet; dark mode
+       uses the stronger content line so the card edge survives the lighter
+       surface step. */
     --aq-shell-line: color-mix(in oklab, var(--p-surface-200) 80%, transparent);
+
+    /* Content surfaces and their hairline. The surface is deliberately only a
+       small step above the canvas; the line carries the structure. */
+    --aq-card: var(--p-surface-0);
+    --aq-card-hover: var(--p-surface-50);
+    --aq-content-line: color-mix(in oklab, var(--p-surface-200) 80%, transparent);
+    --aq-content-line-strong: var(--p-surface-300);
 
     --aq-grad-primary: linear-gradient(135deg, #0c2340 0%, #00b5e2 100%);
     --aq-grad-glow: linear-gradient(135deg, #00b5e2 0%, #33c4e8 100%);
@@ -281,6 +295,10 @@
        card with a faint light halo instead. A `dark:` twin class is exactly
        the duplication this token removes. */
     --aq-shadow-lift: 0 20px 25px -5px rgb(4 12 24 / 0.1), 0 8px 10px -6px rgb(4 12 24 / 0.1);
+
+    /* Directional rail edge. A full box-shadow around a sticky rail reads as a
+       floating card; this is only the content-facing edge. */
+    --aq-shadow-rail: 8px 0 24px -18px rgb(15 35 55 / 0.14);
 
     /* Input elevation. The sign-in field sits one hairline above the surface;
        the value is a token so the primitive never ships a literal shadow. */
@@ -324,21 +342,26 @@
     --scrollbar-thumb: color-mix(in oklab, var(--p-primary-400) 55%, transparent);
     --cursor-orb-tint: color-mix(in oklab, var(--p-primary-400) 32%, transparent);
 
-    /* Primary action on the night navy: aqua fill, void navy label. This is the
-       pair the app already measured at 6.5:1; the light-mode navy is its
-       counterpart, not a second brand colour. */
+    /* Primary action on the night navy: aqua fill, void navy label. */
     --aq-action: #00b5e2;
     --aq-action-hover: #33c4e8;
-    --aq-action-ink: #081829;
+    --aq-action-ink: #071827;
 
-    /* One rung up the navy ramp for content hairlines; the shell frame now
-       relies on the rail's surface step instead of a line. */
-    --aq-shell-line: var(--p-surface-800);
+    /* One clear content line on the night navy. It is stronger than the old
+       surface-800 border so the card edge survives the lighter surface step,
+       without turning every panel into another filled block. */
+    --aq-shell-line: var(--aq-content-line);
+    --aq-card: var(--p-surface-900);
+    --aq-card-hover: var(--p-surface-800);
+    --aq-content-line: #1c3b56;
+    --aq-content-line-strong: #2a5372;
 
     /* Light halo on the dark ground — see the light-mode value for why this
        is not the same shadow with a different alpha. */
     --aq-shadow-lift:
         0 20px 25px -5px rgb(255 255 255 / 0.06), 0 8px 10px -6px rgb(255 255 255 / 0.06);
+
+    --aq-shadow-rail: 8px 0 24px -18px rgb(0 0 0 / 0.55);
 }
 
 /* Registered so the runner-lap keyframe can interpolate it: an unregistered

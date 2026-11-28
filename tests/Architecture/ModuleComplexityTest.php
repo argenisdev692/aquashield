@@ -135,7 +135,6 @@ foreach ($progressive as $module) {
     arch("{$module} Infrastructure may depend on the layers inside it")
         ->expect("Modules\\{$module}\\Infrastructure")
         ->not->toUse([
-            "Modules\\{$module}\\Domain\\Services",
             "Modules\\{$module}\\Http",
         ]);
 

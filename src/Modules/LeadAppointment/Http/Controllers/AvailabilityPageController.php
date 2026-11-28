@@ -42,18 +42,24 @@ final readonly class AvailabilityPageController
         $page = $this->availability->paginateExceptions($filters);
         $timezone = $this->timezone();
         $today = CarbonImmutable::now($timezone);
+        $canViewRules = $this->can($request, Permission::ViewAnyAvailabilityRule->value);
+        $trashedRules = [];
+        $trashedRulesLimited = false;
+
+        if ($canViewRules) {
+            $trashedLimit = (int) config('lead-appointment.availability_rules.max_trashed_read', 100);
+            $trashedRules = $this->availability->trashedRules($trashedLimit);
+            $trashedRulesLimited = $this->availability->trashedRulesCount() > $trashedLimit;
+        }
 
         return inertia('Availability/Index', [
             'rows' => $page->items(),
             'total' => $page->total(),
             'currentPage' => $page->currentPage(),
             'perPage' => $page->perPage(),
-            'rules' => $this->can($request, Permission::ViewAnyAvailabilityRule->value)
-                ? $this->availability->rules()
-                : [],
-            'trashedRules' => $this->can($request, Permission::ViewAnyAvailabilityRule->value)
-                ? $this->availability->trashedRules()
-                : [],
+            'rules' => $canViewRules ? $this->availability->rules() : [],
+            'trashedRules' => $trashedRules,
+            'trashedRulesLimited' => $trashedRulesLimited,
             'options' => $this->options(),
             'calendar' => [
                 'from' => $today->startOfMonth()->toDateString(),

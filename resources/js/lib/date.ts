@@ -118,6 +118,30 @@ export function formatDateTime(
     return Number.isNaN(date.getTime()) ? value : dateTimeFormatter(locale, options).format(date);
 }
 
+/**
+ * Format a server-localized ISO date-time as the wall clock it encodes.
+ *
+ * The server sends `inspection_at` already converted to the appointment's
+ * timezone, with that zone's offset (for example `10:00:00-05:00`). Parsing
+ * the whole string in the browser converts the instant into the viewer's
+ * zone, which is the wrong hour for a board where the visit happens at the
+ * property. Dropping the offset keeps 10:00 at 10:00; the offset is metadata,
+ * not a conversion instruction.
+ */
+export function formatWallClockDateTime(
+    value: string | null | undefined,
+    locale = 'en-US',
+    options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' },
+): string {
+    if (!value) {
+        return '';
+    }
+
+    const wallClock = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(value)?.[1] ?? value;
+
+    return formatDateTime(wallClock, locale, options);
+}
+
 /** Format an operational timestamp in the explicit UTC contract. */
 export function formatUtcDateTime(value: string | null | undefined): string {
     if (!value) {

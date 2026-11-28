@@ -301,7 +301,7 @@ it('exposes the shared transition map', function (): void {
     $this->actingAs($this->admin)
         ->get('/dashboard')
         ->assertInertia(fn (Assert $page) => $page
-            ->has('transitions.new', 5)
+            ->has('transitions.new', 4)
             ->where('transitions.new.0', 'contacted')
         );
 });

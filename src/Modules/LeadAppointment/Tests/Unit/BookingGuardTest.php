@@ -67,6 +67,16 @@ it('rejects a 16:00 start because 7 h would end at 23:00', function (): void {
     ))->toThrow(SlotUnavailableException::class);
 });
 
+it('rejects a visit whose travel buffer extends past closing', function (): void {
+    expect(fn () => app(BookingGuard::class)->assertBookable(
+        guardIntent('2026-01-05 10:00', duration: 420),
+        guardDay(),
+        [],
+        0,
+        CarbonImmutable::parse('2026-01-01'),
+    ))->toThrow(SlotUnavailableException::class);
+});
+
 it('rejects a second inspection on the same day', function (): void {
     $existing = new TimeInterval(
         CarbonImmutable::parse('2026-01-05 08:00', 'America/Chicago')->utc(),
@@ -74,7 +84,7 @@ it('rejects a second inspection on the same day', function (): void {
     );
 
     expect(fn () => app(BookingGuard::class)->assertBookable(
-        guardIntent('2026-01-05 16:00', duration: 60),
+        guardIntent('2026-01-05 15:00', duration: 60),
         guardDay(),
         [$existing],
         1,

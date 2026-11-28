@@ -16,6 +16,9 @@ it('neutralises every spreadsheet formula prefix', function (string $value): voi
     '@cmd',
     "\tvalue",
     "\rvalue",
+    "\n=SUM(A1:A2)",
+    '  =SUM(A1:A2)',
+    "\t=SUM(A1:A2)",
 ]);
 
 it('normalises a date, a bool and null', function (): void {

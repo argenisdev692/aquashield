@@ -28,6 +28,7 @@ final class AppointmentFactory extends Factory
             'lead_id' => Lead::factory(),
             'kind' => AppointmentKind::Inspection->value,
             'status' => AppointmentStatus::Scheduled->value,
+            'is_emergency' => false,
             'starts_at' => $start,
             'ends_at' => $end,
             'timezone' => Region::Houston->timezone(),

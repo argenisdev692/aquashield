@@ -21,7 +21,11 @@ it('forbids a won lead from moving back into the pipeline', function (): void {
 it('maps each region to its IANA timezone', function (): void {
     expect(Region::Houston->timezone())->toBe('America/Chicago')
         ->and(Region::Dallas->timezone())->toBe('America/Chicago')
-        ->and(Region::Florida->timezone())->toBe('America/New_York');
+        ->and(Region::Florida->timezone())->toBe('America/New_York')
+        ->and(Region::Houston->allowsTimezone('America/Chicago'))->toBeTrue()
+        ->and(Region::Houston->allowsTimezone('America/New_York'))->toBeFalse()
+        ->and(Region::Florida->allowsTimezone('America/Chicago'))->toBeTrue()
+        ->and(Region::Florida->allowsTimezone('America/New_York'))->toBeTrue();
 });
 
 it('treats touching intervals as non-overlapping', function (): void {

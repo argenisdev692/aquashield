@@ -14,7 +14,10 @@ final class StoreAppointmentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(Permission::CreateAppointment->value) ?? false;
+        $user = $this->user();
+
+        return $user->can(Permission::CreateAppointment->value) === true
+            && $user->can(Permission::ViewAppointment->value) === true;
     }
 
     /**

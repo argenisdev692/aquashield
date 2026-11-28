@@ -5,25 +5,45 @@ declare(strict_types=1);
 namespace Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Repositories;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
 use Modules\LeadAppointment\Application\Dtos\AppointmentFilterData;
 use Modules\LeadAppointment\Application\Dtos\CalendarEventData;
+use Modules\LeadAppointment\Application\Dtos\RescheduleAppointmentData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
 use Modules\LeadAppointment\Application\Ports\AppointmentReader;
 use Modules\LeadAppointment\Application\Ports\AppointmentWriter;
 use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
-use Modules\LeadAppointment\Domain\Exceptions\CapacityExceededException;
-use Modules\LeadAppointment\Domain\Exceptions\SlotUnavailableException;
+use Modules\LeadAppointment\Domain\Enums\Region;
+use Modules\LeadAppointment\Domain\Events\AppointmentDeleted;
+use Modules\LeadAppointment\Domain\Events\AppointmentRestored;
+use Modules\LeadAppointment\Domain\Exceptions\AppointmentNotFoundException;
+use Modules\LeadAppointment\Domain\Exceptions\InvalidSchedulingTimezoneException;
+use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
+use Modules\LeadAppointment\Domain\Services\AvailabilityResolver;
+use Modules\LeadAppointment\Domain\Services\BookingGuard;
+use Modules\LeadAppointment\Domain\Services\StatusTransition;
+use Modules\LeadAppointment\Domain\ValueObjects\BookingIntent;
 use Modules\LeadAppointment\Domain\ValueObjects\TimeInterval;
+use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\CalendarLock;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 
 final readonly class EloquentAppointmentRepository implements AppointmentReader, AppointmentWriter
 {
+    public function __construct(
+        private CalendarLock $calendarLock,
+        private AvailabilityResolver $availability,
+        private BookingGuard $guard,
+        private StatusTransition $transitions,
+        private Dispatcher $events,
+    ) {}
+
     /**
      * @return LengthAwarePaginator<int, AppointmentData>
      */
@@ -63,44 +83,49 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
     public function createWithLock(
         ScheduleAppointmentData $data,
-        int $durationMinutes,
-        string $timezone,
-        string $region,
         ?int $createdBy,
     ): AppointmentData {
-        if ($data->startsAt === null) {
+        if ($data->startsAt === null || $data->startsAt === '') {
             throw new \InvalidArgumentException('A start time is required to schedule an appointment.');
         }
 
-        return DB::transaction(function () use ($data, $durationMinutes, $timezone, $region, $createdBy): AppointmentData {
-            // Technicians are `users` with the TECHNICAL_SERVICES role when the
-            // assignment phase lands. Until then the lead row is the lock that
-            // serialises bookings for the same customer.
-            $lead = Lead::query()->where('uuid', $data->leadUuid)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($data, $createdBy): AppointmentData {
+            $this->calendarLock->acquire();
 
+            $lead = Lead::query()->where('uuid', $data->leadUuid)->lockForUpdate()->first();
+
+            if ($lead === null) {
+                throw new LeadNotFoundException;
+            }
+
+            $region = $lead->region instanceof Region
+                ? $lead->region
+                : Region::from($data->region ?? (string) config('lead-appointment.default_region', Region::Houston->value));
+            $duration = $data->durationMinutes
+                ?? (int) config('lead-appointment.inspection_duration_minutes', 420);
+            $timezone = $data->timezone ?? $region->timezone();
+            $this->assertTimezoneForRegion($region, $timezone);
             $startsAt = CarbonImmutable::parse($data->startsAt, $timezone)->utc();
-            $endsAt = $startsAt->addMinutes($durationMinutes);
+            $endsAt = $startsAt->addMinutes($duration);
 
-            $this->assertDaySlotAvailable($startsAt, $endsAt, $timezone, null, $data->isEmergency);
+            $this->transitions->assertLead($lead->status, LeadStatus::InspectionScheduled);
+            $this->assertBookingAllowed($startsAt, $endsAt, $timezone, null, $data->isEmergency);
 
             $appointment = Appointment::query()->create([
                 'lead_id' => $lead->id,
                 'kind' => $data->kind->value,
                 'status' => AppointmentStatus::Scheduled->value,
+                'is_emergency' => $data->isEmergency,
                 'starts_at' => $startsAt,
                 'ends_at' => $endsAt,
                 'timezone' => $timezone,
-                'region' => $region,
+                'region' => $region->value,
                 'notes' => $data->notes,
                 'created_by' => $createdBy,
             ]);
 
-            // The status advance belongs to the same transaction as the insert:
-            // a booking must never exist while the lead still says New.
-            if (! in_array($lead->status, [LeadStatus::Won, LeadStatus::Lost], true)) {
-                $lead->status = LeadStatus::InspectionScheduled;
-                $lead->save();
-            }
+            $lead->status = LeadStatus::InspectionScheduled;
+            $lead->save();
 
             return $this->find($appointment->uuid)
                 ?? throw new \RuntimeException('Appointment was not persisted.');
@@ -109,25 +134,42 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
     public function reschedule(
         string $uuid,
-        CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt,
-        string $timezone,
-        string $reason,
+        RescheduleAppointmentData $data,
     ): AppointmentData {
-        return DB::transaction(function () use ($uuid, $startsAt, $endsAt, $timezone, $reason): AppointmentData {
-            $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($uuid, $data): AppointmentData {
+            $this->calendarLock->acquire();
 
-            $this->assertDaySlotAvailable($startsAt, $endsAt, $timezone, $appointment->uuid, false);
+            $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->first();
+
+            if ($appointment === null) {
+                throw new AppointmentNotFoundException;
+            }
+
+            $status = $appointment->status;
+
+            if (! in_array($status, [AppointmentStatus::Requested, AppointmentStatus::Scheduled, AppointmentStatus::Confirmed], true)) {
+                throw InvalidStatusTransitionException::for($status->value, 'rescheduled');
+            }
+
+            $currentDuration = (int) CarbonImmutable::parse($appointment->starts_at)
+                ->diffInMinutes(CarbonImmutable::parse($appointment->ends_at));
+            $duration = $data->durationMinutes ?? ($currentDuration > 0 ? $currentDuration : 60);
+            $timezone = $data->timezone ?? $appointment->timezone;
+            $this->assertTimezoneForRegion($appointment->region, $timezone);
+            $startsAt = CarbonImmutable::parse($data->startsAt, $timezone)->utc();
+            $endsAt = $startsAt->addMinutes($duration);
+
+            $this->assertBookingAllowed($startsAt, $endsAt, $timezone, $appointment->uuid, $appointment->is_emergency);
 
             $appointment->previous_starts_at = $appointment->starts_at;
             $appointment->previous_ends_at = $appointment->ends_at;
             $appointment->starts_at = $startsAt;
             $appointment->ends_at = $endsAt;
             $appointment->timezone = $timezone;
-            $appointment->status = $appointment->status === AppointmentStatus::Confirmed
+            $appointment->status = $status === AppointmentStatus::Confirmed
                 ? AppointmentStatus::Confirmed
                 : AppointmentStatus::Scheduled;
-            $appointment->notes = trim(($appointment->notes ?? '')."\nRescheduled: ".$reason);
+            $appointment->notes = trim(($appointment->notes ?? '')."\nRescheduled: ".$data->reason);
             $appointment->save();
 
             return $this->find($appointment->uuid)
@@ -140,22 +182,27 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
         AppointmentStatus $status,
         ?string $reason = null,
     ): AppointmentData {
-        $appointment = Appointment::query()->where('uuid', $uuid)->firstOrFail();
-        $appointment->status = $status;
+        return DB::transaction(function () use ($uuid, $status, $reason): AppointmentData {
+            $this->calendarLock->acquire();
 
-        if ($status === AppointmentStatus::Cancelled) {
-            $appointment->cancelled_at = CarbonImmutable::now();
-            $appointment->cancel_reason = $reason;
-        }
+            $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
+            $this->transitions->assertAppointment($appointment->status, $status);
+            $appointment->status = $status;
 
-        if ($status === AppointmentStatus::Completed) {
-            $appointment->completed_at = CarbonImmutable::now();
-        }
+            if ($status === AppointmentStatus::Cancelled) {
+                $appointment->cancelled_at = CarbonImmutable::now();
+                $appointment->cancel_reason = $reason;
+            }
 
-        $appointment->save();
+            if ($status === AppointmentStatus::Completed) {
+                $appointment->completed_at = CarbonImmutable::now();
+            }
 
-        return $this->find($appointment->uuid)
-            ?? throw new \RuntimeException('Appointment was not persisted.');
+            $appointment->save();
+
+            return $this->find($appointment->uuid)
+                ?? throw new \RuntimeException('Appointment was not persisted.');
+        });
     }
 
     /**
@@ -221,11 +268,13 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
     public function calendarEventsBetween(
         CarbonImmutable $from,
         CarbonImmutable $to,
+        ?string $region = null,
     ): array {
         return Appointment::query()
             ->with('lead:id,uuid,first_name,last_name')
             ->where('starts_at', '>=', $from->utc())
             ->where('starts_at', '<=', $to->utc())
+            ->when($region !== null, fn ($query) => $query->where('region', $region))
             ->orderBy('starts_at')
             ->get(['id', 'uuid', 'lead_id', 'starts_at', 'timezone', 'status', 'kind', 'region'])
             ->map(function (Appointment $appointment): CalendarEventData {
@@ -298,16 +347,43 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
     public function delete(string $uuid): void
     {
-        Appointment::query()->where('uuid', $uuid)->first()?->delete();
+        DB::transaction(function () use ($uuid): void {
+            $this->calendarLock->acquire();
+
+            $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->first();
+
+            if ($appointment === null) {
+                return;
+            }
+
+            $appointment->delete();
+            $this->events->dispatch(new AppointmentDeleted($appointment->uuid));
+        });
     }
 
     public function restore(string $uuid): AppointmentData
     {
-        $appointment = Appointment::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
-        $appointment->restore();
+        return DB::transaction(function () use ($uuid): AppointmentData {
+            $this->calendarLock->acquire();
 
-        return $this->find($appointment->uuid)
-            ?? throw new \RuntimeException('Appointment was not restored.');
+            $appointment = Appointment::onlyTrashed()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
+
+            if ($appointment->status !== AppointmentStatus::Cancelled) {
+                $this->assertBookingAllowed(
+                    CarbonImmutable::parse($appointment->starts_at),
+                    CarbonImmutable::parse($appointment->ends_at),
+                    $appointment->timezone,
+                    $appointment->uuid,
+                    $appointment->is_emergency,
+                );
+            }
+
+            $appointment->restore();
+            $this->events->dispatch(new AppointmentRestored($appointment->uuid));
+
+            return $this->find($appointment->uuid)
+                ?? throw new \RuntimeException('Appointment was not restored.');
+        });
     }
 
     /**
@@ -315,9 +391,14 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
      */
     public function bulkDelete(array $uuids): void
     {
-        Appointment::query()->whereIn('uuid', $uuids)->get()->each(
-            static fn (Appointment $appointment) => $appointment->delete(),
-        );
+        DB::transaction(function () use ($uuids): void {
+            $this->calendarLock->acquire();
+
+            foreach (Appointment::query()->whereIn('uuid', $uuids)->get() as $appointment) {
+                $appointment->delete();
+                $this->events->dispatch(new AppointmentDeleted($appointment->uuid));
+            }
+        });
     }
 
     /**
@@ -325,9 +406,26 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
      */
     public function bulkRestore(array $uuids): void
     {
-        Appointment::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
-            static fn (Appointment $appointment) => $appointment->restore(),
-        );
+        DB::transaction(function () use ($uuids): void {
+            $this->calendarLock->acquire();
+
+            $appointments = Appointment::onlyTrashed()->whereIn('uuid', $uuids)->lockForUpdate()->get();
+
+            foreach ($appointments as $appointment) {
+                if ($appointment->status !== AppointmentStatus::Cancelled) {
+                    $this->assertBookingAllowed(
+                        CarbonImmutable::parse($appointment->starts_at),
+                        CarbonImmutable::parse($appointment->ends_at),
+                        $appointment->timezone,
+                        $appointment->uuid,
+                        $appointment->is_emergency,
+                    );
+                }
+
+                $appointment->restore();
+                $this->events->dispatch(new AppointmentRestored($appointment->uuid));
+            }
+        });
     }
 
     public function count(AppointmentFilterData $filters): int
@@ -350,43 +448,51 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
         }
     }
 
+    private function assertTimezoneForRegion(Region $region, string $timezone): void
+    {
+        if (! $region->allowsTimezone($timezone)) {
+            throw InvalidSchedulingTimezoneException::for($region, $timezone);
+        }
+    }
+
     /**
-     * Persistence-level re-check, inside the transaction: the domain guard
-     * already validated, but a concurrent write must not slip past the single
-     * crew's daily cap or the travel buffer.
+     * Final availability and capacity validation, inside the company-calendar
+     * lock. Completed and no-show visits still consume the day's capacity.
      */
-    private function assertDaySlotAvailable(
+    private function assertBookingAllowed(
         CarbonImmutable $startsAt,
         CarbonImmutable $endsAt,
         string $timezone,
         ?string $excludeUuid,
         bool $isEmergency,
     ): void {
+        $travelBufferMinutes = (int) config('lead-appointment.travel_buffer_minutes', 60);
         $localStart = $startsAt->setTimezone($timezone);
-        $dayStart = $localStart->startOfDay()->utc();
-        $dayEnd = $localStart->endOfDay()->utc();
-        $travel = (int) config('lead-appointment.travel_buffer_minutes', 60);
+        $localBlockedEnd = $endsAt->addMinutes($travelBufferMinutes)->setTimezone($timezone);
+        $cursor = $localStart->startOfDay();
+        $lastDay = $localBlockedEnd->startOfDay();
+        $intent = new BookingIntent(
+            startsAt: $startsAt,
+            endsAt: $endsAt,
+            travelBufferMinutes: $travelBufferMinutes,
+            dailyCapacity: (int) config('lead-appointment.daily_inspection_capacity', 1),
+            isEmergency: $isEmergency,
+        );
 
-        $rows = Appointment::query()
-            ->where('starts_at', '<', $dayEnd)
-            ->where('ends_at', '>', $dayStart)
-            ->whereNotIn('status', $this->inactiveStatuses())
-            ->when($excludeUuid !== null, fn ($query) => $query->where('uuid', '!=', $excludeUuid))
-            ->get(['starts_at', 'ends_at']);
+        while ($cursor->lessThanOrEqualTo($lastDay)) {
+            $day = $this->availability->resolve($cursor);
+            $dayStart = $cursor->utc();
+            $dayEnd = $cursor->endOfDay()->utc();
+            $intervals = $this->existingIntervalsForDay($dayStart, $dayEnd, $excludeUuid);
 
-        if (! $isEmergency && $rows->count() >= (int) config('lead-appointment.daily_inspection_capacity', 1)) {
-            throw new CapacityExceededException;
-        }
+            $this->guard->assertBookable(
+                $intent,
+                $day,
+                $intervals,
+                count($intervals),
+            );
 
-        $candidateEnd = $endsAt->addMinutes($travel);
-
-        foreach ($rows as $row) {
-            $existingStart = CarbonImmutable::parse($row->starts_at);
-            $existingEnd = CarbonImmutable::parse($row->ends_at)->addMinutes($travel);
-
-            if ($startsAt < $existingEnd && $candidateEnd > $existingStart) {
-                throw SlotUnavailableException::overlap();
-            }
+            $cursor = $cursor->addDay();
         }
     }
 
@@ -395,11 +501,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
      */
     private function inactiveStatuses(): array
     {
-        return [
-            AppointmentStatus::Completed->value,
-            AppointmentStatus::NoShow->value,
-            AppointmentStatus::Cancelled->value,
-        ];
+        return [AppointmentStatus::Cancelled->value];
     }
 
     private function toData(Appointment $appointment): AppointmentData

@@ -4,31 +4,26 @@ declare(strict_types=1);
 
 namespace Modules\LeadAppointment\Application\Ports;
 
-use Carbon\CarbonImmutable;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
+use Modules\LeadAppointment\Application\Dtos\RescheduleAppointmentData;
 use Modules\LeadAppointment\Application\Dtos\ScheduleAppointmentData;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 
 /**
- * The write side of the appointment aggregate. `createWithLock` owns the
- * transaction that inserts the appointment and advances the lead status.
+ * The write side of the appointment aggregate. Scheduling, rescheduling,
+ * restoring and capacity-changing writes own the company-calendar lock and
+ * validate availability inside the same transaction.
  */
 interface AppointmentWriter
 {
     public function createWithLock(
         ScheduleAppointmentData $data,
-        int $durationMinutes,
-        string $timezone,
-        string $region,
         ?int $createdBy,
     ): AppointmentData;
 
     public function reschedule(
         string $uuid,
-        CarbonImmutable $startsAt,
-        CarbonImmutable $endsAt,
-        string $timezone,
-        string $reason,
+        RescheduleAppointmentData $data,
     ): AppointmentData;
 
     public function updateStatus(

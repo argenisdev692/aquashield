@@ -6,6 +6,7 @@ namespace Modules\LeadAppointment\Application\Queries;
 
 use Carbon\CarbonImmutable;
 use Modules\LeadAppointment\Application\Dtos\AppointmentData;
+use Modules\LeadAppointment\Application\Dtos\AvailabilityWindowData;
 use Modules\LeadAppointment\Application\Dtos\CalendarDayData;
 use Modules\LeadAppointment\Application\Dtos\CalendarFeedData;
 use Modules\LeadAppointment\Application\Ports\AppointmentReader;
@@ -73,7 +74,10 @@ final readonly class CalendarFeedQuery
             source: $resolved->source,
             reason: $resolved->reason,
             windows: array_map(
-                static fn (TimeWindow $window): array => ['start' => $window->start, 'end' => $window->end],
+                static fn (TimeWindow $window): AvailabilityWindowData => new AvailabilityWindowData(
+                    start: $window->start,
+                    end: $window->end,
+                ),
                 $resolved->windows,
             ),
             appointments: $appointments,

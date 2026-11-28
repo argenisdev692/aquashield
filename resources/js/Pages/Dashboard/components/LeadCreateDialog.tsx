@@ -8,8 +8,7 @@
  */
 import { useState } from 'react';
 import { FormDialog } from '@/Components/Forms/FormOverlay';
-import { HttpRequestError } from '@/lib/http';
-import { useZodForm } from '@/lib/forms';
+import { useZodForm, serverErrorFrom } from '@/lib/forms';
 import { emptyLeadFormValues, leadFormSchema } from '@/Modules/LeadAppointment/schemas/lead';
 import { useCreateLead } from '@/Modules/LeadAppointment/hooks/useCreateLead';
 import LeadForm from '@/Pages/Leads/components/LeadForm';
@@ -54,19 +53,12 @@ export default function LeadCreateDialog({
                     onCreated?.();
                 })
                 .catch((caught: unknown) => {
-                    if (caught instanceof HttpRequestError) {
-                        const fields = { ...caught.fieldErrors };
-                        setFieldErrors(fields);
-                        setServerError(Object.keys(fields).length === 0 ? caught.message : null);
-
-                        return;
-                    }
-
-                    setServerError(
-                        caught instanceof Error && caught.message !== ''
-                            ? caught.message
-                            : 'The lead could not be created. Try again.',
+                    const next = serverErrorFrom(
+                        caught,
+                        'The lead could not be created. Try again.',
                     );
+                    setFieldErrors(next.fieldErrors);
+                    setServerError(next.serverError);
                 });
         });
     };
