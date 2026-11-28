@@ -74,11 +74,14 @@ final readonly class AppointmentController
             'perPage' => $page->perPage(),
             'options' => $this->options(),
             'canCreate' => $this->can($request, Permission::CreateAppointment->value)
-                && $this->can($request, Permission::ViewAnyLead->value),
+                && $this->can($request, Permission::ViewAnyLead->value)
+                && $this->can($request, Permission::ViewAppointment->value),
             'canView' => $this->can($request, Permission::ViewAppointment->value),
-            'canUpdate' => $this->can($request, Permission::UpdateAppointment->value),
+            'canUpdate' => $this->can($request, Permission::UpdateAppointment->value)
+                && $this->can($request, Permission::ViewAppointment->value),
             'canDelete' => $this->can($request, Permission::DeleteAppointment->value),
-            'canRestore' => $this->can($request, Permission::RestoreAppointment->value),
+            'canRestore' => $this->can($request, Permission::RestoreAppointment->value)
+                && $this->can($request, Permission::ViewAppointment->value),
             'canExport' => $this->can($request, Permission::ExportAppointment->value),
             'canBulkDelete' => $this->can($request, Permission::BulkDeleteAppointment->value),
             'canBulkRestore' => $this->can($request, Permission::BulkRestoreAppointment->value),

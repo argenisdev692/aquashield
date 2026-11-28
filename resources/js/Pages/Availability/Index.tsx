@@ -123,6 +123,7 @@ const exceptionColumns: SimpleColumn<ExceptionRow>[] = [
         accessorKey: 'date',
         header: 'Day',
         sortKey: 'date',
+        hidable: false,
         className: 'whitespace-nowrap',
         cell: ({ row }): React.ReactNode => (
             <span className="flex items-center gap-2 font-medium whitespace-nowrap text-surface-900 dark:text-surface-0">
@@ -219,6 +220,8 @@ export default function AvailabilityIndex() {
     const [pendingDelete, setPendingDelete] = useState<ExceptionRow | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [restoreError, setRestoreError] = useState<string | null>(null);
+    const [restoringUuid, setRestoringUuid] = useState<string | null>(null);
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
     const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -483,6 +486,10 @@ export default function AvailabilityIndex() {
                                      * the write itself stays on CREATE.
                                      */
                                     canEdit={canCreate || canUpdate}
+                                    canEditDay={(day) =>
+                                        canUpdate ||
+                                        (canCreate && day.source !== 'company_exception')
+                                    }
                                     onSelectDate={handleSelectDate}
                                 />
                             </AvailabilityCalendarBoundary>
@@ -540,12 +547,12 @@ export default function AvailabilityIndex() {
                     selectionLabel={(row) => `${dayLabel(row.date)} (${row.reason ?? 'no reason'})`}
                     onBulkDelete={canBulkDelete ? bulk.deleteRows : undefined}
                     onBulkRestore={canBulkRestore ? bulk.restoreRows : undefined}
-                    actionError={bulk.error}
+                    actionError={bulk.error ?? restoreError}
                     rowActions={(row) => (
                         <DataTableRowActions
                             label={`Actions for ${dayLabel(row.date)}`}
                             actions={[
-                                ...(canUpdate
+                                ...(canUpdate && row.deleted_at === null
                                     ? [
                                           {
                                               label: 'Edit',
@@ -568,15 +575,34 @@ export default function AvailabilityIndex() {
                                                           aria-hidden="true"
                                                       />
                                                   ),
-                                                  onClick: () =>
+                                                  onClick: () => {
+                                                      if (restoringUuid !== null) {
+                                                          return;
+                                                      }
+
+                                                      setRestoringUuid(row.uuid);
+                                                      setRestoreError(null);
+
                                                       router.patch(
                                                           `/availability/${row.uuid}/restore`,
                                                           {},
                                                           {
                                                               preserveScroll: true,
-                                                              onSuccess: invalidateCalendar,
+                                                              onSuccess: () => {
+                                                                  setRestoreError(null);
+                                                                  invalidateCalendar();
+                                                              },
+                                                              onError: (nextErrors) => {
+                                                                  setRestoreError(
+                                                                      nextErrors.date ??
+                                                                          'The day could not be restored. Try again.',
+                                                                  );
+                                                              },
+                                                              onFinish: () =>
+                                                                  setRestoringUuid(null),
                                                           },
-                                                      ),
+                                                      );
+                                                  },
                                               },
                                           ]
                                         : []

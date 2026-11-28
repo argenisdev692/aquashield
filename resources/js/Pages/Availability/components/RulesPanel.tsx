@@ -47,7 +47,10 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
         is_available: rule?.is_available ?? true,
     };
 
-    const { form, errors, submit, touch } = useZodForm({ initial, schema: availabilityRuleSchema });
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
+        initial,
+        schema: availabilityRuleSchema,
+    });
     const mergedErrors = { ...errors, ...serverError.fieldErrors };
 
     const onSubmit = (): void => {
@@ -75,7 +78,11 @@ function RuleDialog({ open, onOpenChange, rule, onSaved }: RuleDialogProps) {
             onOpenChange={onOpenChange}
             title={rule === null ? 'Add a weekly window' : `${rule.day_label} window`}
             description="Weekly windows apply to every date with no exception. A date closure always wins."
-            form={{ processing: form.processing || saveRule.isPending, isDirty: form.isDirty }}
+            form={{
+                processing: form.processing || saveRule.isPending,
+                isDirty: form.isDirty,
+                submitAttempts,
+            }}
             errors={mergedErrors}
             onSubmit={onSubmit}
             submitLabel={rule === null ? 'Add window' : 'Save window'}

@@ -23,6 +23,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime } from '@/lib/date';
 import { useBulkActions, useCrudTable } from '@/lib/crud-table';
 import { useVisitPending } from '@/lib/visits';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import SavedViewsMenu from '@/Modules/SavedViews/components/SavedViewsMenu';
 import { canReschedule, humanize, statusVariant } from './components/appointmentDisplay';
 
@@ -59,6 +60,7 @@ const appointmentColumns: SimpleColumn<AppointmentRow>[] = [
         accessorKey: 'customer_name',
         header: 'Customer',
         sortable: false,
+        hidable: false,
         className: 'min-w-[180px] max-w-[260px]',
         cell: ({ row }): React.ReactNode => (
             <span className="flex min-w-0 flex-col">
@@ -158,6 +160,7 @@ export default function AppointmentsIndex() {
     } = page.props;
 
     const visitsPending = useVisitPending();
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
     const table = useCrudTable({
         endpoint: '/appointments',
         // Match the server's no-query default (`starts_at`, ascending). The
@@ -167,11 +170,14 @@ export default function AppointmentsIndex() {
     const bulk = useBulkActions({
         deleteUrl: canBulkDelete ? '/appointments/bulk-delete' : undefined,
         restoreUrl: canBulkRestore ? '/appointments/bulk-restore' : undefined,
+        onSettled: invalidateLeadAppointment,
     });
 
     const [pendingDelete, setPendingDelete] = useState<AppointmentRow | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [restoreError, setRestoreError] = useState<string | null>(null);
+    const [restoringUuid, setRestoringUuid] = useState<string | null>(null);
 
     const filters: CrudFilterDef[] = [
         {
@@ -187,6 +193,18 @@ export default function AppointmentsIndex() {
             type: 'select',
             placeholder: 'Any kind',
             options: options.kinds,
+        },
+        /*
+         * The dashboard appointment/inspection KPIs exclude cancelled and
+         * no-show visits. This filter makes that population visible and
+         * removable when a KPI drill-down lands on the list.
+         */
+        {
+            key: 'scheduled_only',
+            label: 'Visit state',
+            type: 'select',
+            placeholder: 'Include cancelled',
+            options: [{ value: '1', label: 'Scheduled only' }],
         },
         {
             key: 'region',
@@ -221,6 +239,7 @@ export default function AppointmentsIndex() {
             preserveScroll: true,
             onSuccess: () => {
                 setPendingDelete(null);
+                invalidateLeadAppointment();
             },
             onError: (errors) => {
                 setDeleteError(
@@ -306,12 +325,35 @@ export default function AppointmentsIndex() {
                                                           aria-hidden="true"
                                                       />
                                                   ),
-                                                  onClick: () =>
+                                                  onClick: () => {
+                                                      if (restoringUuid !== null) {
+                                                          return;
+                                                      }
+
+                                                      setRestoringUuid(row.uuid);
+                                                      setRestoreError(null);
+
                                                       router.patch(
                                                           `/appointments/${row.uuid}/restore`,
                                                           {},
-                                                          { preserveScroll: true },
-                                                      ),
+                                                          {
+                                                              preserveScroll: true,
+                                                              onSuccess: () => {
+                                                                  setRestoreError(null);
+                                                                  invalidateLeadAppointment();
+                                                              },
+                                                              onError: (nextErrors) => {
+                                                                  setRestoreError(
+                                                                      nextErrors.starts_at ??
+                                                                          nextErrors.appointment ??
+                                                                          'The appointment could not be restored. Try again.',
+                                                                  );
+                                                              },
+                                                              onFinish: () =>
+                                                                  setRestoringUuid(null),
+                                                          },
+                                                      );
+                                                  },
                                               },
                                           ]
                                         : []
@@ -358,7 +400,7 @@ export default function AppointmentsIndex() {
                     selectionLabel={(row) => `${row.customer_name} (${row.kind})`}
                     onBulkDelete={canBulkDelete ? bulk.deleteRows : undefined}
                     onBulkRestore={canBulkRestore ? bulk.restoreRows : undefined}
-                    actionError={bulk.error}
+                    actionError={bulk.error ?? restoreError}
                     emptyTitle="No appointments yet"
                     emptyDescription="A visit scheduled from a lead or the dashboard calendar appears here."
                 />

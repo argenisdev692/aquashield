@@ -33,6 +33,7 @@ export const leadColumns: SimpleColumn<LeadRow>[] = [
         accessorKey: 'full_name',
         header: 'Lead',
         sortKey: 'first_name',
+        hidable: false,
         className: 'min-w-[160px] max-w-[240px] sm:min-w-[180px]',
         cell: ({ row }): React.ReactNode => (
             <span className="flex min-w-0 flex-col">

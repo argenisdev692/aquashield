@@ -231,6 +231,19 @@ final class Lead extends Model
                     $q->where('created_at', '<=', CarbonImmutable::parse($filters->dateTo, $timezone)->endOfDay()->utc());
                 }
             })
+            ->when($filters->convertedFrom !== null || $filters->convertedTo !== null, function (Builder $q) use ($filters): void {
+                $timezone = Region::from(
+                    (string) config('lead-appointment.default_region', Region::Houston->value),
+                )->timezone();
+
+                if ($filters->convertedFrom !== null) {
+                    $q->where('converted_at', '>=', CarbonImmutable::parse($filters->convertedFrom, $timezone)->startOfDay()->utc());
+                }
+
+                if ($filters->convertedTo !== null) {
+                    $q->where('converted_at', '<=', CarbonImmutable::parse($filters->convertedTo, $timezone)->endOfDay()->utc());
+                }
+            })
             ->orderBy($sortField, $filters->sortOrder === -1 ? 'desc' : 'asc')
             ->orderBy('id');
     }

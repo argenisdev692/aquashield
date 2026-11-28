@@ -14,6 +14,7 @@ interface AvailabilityCalendarPanelProps {
     to: string;
     today: string;
     canEdit: boolean;
+    canEditDay?: (day: { date: string; source: string }) => boolean;
     onSelectDate: (date: string) => void;
 }
 
@@ -22,6 +23,7 @@ export default function AvailabilityCalendarPanel({
     to,
     today,
     canEdit,
+    canEditDay,
     onSelectDate,
 }: AvailabilityCalendarPanelProps) {
     const { days, isFetching } = useAvailabilityCalendar(from, to);
@@ -47,17 +49,18 @@ export default function AvailabilityCalendarPanel({
                 days={days}
                 today={today}
                 canEdit={canEdit}
+                canEditDay={canEditDay}
                 onSelectDate={onSelectDate}
             />
         </div>
     );
 }
 
-/** Five week rows, the same 7-column shape the real grid renders. */
+/** Six week rows: a 31-day month that starts on Saturday needs 42 cells. */
 export function AvailabilityMonthSkeleton() {
     return (
         <div className="grid grid-cols-7 gap-1" aria-hidden="true">
-            {Array.from({ length: 35 }, (_, index) => (
+            {Array.from({ length: 42 }, (_, index) => (
                 <Skeleton key={index} className="h-20 rounded-lg" />
             ))}
         </div>

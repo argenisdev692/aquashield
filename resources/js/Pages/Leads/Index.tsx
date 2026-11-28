@@ -19,6 +19,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { useBulkActions, useCrudTable } from '@/lib/crud-table';
 import { useVisitPending } from '@/lib/visits';
 import { leadColumns } from '@/Modules/LeadAppointment/components/leadColumns';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import SavedViewsMenu from '@/Modules/SavedViews/components/SavedViewsMenu';
 
 type LeadRow = Modules.LeadAppointment.Application.Dtos.LeadListItemData;
@@ -57,6 +58,7 @@ export default function LeadsIndex() {
     } = page.props;
 
     const visitsPending = useVisitPending();
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
     const table = useCrudTable({
         endpoint: '/leads',
         defaults: { sort: { field: 'created_at', order: -1 } },
@@ -64,6 +66,7 @@ export default function LeadsIndex() {
     const bulk = useBulkActions({
         deleteUrl: canBulkDelete ? '/leads/bulk-delete' : undefined,
         restoreUrl: canBulkRestore ? '/leads/bulk-restore' : undefined,
+        onSettled: invalidateLeadAppointment,
     });
 
     const filters: CrudFilterDef[] = [
@@ -109,6 +112,17 @@ export default function LeadsIndex() {
             ],
         },
         { key: 'created', label: 'Created', type: 'date-range' },
+        /*
+         * Won uses `converted_at`, not `created_at`: the KPI drill-down and a
+         * business user filtering won deals both need the conversion window.
+         */
+        {
+            key: 'converted',
+            label: 'Won date',
+            type: 'date-range',
+            fromKey: 'converted_from',
+            toKey: 'converted_to',
+        },
     ];
 
     const exportFormats: ExportFormat[] = canExport ? ['csv', 'xlsx', 'pdf'] : [];

@@ -10,6 +10,7 @@ use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
 use Modules\Users\Enums\UserStatus;
+use Shared\Domain\Enums\Permission;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -61,6 +62,22 @@ it('excludes suspended users from the assignable owner list', function (): void 
         ->get('/leads/create')
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->has('options.owners', 1));
+});
+
+it('hides lead actions whose route also requires VIEW_LEAD', function (): void {
+    LeadAppointmentFixtures::lead();
+
+    $user = User::factory()->create();
+    $user->givePermissionTo(Permission::ViewAnyLead->value, Permission::UpdateLead->value);
+
+    $this->actingAs($user)
+        ->get('/leads')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Leads/Index')
+            ->where('canUpdate', false)
+            ->where('canRestore', false)
+        );
 });
 
 it('renders the pipeline board grouped by stage', function (): void {

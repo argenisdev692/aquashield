@@ -10,10 +10,13 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import FormActions from '@/Components/Forms/FormActions';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
+import UnsavedChangesDialog from '@/Components/Forms/UnsavedChangesDialog';
 import AppLayout from '@/Layouts/AppLayout';
-import { useZodForm } from '@/lib/forms';
+import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import { emptyLeadFormValues, leadFormSchema } from '@/Modules/LeadAppointment/schemas/lead';
-import LeadForm from '@/Pages/Leads/components/LeadForm';
+import LeadForm from '@/Modules/LeadAppointment/components/LeadForm';
 
 type LeadOptions = {
     statuses: { value: string; label: string }[];
@@ -33,6 +36,10 @@ export default function LeadsCreate({
         initial: { ...emptyLeadFormValues },
         schema: leadFormSchema,
     });
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
+    const navigationGuard = useNavigationGuard(form.isDirty);
+
+    useUnsavedChangesWarning(form.isDirty);
 
     return (
         <AppLayout title="New lead">
@@ -66,7 +73,10 @@ export default function LeadsCreate({
                     onSubmit={(event) => {
                         event.preventDefault();
                         submit(() => {
-                            form.post('/leads', { preserveScroll: true });
+                            form.post('/leads', {
+                                preserveScroll: true,
+                                onSuccess: invalidateLeadAppointment,
+                            });
                         });
                     }}
                     className="rounded-xl border border-surface-200 bg-surface-0 p-4 sm:p-6 dark:border-surface-800 dark:bg-surface-900"
@@ -78,7 +88,7 @@ export default function LeadsCreate({
                         mode="create"
                         googleMapsApiKey={googleMapsApiKey}
                         onChange={(next) => form.setData(next)}
-                        onBlur={(key) => touch(key)}
+                        onBlur={(key, values) => touch(key, values)}
                         showCompany={false}
                     />
 
@@ -92,6 +102,8 @@ export default function LeadsCreate({
                     />
                 </form>
             </div>
+
+            <UnsavedChangesDialog guard={navigationGuard} />
         </AppLayout>
     );
 }

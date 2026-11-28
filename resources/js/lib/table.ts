@@ -158,8 +158,10 @@ const parseSort = (value: string | null): TableSort | null => {
  * The URL is the single source of truth. Parsing it (instead of copying the
  * server's echoed filters into state) makes reload, browser back/forward and a
  * pasted link all resolve to the same table, with no state echo to reconcile.
- * Unknown keys are ignored so a stale bookmark cannot inject a filter the page
- * never asked for.
+ * Unknown filter keys are preserved as received. The server's
+ * `{Entity}FilterFactory` owns the allowlist and rejects an unknown key with a
+ * 422; this parser cannot know which keys a page supports, so it must not
+ * claim to drop them.
  */
 export function parseTableParams(
     url: string,

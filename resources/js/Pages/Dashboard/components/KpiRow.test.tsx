@@ -34,12 +34,13 @@ const stats = {
 const query = (href: string): URLSearchParams => new URL(href, 'https://example.test').searchParams;
 
 describe('KpiRow', () => {
-    it('renders the four period metrics with their destinations', () => {
+    it('renders the four period metrics with their scoped destinations', () => {
         render(
             <KpiRow
                 stats={stats}
                 rangeFrom="2026-11-01"
                 rangeTo="2026-11-30"
+                filters={{ region: 'dallas', source: 'meta' }}
                 canViewLeads
                 canViewCalendar
             />,
@@ -54,12 +55,18 @@ describe('KpiRow', () => {
         const leads = query(
             screen.getByRole('link', { name: /new leads/i }).getAttribute('href') ?? '',
         );
+        const inspections = query(
+            screen.getByRole('link', { name: /inspections/i }).getAttribute('href') ?? '',
+        );
 
         expect(won.get('filter[status]')).toBe('won');
-        expect(won.get('filter[date_from]')).toBe('2026-11-01');
-        expect(won.get('filter[date_to]')).toBe('2026-11-30');
+        expect(won.get('filter[converted_from]')).toBe('2026-11-01');
+        expect(won.get('filter[converted_to]')).toBe('2026-11-30');
         expect(leads.get('filter[status]')).toBeNull();
         expect(leads.get('filter[date_from]')).toBe('2026-11-01');
+        expect(inspections.get('filter[scheduled_only]')).toBe('1');
+        expect(leads.get('filter[region]')).toBe('dallas');
+        expect(leads.get('filter[source]')).toBe('meta');
     });
 
     it('does not render a destination when the viewer lacks the permission', () => {

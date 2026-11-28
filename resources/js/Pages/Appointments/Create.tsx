@@ -10,11 +10,14 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import FormActions from '@/Components/Forms/FormActions';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
+import UnsavedChangesDialog from '@/Components/Forms/UnsavedChangesDialog';
 import AppLayout from '@/Layouts/AppLayout';
 import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
 import AppointmentFormFields, {
     type AppointmentOptions,
 } from '@/Modules/LeadAppointment/components/AppointmentFormFields';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import {
     appointmentFormSchema,
     startsAtFrom,
@@ -41,10 +44,13 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
         notes: '',
     };
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial,
         schema: appointmentFormSchema,
     });
+
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
+    const navigationGuard = useNavigationGuard(form.isDirty);
 
     useUnsavedChangesWarning(form.isDirty);
 
@@ -75,7 +81,7 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <form
                     onSubmit={(event) => {
@@ -91,7 +97,10 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
                                 is_emergency: data.is_emergency,
                             }));
 
-                            form.post('/appointments', { preserveScroll: true });
+                            form.post('/appointments', {
+                                preserveScroll: true,
+                                onSuccess: invalidateLeadAppointment,
+                            });
                         });
                     }}
                     className="rounded-xl border border-surface-200 bg-surface-0 p-4 sm:p-6 dark:border-surface-800 dark:bg-surface-900"
@@ -116,6 +125,8 @@ export default function AppointmentsCreate({ options, defaults }: CreateProps) {
                     />
                 </form>
             </div>
+
+            <UnsavedChangesDialog guard={navigationGuard} />
         </AppLayout>
     );
 }

@@ -15,13 +15,14 @@
  * across the panel and summarises the remaining stages as counted links into
  * the table view, so the pipeline reads at a glance without a sideways scroll.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { CalendarClock, MapPin, Phone } from 'lucide-react';
 import { Tag } from '@/Components/ui/tag';
 import { formatWallClockDateTime } from '@/lib/date';
-import { buildTableUrl } from '@/lib/table';
+import { buildTableUrl, type TableFilters } from '@/lib/table';
 import { cn, humanize } from '@/lib/utils';
+import { useLeadAppointmentInvalidator } from '../hooks/useLeadAppointmentInvalidator';
 
 type LeadCard = Modules.LeadAppointment.Application.Dtos.LeadCardData;
 type LeadBoardColumn = Modules.LeadAppointment.Application.Dtos.LeadBoardColumnData;
@@ -36,9 +37,19 @@ interface LeadKanbanProps {
     onSelect?: (lead: LeadCard) => void;
     /** `fit` stretches the primary stages and summarises the rest. */
     variant?: 'scroll' | 'fit';
+    /**
+     * Dashboard scope for the `fit` variant's "Other stages" links. Passed by
+     * the page because the module component does not own the dashboard URL.
+     */
+    scopeFilters?: TableFilters;
+    /** Selected dashboard period; keeps the stage links on the same cohort. */
+    rangeFrom?: string;
+    rangeTo?: string;
+    /** Disable writes while the page is committing a period/scope visit. */
+    disabled?: boolean;
 }
 
-const ageInDays = (value: string | null): string => {
+const ageInDays = (value: string | null, now: number): string => {
     if (value === null) {
         return '';
     }
@@ -49,7 +60,7 @@ const ageInDays = (value: string | null): string => {
         return '';
     }
 
-    const days = Math.max(0, Math.floor((Date.now() - created.getTime()) / 86_400_000));
+    const days = Math.max(0, Math.floor((now - created.getTime()) / 86_400_000));
 
     return days === 0 ? 'today' : `${days}d`;
 };
@@ -67,12 +78,25 @@ const columnAccent: Record<string, string> = {
 /** The stages the fitted dashboard layout stretches across the panel. */
 const FIT_PRIMARY: readonly string[] = ['new', 'contacted', 'qualified', 'won'];
 
-const stageTableUrl = (status: string): string =>
-    buildTableUrl(
+const stageTableUrl = (
+    status: string,
+    scopeFilters: TableFilters,
+    rangeFrom: string,
+    rangeTo: string,
+): string => {
+    const filters: TableFilters = { ...scopeFilters, status };
+
+    if (rangeFrom !== '' && rangeTo !== '') {
+        filters.date_from = rangeFrom;
+        filters.date_to = rangeTo;
+    }
+
+    return buildTableUrl(
         '/leads',
-        { page: 1, perPage: 15, search: '', sort: null, filters: { status } },
+        { page: 1, perPage: 15, search: '', sort: null, filters },
         { paginate: false },
     );
+};
 
 export default function LeadKanban({
     columns,
@@ -82,8 +106,20 @@ export default function LeadKanban({
     errors,
     onSelect,
     variant = 'scroll',
+    scopeFilters = {},
+    rangeFrom = '',
+    rangeTo = '',
+    disabled = false,
 }: LeadKanbanProps) {
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
+    const [now, setNow] = useState(() => Date.now());
     const [dragging, setDragging] = useState<LeadCard | null>(null);
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+
+        return () => window.clearInterval(timer);
+    }, []);
     const [overStatus, setOverStatus] = useState<string | null>(null);
     const [movingUuid, setMovingUuid] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -91,7 +127,7 @@ export default function LeadKanban({
     const visibleError = error ?? errors?.status ?? null;
 
     const canMove = (card: LeadCard, status: string): boolean =>
-        canUpdate && (transitions[card.status] ?? []).includes(status);
+        !disabled && canUpdate && (transitions[card.status] ?? []).includes(status);
 
     const move = (card: LeadCard, status: string): void => {
         if (!canMove(card, status) || card.status === status || movingUuid !== null) {
@@ -107,6 +143,7 @@ export default function LeadKanban({
             {
                 preserveScroll: true,
                 preserveState: true,
+                onSuccess: invalidateLeadAppointment,
                 onError: (nextErrors) => {
                     setError(nextErrors.status ?? 'That stage change is not allowed.');
                 },
@@ -218,7 +255,7 @@ export default function LeadKanban({
                                     {column.leads.map((card) => (
                                         <li key={card.uuid}>
                                             <article
-                                                draggable={canUpdate}
+                                                draggable={canUpdate && !disabled}
                                                 onDragStart={(event) => {
                                                     setDragging(card);
                                                     event.dataTransfer.effectAllowed = 'move';
@@ -234,7 +271,7 @@ export default function LeadKanban({
                                                 className={cn(
                                                     'group/card rounded-lg border bg-aq-card p-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150',
                                                     'border-aq-content-line hover:border-aq-content-line-strong',
-                                                    canUpdate
+                                                    canUpdate && !disabled
                                                         ? 'cursor-grab active:cursor-grabbing'
                                                         : '',
                                                     dragging?.uuid === card.uuid
@@ -327,9 +364,9 @@ export default function LeadKanban({
                                                     </span>
                                                     <span
                                                         className="shrink-0 text-[10px] text-surface-600 tabular-nums dark:text-surface-300"
-                                                        title={`Created ${ageInDays(card.created_at)}`}
+                                                        title={`Created ${ageInDays(card.created_at, now)}`}
                                                     >
-                                                        {ageInDays(card.created_at)}
+                                                        {ageInDays(card.created_at, now)}
                                                     </span>
                                                 </div>
 
@@ -361,7 +398,9 @@ export default function LeadKanban({
                                                             </span>
                                                             <select
                                                                 value=""
-                                                                disabled={movingUuid !== null}
+                                                                disabled={
+                                                                    movingUuid !== null || disabled
+                                                                }
                                                                 onChange={(event) => {
                                                                     if (event.target.value !== '') {
                                                                         move(
@@ -434,7 +473,12 @@ export default function LeadKanban({
                             {secondaryColumns.map((column) => (
                                 <li key={column.status}>
                                     <Link
-                                        href={stageTableUrl(column.status)}
+                                        href={stageTableUrl(
+                                            column.status,
+                                            scopeFilters,
+                                            rangeFrom,
+                                            rangeTo,
+                                        )}
                                         className="flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-[11px] font-medium text-surface-600 transition-colors duration-150 hover:bg-surface-0 hover:text-surface-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aq-focus dark:text-surface-300 dark:hover:bg-surface-800 dark:hover:text-surface-0 motion-reduce:transition-none"
                                     >
                                         <span className="flex min-w-0 items-center gap-2">

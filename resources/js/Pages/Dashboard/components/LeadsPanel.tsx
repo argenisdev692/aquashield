@@ -121,79 +121,94 @@ export default function LeadsPanel({
     const activeFilterCount = countActiveFilters(filters);
 
     return (
-        <DataTableKit
-            columns={leadColumns}
-            data={panel.rows}
-            total={panel.total}
-            page={local.page}
-            setPage={(page) => setLocal((current) => ({ ...current, page: Math.max(1, page) }))}
-            perPage={local.perPage}
-            setPerPage={(perPage) => setLocal((current) => ({ ...current, perPage, page: 1 }))}
-            search={local.search}
-            setSearch={(search) => setLocal((current) => ({ ...current, search, page: 1 }))}
-            sort={
-                local.sort === null
-                    ? null
-                    : {
-                          field: local.sort.field,
-                          direction: local.sort.order === -1 ? 'desc' : 'asc',
-                      }
-            }
-            setSort={(sort) =>
-                setLocal((current) => ({
-                    ...current,
-                    page: 1,
-                    sort:
-                        sort === null
-                            ? null
-                            : { field: sort.field, order: sort.direction === 'desc' ? -1 : 1 },
-                }))
-            }
-            loading={panel.isPending}
-            error={panel.isError ? 'The leads table could not be loaded.' : undefined}
-            onRetry={panel.retry}
-            title="All leads"
-            description="The full filtered list for this period."
-            searchPlaceholder="Search name, company, email, phone, address or city…"
-            filterCount={activeFilterCount}
-            hasActiveFilters={activeFilterCount > 0 || local.search.trim() !== ''}
-            filters={
-                <CrudFilters
-                    defs={defs}
-                    state={state}
-                    onChange={handleFiltersChange}
-                    disabled={panel.isFetching}
-                />
-            }
-            exportFormats={[]}
-            rowState={(row) => (row.deleted_at !== null ? 'deleted' : 'default')}
-            rowActions={(row: LeadRow) => (
-                <DataTableRowActions
-                    label={`Actions for ${row.full_name}`}
-                    actions={[
-                        ...(canView
-                            ? [
-                                  {
-                                      label: 'View',
-                                      icon: <Eye className="size-4" aria-hidden="true" />,
-                                      onClick: () => router.visit(`/leads/${row.uuid}`),
-                                  },
-                              ]
-                            : []),
-                        ...(canUpdate && row.deleted_at === null
-                            ? [
-                                  {
-                                      label: 'Edit',
-                                      icon: <Pencil className="size-4" aria-hidden="true" />,
-                                      onClick: () => router.visit(`/leads/${row.uuid}/edit`),
-                                  },
-                              ]
-                            : []),
-                    ]}
-                />
-            )}
-            emptyTitle="No leads match this view"
-            emptyDescription="Adjust the filters, or create a lead to start the pipeline."
-        />
+        <div
+            aria-busy={panel.isPlaceholderData || undefined}
+            className="flex min-w-0 flex-col gap-2"
+        >
+            {panel.isPlaceholderData ? (
+                <p
+                    role="status"
+                    aria-live="polite"
+                    className="text-xs font-medium text-surface-600 dark:text-surface-300"
+                >
+                    Updating the table for this period…
+                </p>
+            ) : null}
+
+            <DataTableKit
+                columns={leadColumns}
+                data={panel.rows}
+                total={panel.total}
+                page={local.page}
+                setPage={(page) => setLocal((current) => ({ ...current, page: Math.max(1, page) }))}
+                perPage={local.perPage}
+                setPerPage={(perPage) => setLocal((current) => ({ ...current, perPage, page: 1 }))}
+                search={local.search}
+                setSearch={(search) => setLocal((current) => ({ ...current, search, page: 1 }))}
+                sort={
+                    local.sort === null
+                        ? null
+                        : {
+                              field: local.sort.field,
+                              direction: local.sort.order === -1 ? 'desc' : 'asc',
+                          }
+                }
+                setSort={(sort) =>
+                    setLocal((current) => ({
+                        ...current,
+                        page: 1,
+                        sort:
+                            sort === null
+                                ? null
+                                : { field: sort.field, order: sort.direction === 'desc' ? -1 : 1 },
+                    }))
+                }
+                loading={panel.isPending}
+                error={panel.isError ? 'The leads table could not be loaded.' : undefined}
+                onRetry={panel.retry}
+                title="All leads"
+                description="The full filtered list for this period."
+                searchPlaceholder="Search name, company, email, phone, address or city…"
+                filterCount={activeFilterCount}
+                hasActiveFilters={activeFilterCount > 0 || local.search.trim() !== ''}
+                filters={
+                    <CrudFilters
+                        defs={defs}
+                        state={state}
+                        onChange={handleFiltersChange}
+                        disabled={panel.isFetching}
+                    />
+                }
+                exportFormats={[]}
+                rowState={(row) => (row.deleted_at !== null ? 'deleted' : 'default')}
+                rowActions={(row: LeadRow) => (
+                    <DataTableRowActions
+                        label={`Actions for ${row.full_name}`}
+                        actions={[
+                            ...(canView
+                                ? [
+                                      {
+                                          label: 'View',
+                                          icon: <Eye className="size-4" aria-hidden="true" />,
+                                          onClick: () => router.visit(`/leads/${row.uuid}`),
+                                      },
+                                  ]
+                                : []),
+                            ...(canUpdate && row.deleted_at === null
+                                ? [
+                                      {
+                                          label: 'Edit',
+                                          icon: <Pencil className="size-4" aria-hidden="true" />,
+                                          onClick: () => router.visit(`/leads/${row.uuid}/edit`),
+                                      },
+                                  ]
+                                : []),
+                        ]}
+                    />
+                )}
+                emptyTitle="No leads match this view"
+                emptyDescription="Adjust the filters, or create a lead to start the pipeline."
+            />
+        </div>
     );
 }

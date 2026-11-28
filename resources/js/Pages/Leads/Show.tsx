@@ -23,6 +23,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime, formatIsoDate } from '@/lib/date';
 import { useZodForm } from '@/lib/forms';
 import { humanize } from '@/lib/utils';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import { logActivitySchema, type LogActivityValues } from '@/Modules/LeadAppointment/schemas/lead';
 
 type Lead = Modules.LeadAppointment.Application.Dtos.LeadData;
@@ -71,8 +72,11 @@ export default function LeadsShow({
     const [actionError, setActionError] = useState<string | null>(null);
     const [stageError, setStageError] = useState<string | null>(null);
     const [stage, setStage] = useState<string | null>(null);
+    const [stagePending, setStagePending] = useState(false);
+    const [restoring, setRestoring] = useState(false);
     const pageErrors = usePage<{ errors: Record<string, string> }>().props.errors;
     const visibleStageError = stageError ?? pageErrors.status ?? null;
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
 
     const activityForm = useZodForm<LogActivityValues>({
         initial: { type: 'call', outcome: '', notes: '' },
@@ -83,21 +87,26 @@ export default function LeadsShow({
     const deleted = lead.deleted_at !== null;
 
     const moveStage = (): void => {
-        if (stage === null || stage === '') {
+        if (stage === null || stage === '' || stagePending) {
             return;
         }
 
         setStageError(null);
+        setStagePending(true);
 
         router.post(
             `/leads/${lead.uuid}/status`,
             { status: stage, note: null },
             {
                 preserveScroll: true,
+                onSuccess: () => {
+                    invalidateLeadAppointment();
+                    setStage(null);
+                },
                 onError: (errors) => {
                     setStageError(errors.status ?? 'That stage change is not allowed.');
                 },
-                onSuccess: () => setStage(null),
+                onFinish: () => setStagePending(false),
             },
         );
     };
@@ -105,16 +114,23 @@ export default function LeadsShow({
     const phoneHref = lead.phone === null ? null : `tel:${lead.phone.replace(/[^\d+]/g, '')}`;
 
     const restore = (): void => {
+        if (restoring) {
+            return;
+        }
+
         setActionError(null);
+        setRestoring(true);
 
         router.patch(
             `/leads/${lead.uuid}/restore`,
             {},
             {
                 preserveScroll: true,
+                onSuccess: invalidateLeadAppointment,
                 onError: (errors) => {
                     setActionError(errors.lead ?? 'The lead could not be restored. Try again.');
                 },
+                onFinish: () => setRestoring(false),
             },
         );
     };
@@ -125,7 +141,10 @@ export default function LeadsShow({
 
         router.delete(`/leads/${lead.uuid}`, {
             preserveScroll: true,
-            onSuccess: () => setDeleteOpen(false),
+            onSuccess: () => {
+                invalidateLeadAppointment();
+                setDeleteOpen(false);
+            },
             onError: (errors) => {
                 setActionError(errors.lead ?? 'The lead could not be deleted. Try again.');
             },
@@ -180,6 +199,7 @@ export default function LeadsShow({
                                 type="button"
                                 variant="outline"
                                 className="h-9 gap-2"
+                                disabled={restoring}
                                 onClick={restore}
                             >
                                 <RotateCcw className="size-4" aria-hidden="true" />
@@ -231,16 +251,16 @@ export default function LeadsShow({
                                             ? 'No further stage changes'
                                             : 'Select the next stage'
                                     }
-                                    disabled={targets.length === 0}
+                                    disabled={targets.length === 0 || stagePending}
                                 />
                             </div>
                             <Button
                                 type="button"
                                 className="h-9"
-                                disabled={stage === null || stage === ''}
+                                disabled={stage === null || stage === '' || stagePending}
                                 onClick={moveStage}
                             >
-                                Update stage
+                                {stagePending ? 'Updating…' : 'Update stage'}
                             </Button>
                         </div>
                         {visibleStageError !== null && (
@@ -429,7 +449,10 @@ export default function LeadsShow({
                             Log activity
                         </h2>
 
-                        <FormErrorSummary errors={activityForm.errors} />
+                        <FormErrorSummary
+                            errors={activityForm.errors}
+                            submitAttempts={activityForm.submitAttempts}
+                        />
 
                         <form
                             onSubmit={(event) => {
@@ -437,7 +460,10 @@ export default function LeadsShow({
                                 activityForm.submit(() => {
                                     activityForm.form.post(`/leads/${lead.uuid}/activities`, {
                                         preserveScroll: true,
-                                        onSuccess: () => activityForm.form.reset(),
+                                        onSuccess: () => {
+                                            activityForm.form.reset();
+                                            invalidateLeadAppointment();
+                                        },
                                     });
                                 });
                             }}

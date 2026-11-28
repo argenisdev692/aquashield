@@ -45,6 +45,7 @@ Route::middleware('web')->group(function (): void {
                 ->middleware([
                     'permission:'.Permission::CreateAppointment->value,
                     'permission:'.Permission::ViewAnyLead->value,
+                    'permission:'.Permission::ViewAppointment->value,
                 ])->name('create');
             Route::get('/{uuid}/edit', [AppointmentController::class, 'edit'])
                 ->whereUuid('uuid')

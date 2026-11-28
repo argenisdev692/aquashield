@@ -38,6 +38,7 @@ final readonly class AppointmentFilterFactory
             'record_state' => $filter['record_state'] ?? null,
             'kind' => $filter['kind'] ?? null,
             'region' => $filter['region'] ?? null,
+            'scheduled_only' => $filter['scheduled_only'] ?? null,
             'sort_field' => ltrim($sort, '-'),
             'sort_order' => str_starts_with($sort, '-') ? -1 : 1,
             'page' => self::integerQuery($request, 'page', 1),

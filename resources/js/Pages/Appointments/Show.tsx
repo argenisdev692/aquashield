@@ -29,6 +29,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime } from '@/lib/date';
 import { useZodForm } from '@/lib/forms';
 import { cancelAppointmentSchema } from '@/Modules/LeadAppointment/schemas/appointment';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import {
     canCancel,
     canComplete,
@@ -57,6 +58,7 @@ export default function AppointmentsShow() {
     const [cancelOpen, setCancelOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [acting, setActing] = useState(false);
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
 
     const cancel = useZodForm({
         initial: { reason: '' },
@@ -65,7 +67,15 @@ export default function AppointmentsShow() {
 
     const post = (url: string): void => {
         setActing(true);
-        router.post(url, {}, { preserveScroll: true, onFinish: () => setActing(false) });
+        router.post(
+            url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: invalidateLeadAppointment,
+                onFinish: () => setActing(false),
+            },
+        );
     };
 
     const restore = (): void => {
@@ -73,7 +83,11 @@ export default function AppointmentsShow() {
         router.patch(
             `/appointments/${appointment.uuid}/restore`,
             {},
-            { preserveScroll: true, onFinish: () => setActing(false) },
+            {
+                preserveScroll: true,
+                onSuccess: invalidateLeadAppointment,
+                onFinish: () => setActing(false),
+            },
         );
     };
 
@@ -353,18 +367,28 @@ export default function AppointmentsShow() {
                 open={cancelOpen}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setCancelOpen(false);
+                        cancel.form.reset();
                     }
+
+                    setCancelOpen(open);
                 }}
                 title="Cancel this visit?"
                 description="The customer is notified and the slot is released immediately."
-                form={{ processing: cancel.form.processing, isDirty: cancel.form.isDirty }}
+                form={{
+                    processing: cancel.form.processing,
+                    isDirty: cancel.form.isDirty,
+                    submitAttempts: cancel.submitAttempts,
+                }}
                 errors={cancel.errors}
                 onSubmit={() => {
                     cancel.submit(() => {
                         cancel.form.post(`/appointments/${appointment.uuid}/cancel`, {
                             preserveScroll: true,
-                            onSuccess: () => setCancelOpen(false),
+                            onSuccess: () => {
+                                setCancelOpen(false);
+                                cancel.form.reset();
+                                invalidateLeadAppointment();
+                            },
                         });
                     });
                 }}
@@ -394,7 +418,9 @@ export default function AppointmentsShow() {
                 confirmVariant="destructive"
                 onConfirm={() => {
                     setDeleteOpen(false);
-                    router.delete(`/appointments/${appointment.uuid}`);
+                    router.delete(`/appointments/${appointment.uuid}`, {
+                        onSuccess: invalidateLeadAppointment,
+                    });
                 }}
             >
                 <p className="text-sm text-surface-600 dark:text-surface-300">

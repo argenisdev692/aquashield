@@ -10,7 +10,7 @@ import { CalendarPlus } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { SheetDescription, SheetHeader, SheetTitle } from '@/Components/ui/sheet';
 import { Tag } from '@/Components/ui/tag';
-import { formatDateTime } from '@/lib/date';
+import { formatDateTime, formatWallClockDateTime } from '@/lib/date';
 import { humanize } from '@/lib/utils';
 import type { LeadCard, ScheduleLead } from '../types';
 
@@ -65,7 +65,7 @@ export default function LeadDetailSheet({
                         <span className="font-semibold text-surface-900 dark:text-surface-0">
                             Inspection:
                         </span>{' '}
-                        {formatDateTime(lead.inspection_at)}
+                        {formatWallClockDateTime(lead.inspection_at)}
                     </p>
                 )}
                 {lead.is_emergency && <Tag variant="destructive">Emergency</Tag>}

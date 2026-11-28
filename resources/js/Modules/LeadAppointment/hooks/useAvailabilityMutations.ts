@@ -6,13 +6,14 @@
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { requestJson } from '@/lib/http';
+import { AVAILABILITY_CALENDAR_PREFIX } from './useAvailabilityCalendar';
 import {
     availabilityRulePayload,
     type AvailabilityRuleFormValues,
     type BulkClosureFormValues,
 } from '../schemas/availability';
 
-const CALENDAR_PREFIX = ['lead-appointment', 'availability-calendar'] as const;
+const CALENDAR_PREFIX = AVAILABILITY_CALENDAR_PREFIX;
 
 interface SaveRuleInput {
     /** Null creates; a uuid updates the existing window. */
@@ -104,8 +105,8 @@ export function useAvailabilityMutations() {
  * The write is a JSON call, not a visit, so the page owns the follow-up: it
  * reloads `rows`/`total` and the calendar prefix is invalidated here. The
  * endpoint rebuilds the current and next year from today forward, purging the
- * holiday-sourced rows it owns first — which is why a manual edit to a holiday
- * row is not durable.
+ * holiday-sourced rows it owns first. A manual edit promotes the row to
+ * `source=manual`, so the next sync preserves it.
  *
  * The route is throttled (10/min) and re-checks CREATE_AVAILABILITY_EXCEPTION,
  * so the button that calls this is a convenience, never the control.

@@ -88,6 +88,11 @@ interface AvailabilityMonthGridProps {
     days: readonly CalendarDay[];
     today: string;
     canEdit: boolean;
+    /**
+     * Per-day override. A create-only editor must not open the create form for
+     * a day that already has an exception: the save is guaranteed to conflict.
+     */
+    canEditDay?: (day: CalendarDay) => boolean;
     onSelectDate: (date: string) => void;
 }
 
@@ -95,6 +100,7 @@ export default function AvailabilityMonthGrid({
     days,
     today,
     canEdit,
+    canEditDay,
     onSelectDate,
 }: AvailabilityMonthGridProps) {
     const weeks = buildWeeks(days);
@@ -138,7 +144,7 @@ export default function AvailabilityMonthGrid({
                                         <DayCard
                                             day={day}
                                             today={today}
-                                            interactive={canEdit}
+                                            interactive={canEditDay?.(day) ?? canEdit}
                                             onSelect={onSelectDate}
                                         />
                                     )}

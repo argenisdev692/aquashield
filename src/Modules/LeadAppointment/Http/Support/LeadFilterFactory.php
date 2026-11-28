@@ -51,6 +51,8 @@ final readonly class LeadFilterFactory
             'owner_uuid' => $filter['owner_uuid'] ?? null,
             'emergency' => $filter['emergency'] ?? null,
             'spam' => $filter['spam'] ?? null,
+            'converted_from' => $filter['converted_from'] ?? null,
+            'converted_to' => $filter['converted_to'] ?? null,
             'sort_field' => ltrim($sort, '-'),
             'sort_order' => str_starts_with($sort, '-') ? -1 : 1,
             'page' => self::integerQuery($request, 'page', 1),

@@ -71,10 +71,10 @@ const fetchCalendarDays = async (
     return days;
 };
 
-const CALENDAR_PREFIX = ['lead-appointment', 'availability-calendar'] as const;
+export const AVAILABILITY_CALENDAR_PREFIX = ['lead-appointment', 'availability-calendar'] as const;
 
 const calendarKey = (from: string, to: string, region: string | null) =>
-    [...CALENDAR_PREFIX, from, to, region] as const;
+    [...AVAILABILITY_CALENDAR_PREFIX, from, to, region] as const;
 
 /** Suspense-safe: no `enabled` and no placeholder, so the panel either has data or throws. */
 export const availabilityCalendarQuery = (from: string, to: string, region: string | null = null) =>
@@ -149,6 +149,6 @@ export function useAvailabilityCalendarInvalidator(): () => void {
     const queryClient = useQueryClient();
 
     return () => {
-        void queryClient.invalidateQueries({ queryKey: CALENDAR_PREFIX });
+        void queryClient.invalidateQueries({ queryKey: AVAILABILITY_CALENDAR_PREFIX });
     };
 }

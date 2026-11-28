@@ -111,6 +111,10 @@ final class Appointment extends Model
             ->when($filters->appointmentStatus !== null, fn (Builder $q): Builder => $q->where('status', $filters->appointmentStatus))
             ->when($filters->kind !== null, fn (Builder $q): Builder => $q->where('kind', $filters->kind))
             ->when($filters->region !== null, fn (Builder $q): Builder => $q->where('region', $filters->region))
+            ->when($filters->scheduledOnly === '1', fn (Builder $q): Builder => $q->whereNotIn('status', [
+                AppointmentStatus::Cancelled->value,
+                AppointmentStatus::NoShow->value,
+            ]))
             ->when($filters->recordState === 'trashed', fn (Builder $q): Builder => $q->onlyTrashed())
             ->when($filters->recordState === 'all', fn (Builder $q): Builder => $q->withTrashed())
             ->when($filters->dateFrom !== null || $filters->dateTo !== null, function (Builder $q) use ($filters): void {

@@ -134,8 +134,8 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         return false;
     };
 
-    const validateField = (field: Extract<keyof T, string>) => {
-        const result = schema.safeParse(inertiaForm.data);
+    const validateField = (field: Extract<keyof T, string>, data?: T) => {
+        const result = schema.safeParse(data ?? inertiaForm.data);
         const message = result.success
             ? undefined
             : result.error.issues.find((issue) => String(issue.path[0]) === field)?.message;
@@ -162,8 +162,8 @@ export function useZodForm<T extends FormDataType<T>>(options: UseZodFormOptions
         return message === undefined;
     };
 
-    const touch = (field: Extract<keyof T, string>) => {
-        validateField(field);
+    const touch = (field: Extract<keyof T, string>, data?: T) => {
+        validateField(field, data);
     };
 
     const clearError = (field: Extract<keyof T, string>) => {

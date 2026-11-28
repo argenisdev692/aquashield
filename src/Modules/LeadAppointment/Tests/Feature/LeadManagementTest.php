@@ -459,6 +459,30 @@ it('filters by the business date rather than the UTC date', function (): void {
         ->assertJsonPath('total', 1);
 });
 
+it('filters won leads by the conversion date window', function (): void {
+    $inside = Lead::factory()->create(['status' => LeadStatus::Won->value]);
+    $outside = Lead::factory()->create(['status' => LeadStatus::Won->value]);
+
+    $inside->forceFill([
+        'converted_at' => CarbonImmutable::parse('2026-11-05 12:00:00', 'America/Chicago')->utc(),
+    ])->saveQuietly();
+    $outside->forceFill([
+        'converted_at' => CarbonImmutable::parse('2026-10-05 12:00:00', 'America/Chicago')->utc(),
+    ])->saveQuietly();
+
+    $this->actingAs($this->admin)
+        ->getJson('/leads?'.http_build_query([
+            'filter' => [
+                'status' => LeadStatus::Won->value,
+                'converted_from' => '2026-11-01',
+                'converted_to' => '2026-11-30',
+            ],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('total', 1)
+        ->assertJsonPath('rows.0.uuid', $inside->uuid);
+});
+
 it('exposes the inverse user relations', function (): void {
     Lead::factory()->create([
         'owner_id' => $this->admin->id,

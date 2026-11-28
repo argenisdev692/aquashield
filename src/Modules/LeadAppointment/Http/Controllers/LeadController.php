@@ -72,9 +72,11 @@ final readonly class LeadController
             'options' => $this->options(),
             'canCreate' => $this->can($request, Permission::CreateLead->value),
             'canView' => $this->can($request, Permission::ViewLead->value),
-            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value)
+                && $this->can($request, Permission::ViewLead->value),
             'canDelete' => $this->can($request, Permission::DeleteLead->value),
-            'canRestore' => $this->can($request, Permission::RestoreLead->value),
+            'canRestore' => $this->can($request, Permission::RestoreLead->value)
+                && $this->can($request, Permission::ViewLead->value),
             'canExport' => $this->can($request, Permission::ExportLead->value),
             'canBulkDelete' => $this->can($request, Permission::BulkDeleteLead->value),
             'canBulkRestore' => $this->can($request, Permission::BulkRestoreLead->value),
@@ -96,7 +98,8 @@ final readonly class LeadController
         return inertia('Leads/Board', [
             'columns' => $columns,
             'transitions' => $this->transitions(),
-            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value)
+                && $this->can($request, Permission::ViewLead->value),
             'canCreate' => $this->can($request, Permission::CreateLead->value),
             'canView' => $this->can($request, Permission::ViewLead->value),
         ]);
@@ -144,9 +147,11 @@ final readonly class LeadController
             'lead' => $lead,
             'activities' => $this->leads->activities($uuid),
             'transitions' => $this->transitions(),
-            'canUpdate' => $this->can($request, Permission::UpdateLead->value),
+            'canUpdate' => $this->can($request, Permission::UpdateLead->value)
+                && $this->can($request, Permission::ViewLead->value),
             'canDelete' => $this->can($request, Permission::DeleteLead->value),
-            'canRestore' => $this->can($request, Permission::RestoreLead->value),
+            'canRestore' => $this->can($request, Permission::RestoreLead->value)
+                && $this->can($request, Permission::ViewLead->value),
         ]);
     }
 

@@ -42,10 +42,13 @@ final readonly class DashboardController
         $canViewAppointment = $user !== null && $user->can(Permission::ViewAppointment->value);
         $canViewLead = $user !== null && $user->can(Permission::ViewLead->value);
         $canCreateLead = $user !== null && $user->can(Permission::CreateLead->value);
-        $canUpdateLead = $user !== null && $user->can(Permission::UpdateLead->value);
+        $canUpdateLead = $user !== null
+            && $user->can(Permission::UpdateLead->value)
+            && $user->can(Permission::ViewLead->value);
         $canScheduleAppointment = $user !== null
             && $user->can(Permission::CreateAppointment->value)
-            && $user->can(Permission::ViewAnyLead->value);
+            && $user->can(Permission::ViewAnyLead->value)
+            && $user->can(Permission::ViewAppointment->value);
 
         $rangeValue = $request->query('range');
         $range = is_string($rangeValue)

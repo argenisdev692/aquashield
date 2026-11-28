@@ -74,6 +74,7 @@ export interface LeadsPanelController {
     total: number;
     isPending: boolean;
     isFetching: boolean;
+    isPlaceholderData: boolean;
     isError: boolean;
     retry: () => void;
 }
@@ -86,6 +87,7 @@ export function useLeadsPanel(params: URLSearchParams, enabled = true): LeadsPan
         total: query.data?.total ?? 0,
         isPending: query.isPending,
         isFetching: query.isFetching,
+        isPlaceholderData: query.isPlaceholderData,
         isError: query.isError,
         retry: () => {
             void query.refetch();

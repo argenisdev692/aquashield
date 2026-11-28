@@ -413,6 +413,7 @@ declare namespace Modules {
                     readonly record_state: string | null;
                     readonly kind: string | null;
                     readonly region: string | null;
+                    readonly scheduled_only: string | null;
                     readonly sort_field: string;
                     readonly sort_order: number;
                     readonly page: number;
@@ -657,6 +658,8 @@ declare namespace Modules {
                     readonly owner_uuid: string | null;
                     readonly emergency: string | null;
                     readonly spam: string | null;
+                    readonly converted_from: string | null;
+                    readonly converted_to: string | null;
                     readonly sort_field: string;
                     readonly sort_order: number;
                     readonly page: number;

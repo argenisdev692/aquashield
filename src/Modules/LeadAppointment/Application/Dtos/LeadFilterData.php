@@ -30,6 +30,8 @@ final class LeadFilterData extends SoftDeleteFilterData
         'spam',
         'date_from',
         'date_to',
+        'converted_from',
+        'converted_to',
     ];
 
     /** @var list<string> */
@@ -56,6 +58,8 @@ final class LeadFilterData extends SoftDeleteFilterData
         public readonly ?string $ownerUuid = null,
         public readonly ?string $emergency = null,
         public readonly ?string $spam = null,
+        public readonly ?string $convertedFrom = null,
+        public readonly ?string $convertedTo = null,
         public readonly string $sortField = 'created_at',
         public readonly int $sortOrder = -1,
         public readonly int $page = 1,
@@ -78,6 +82,8 @@ final class LeadFilterData extends SoftDeleteFilterData
             'owner_uuid' => ['nullable', 'uuid', 'exists:users,uuid'],
             'emergency' => ['nullable', 'string', 'in:yes,no'],
             'spam' => ['nullable', 'string', 'in:spam,ham'],
+            'converted_from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:converted_to'],
+            'converted_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:converted_from'],
             'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
             'sort_order' => ['required', 'integer', 'in:-1,1'],
             'page' => ['required', 'integer', 'min:1', 'max:10000'],

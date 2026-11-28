@@ -8,11 +8,14 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import FormActions from '@/Components/Forms/FormActions';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
+import UnsavedChangesDialog from '@/Components/Forms/UnsavedChangesDialog';
 import AppLayout from '@/Layouts/AppLayout';
-import { useZodForm } from '@/lib/forms';
+import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
 import { regionForAddress } from '@/lib/regions';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import { leadFormSchema, type LeadFormValues } from '@/Modules/LeadAppointment/schemas/lead';
-import LeadForm from '@/Pages/Leads/components/LeadForm';
+import LeadForm from '@/Modules/LeadAppointment/components/LeadForm';
 
 type LeadOptions = {
     statuses: { value: string; label: string }[];
@@ -82,6 +85,10 @@ export default function LeadsEdit({
         initial: valuesFrom(lead),
         schema: leadFormSchema,
     });
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
+    const navigationGuard = useNavigationGuard(form.isDirty);
+
+    useUnsavedChangesWarning(form.isDirty);
 
     return (
         <AppLayout title="Edit lead">
@@ -118,7 +125,10 @@ export default function LeadsEdit({
                     onSubmit={(event) => {
                         event.preventDefault();
                         submit(() => {
-                            form.put(`/leads/${lead.uuid}`, { preserveScroll: true });
+                            form.put(`/leads/${lead.uuid}`, {
+                                preserveScroll: true,
+                                onSuccess: invalidateLeadAppointment,
+                            });
                         });
                     }}
                     className="rounded-xl border border-surface-200 bg-surface-0 p-4 sm:p-6 dark:border-surface-800 dark:bg-surface-900"
@@ -130,7 +140,7 @@ export default function LeadsEdit({
                         mode="edit"
                         googleMapsApiKey={googleMapsApiKey}
                         onChange={(next) => form.setData(next)}
-                        onBlur={(key) => touch(key)}
+                        onBlur={(key, values) => touch(key, values)}
                     />
 
                     <FormActions
@@ -143,6 +153,8 @@ export default function LeadsEdit({
                     />
                 </form>
             </div>
+
+            <UnsavedChangesDialog guard={navigationGuard} />
         </AppLayout>
     );
 }

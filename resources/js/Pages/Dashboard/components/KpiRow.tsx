@@ -8,6 +8,7 @@
  */
 import { CalendarCheck, CalendarClock, Trophy, UserPlus } from 'lucide-react';
 import KpiCard from '@/Components/KpiCard';
+import type { TableFilters } from '@/lib/table';
 import { dashboardMetricLinks } from '@/Pages/Dashboard/dashboardLinks';
 import { periodDelta } from '@/Pages/Dashboard/dashboardMetrics';
 
@@ -17,6 +18,8 @@ interface KpiRowProps {
     stats: DashboardStats;
     rangeFrom: string;
     rangeTo: string;
+    /** Dashboard region/source scope; used by the drill-down links. */
+    filters?: TableFilters;
     canViewLeads: boolean;
     canViewCalendar: boolean;
 }
@@ -25,10 +28,11 @@ export default function KpiRow({
     stats,
     rangeFrom,
     rangeTo,
+    filters = {},
     canViewLeads,
     canViewCalendar,
 }: KpiRowProps) {
-    const links = dashboardMetricLinks(rangeFrom, rangeTo);
+    const links = dashboardMetricLinks(rangeFrom, rangeTo, filters);
     const leadsDelta = periodDelta(stats.leads);
     const inspectionsDelta = periodDelta(stats.inspections);
     const wonDelta = periodDelta(stats.won);

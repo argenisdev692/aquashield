@@ -22,6 +22,7 @@ final class AppointmentFilterData extends SoftDeleteFilterData
         'region',
         'date_from',
         'date_to',
+        'scheduled_only',
     ];
 
     /** @var list<string> */
@@ -35,6 +36,7 @@ final class AppointmentFilterData extends SoftDeleteFilterData
         public readonly ?string $recordState = null,
         public readonly ?string $kind = null,
         public readonly ?string $region = null,
+        public readonly ?string $scheduledOnly = null,
         public readonly string $sortField = 'starts_at',
         public readonly int $sortOrder = 1,
         public readonly int $page = 1,
@@ -54,6 +56,7 @@ final class AppointmentFilterData extends SoftDeleteFilterData
             'record_state' => ['nullable', 'string', 'in:active,trashed,all'],
             'kind' => ['nullable', 'string', 'in:'.implode(',', array_column(AppointmentKind::cases(), 'value'))],
             'region' => ['nullable', 'string', 'in:'.implode(',', array_column(Region::cases(), 'value'))],
+            'scheduled_only' => ['nullable', 'string', 'in:0,1'],
             'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
             'sort_order' => ['required', 'integer', 'in:-1,1'],
             'page' => ['required', 'integer', 'min:1', 'max:10000'],

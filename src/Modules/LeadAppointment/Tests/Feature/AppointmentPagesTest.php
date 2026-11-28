@@ -10,6 +10,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Shared\Domain\Enums\Permission;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -103,6 +104,30 @@ it('filters a visit by its own region-local date', function (): void {
         );
 });
 
+it('excludes cancelled and no-show visits for the dashboard scheduled-only filter', function (): void {
+    $active = appointmentPageRecord($this->start);
+    $cancelled = appointmentPageRecord($this->start->addDay(), [
+        'status' => AppointmentStatus::Cancelled->value,
+    ]);
+    $noShow = appointmentPageRecord($this->start->addDays(2), [
+        'status' => AppointmentStatus::NoShow->value,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get('/appointments?'.http_build_query([
+            'filter' => ['scheduled_only' => '1'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Appointments/Index')
+            ->has('rows', 1)
+            ->where('rows.0.uuid', $active->uuid)
+        );
+
+    expect($cancelled->uuid)->not->toBe($active->uuid)
+        ->and($noShow->uuid)->not->toBe($active->uuid);
+});
+
 it('renders the create and edit screens', function (): void {
     $appointment = appointmentPageRecord($this->start);
 
@@ -123,6 +148,24 @@ it('renders the create and edit screens', function (): void {
             ->component('Appointments/Edit')
             ->where('appointment.uuid', $appointment->uuid)
         );
+});
+
+it('refuses appointment creation without VIEW_APPOINTMENT', function (): void {
+    $user = User::factory()->create();
+    $user->givePermissionTo(
+        Permission::ViewAnyAppointment->value,
+        Permission::CreateAppointment->value,
+        Permission::ViewAnyLead->value,
+    );
+
+    $this->actingAs($user)
+        ->get('/appointments')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('canCreate', false));
+
+    $this->actingAs($user)
+        ->get('/appointments/create')
+        ->assertForbidden();
 });
 
 it('renders the appointment file with its lifecycle capabilities', function (): void {

@@ -10,8 +10,10 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import FormActions from '@/Components/Forms/FormActions';
 import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
+import UnsavedChangesDialog from '@/Components/Forms/UnsavedChangesDialog';
 import AppLayout from '@/Layouts/AppLayout';
-import { useZodForm } from '@/lib/forms';
+import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
 import {
     availabilityExceptionSchema,
     wireWindow,
@@ -36,11 +38,14 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
         reason: exception.reason ?? '',
     };
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial,
         schema: availabilityExceptionSchema,
     });
     const invalidateCalendar = useAvailabilityCalendarInvalidator();
+    const navigationGuard = useNavigationGuard(form.isDirty);
+
+    useUnsavedChangesWarning(form.isDirty);
 
     return (
         <AppLayout title="Edit availability exception">
@@ -69,7 +74,7 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
                     </Button>
                 </div>
 
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <form
                     onSubmit={(event) => {
@@ -109,6 +114,8 @@ export default function AvailabilityEdit({ exception, timezone }: AvailabilityEd
                     />
                 </form>
             </div>
+
+            <UnsavedChangesDialog guard={navigationGuard} />
         </AppLayout>
     );
 }

@@ -32,7 +32,7 @@ interface LeadFormProps {
     googleMapsApiKey: string;
     /** Receives the whole next state; Inertia's `setData` owns the object form. */
     onChange: (values: LeadFormValues) => void;
-    onBlur: (key: keyof LeadFormValues) => void;
+    onBlur: (key: keyof LeadFormValues, values?: LeadFormValues) => void;
     /**
      * The dashboard quick-add is an intake form, not the full record editor:
      * it hides the office-only language preference and defaults it to English.
@@ -94,8 +94,13 @@ export default function LeadForm({
                     value={values.first_name}
                     onChange={(value) => update({ first_name: filterPersonNameInput(value) })}
                     onBlur={() => {
-                        update({ first_name: normalizePersonName(values.first_name) });
-                        onBlur('first_name');
+                        const normalized = normalizePersonName(values.first_name);
+
+                        if (normalized !== values.first_name) {
+                            update({ first_name: normalized });
+                        }
+
+                        onBlur('first_name', { ...values, first_name: normalized });
                     }}
                     error={errors.first_name}
                     required
@@ -111,8 +116,13 @@ export default function LeadForm({
                     value={values.last_name}
                     onChange={(value) => update({ last_name: filterPersonNameInput(value) })}
                     onBlur={() => {
-                        update({ last_name: normalizePersonName(values.last_name) });
-                        onBlur('last_name');
+                        const normalized = normalizePersonName(values.last_name);
+
+                        if (normalized !== values.last_name) {
+                            update({ last_name: normalized });
+                        }
+
+                        onBlur('last_name', { ...values, last_name: normalized });
                     }}
                     error={errors.last_name}
                     required
@@ -213,6 +223,8 @@ export default function LeadForm({
                         update({
                             city: value,
                             region: regionForAddress(values.state, value, values.zip_code),
+                            latitude: null,
+                            longitude: null,
                         })
                     }
                     onBlur={() => onBlur('city')}
@@ -262,6 +274,8 @@ export default function LeadForm({
                             update({
                                 zip_code: value,
                                 region: regionForAddress(values.state, values.city, value),
+                                latitude: null,
+                                longitude: null,
                             })
                         }
                         onBlur={() => onBlur('zip_code')}

@@ -15,9 +15,11 @@ import FormErrorSummary from '@/Components/Forms/FormErrorSummary';
 import NumberField from '@/Components/Forms/NumberField';
 import TextareaField from '@/Components/Forms/TextareaField';
 import TimeField from '@/Components/Forms/TimeField';
+import UnsavedChangesDialog from '@/Components/Forms/UnsavedChangesDialog';
 import AppLayout from '@/Layouts/AppLayout';
 import { formatDateTime, todayIso } from '@/lib/date';
 import { useUnsavedChangesWarning, useZodForm } from '@/lib/forms';
+import { useNavigationGuard } from '@/lib/leave-guard';
 import {
     durationBetween,
     localParts,
@@ -26,6 +28,7 @@ import {
     type RescheduleFormValues,
 } from '@/Modules/LeadAppointment/schemas/appointment';
 import AvailabilityNotice from '@/Modules/LeadAppointment/components/AvailabilityNotice';
+import { useLeadAppointmentInvalidator } from '@/Modules/LeadAppointment/hooks/useLeadAppointmentInvalidator';
 import { humanize, statusVariant } from './components/appointmentDisplay';
 
 type Appointment = Modules.LeadAppointment.Application.Dtos.AppointmentData;
@@ -41,10 +44,13 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
         reason: '',
     };
 
-    const { form, errors, submit, touch } = useZodForm({
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
         initial,
         schema: rescheduleSchema,
     });
+
+    const invalidateLeadAppointment = useLeadAppointmentInvalidator();
+    const navigationGuard = useNavigationGuard(form.isDirty);
 
     useUnsavedChangesWarning(form.isDirty);
 
@@ -94,7 +100,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                     </p>
                 </section>
 
-                <FormErrorSummary errors={errors} />
+                <FormErrorSummary errors={errors} submitAttempts={submitAttempts} />
 
                 <form
                     onSubmit={(event) => {
@@ -108,6 +114,7 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
 
                             form.post(`/appointments/${appointment.uuid}/reschedule`, {
                                 preserveScroll: true,
+                                onSuccess: invalidateLeadAppointment,
                             });
                         });
                     }}
@@ -182,6 +189,8 @@ export default function AppointmentsEdit({ appointment }: { appointment: Appoint
                     />
                 </form>
             </div>
+
+            <UnsavedChangesDialog guard={navigationGuard} />
         </AppLayout>
     );
 }

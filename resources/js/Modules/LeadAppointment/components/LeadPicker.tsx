@@ -190,7 +190,11 @@ export default function LeadPicker({
                             }, 120);
                         }}
                         onKeyDown={onKeyDown}
-                        placeholder={placeholder}
+                        placeholder={
+                            open && search === '' && visibleSelected !== null
+                                ? visibleSelected.full_name
+                                : placeholder
+                        }
                         disabled={disabled}
                         autoComplete="off"
                         role="combobox"

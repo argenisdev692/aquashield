@@ -34,7 +34,10 @@ export default function BulkClosureDialog({
 
     const initial: BulkClosureFormValues = { from: '', to: '', reason: '' };
 
-    const { form, errors, submit, touch } = useZodForm({ initial, schema: bulkClosureSchema });
+    const { form, errors, submit, submitAttempts, touch } = useZodForm({
+        initial,
+        schema: bulkClosureSchema,
+    });
 
     const mergedErrors = { ...errors, ...serverError.fieldErrors };
 
@@ -66,6 +69,7 @@ export default function BulkClosureDialog({
             form={{
                 processing: form.processing || mutations.closeRange.isPending,
                 isDirty: form.isDirty,
+                submitAttempts,
             }}
             errors={mergedErrors}
             onSubmit={onSubmit}

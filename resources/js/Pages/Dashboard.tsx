@@ -31,7 +31,7 @@ import {
     useCalendarEventsInvalidator,
     type CalendarEvent,
 } from '@/Modules/LeadAppointment/hooks/useCalendarEvents';
-import { type TableState } from '@/lib/table';
+import { type TableFilters, type TableState } from '@/lib/table';
 import { useTheme } from '@/lib/theme';
 import AppointmentDetailSheet from '@/Pages/Dashboard/components/AppointmentDetailSheet';
 import KpiRow from '@/Pages/Dashboard/components/KpiRow';
@@ -200,6 +200,20 @@ export default function Dashboard() {
         sort: null,
         filters: scope.filters,
     };
+    /*
+     * The board, KPIs and calendar share region/source. The table pane may add
+     * a status filter to the URL; that filter narrows only the table and must
+     * not be copied into KPI drill-downs or the board's stage links.
+     */
+    const boardScope: TableFilters = {};
+
+    if (typeof scope.filters.region === 'string' && scope.filters.region !== '') {
+        boardScope.region = scope.filters.region;
+    }
+
+    if (typeof scope.filters.source === 'string' && scope.filters.source !== '') {
+        boardScope.source = scope.filters.source;
+    }
 
     const boardFilterDefs: CrudFilterDef[] = [
         {
@@ -255,7 +269,12 @@ export default function Dashboard() {
             subtitle="Your lead pipeline and scheduled inspections."
             actions={
                 canCreate ? (
-                    <Button size="header" className="gap-2" onClick={() => setLeadCreateOpen(true)}>
+                    <Button
+                        size="header"
+                        className="gap-2"
+                        disabled={scope.pending}
+                        onClick={() => setLeadCreateOpen(true)}
+                    >
                         <Plus className="size-4" aria-hidden="true" />
                         New lead
                     </Button>
@@ -285,6 +304,7 @@ export default function Dashboard() {
                     stats={stats}
                     rangeFrom={rangeFrom}
                     rangeTo={rangeTo}
+                    filters={boardScope}
                     canViewLeads={canViewLeads}
                     canViewCalendar={canViewCalendar}
                 />
@@ -336,6 +356,10 @@ export default function Dashboard() {
                                             canUpdate={canUpdate}
                                             errors={errors}
                                             variant="fit"
+                                            scopeFilters={boardScope}
+                                            rangeFrom={rangeFrom}
+                                            rangeTo={rangeTo}
+                                            disabled={scope.pending}
                                             onSelect={(lead) => {
                                                 setSelectedLead(lead);
                                                 setSelectedEvent(null);
@@ -452,7 +476,7 @@ export default function Dashboard() {
                                                     colorScheme={isDark ? 'dark' : 'light'}
                                                     onSelect={openAppointment}
                                                     onDateClick={
-                                                        canScheduleAppointment
+                                                        canScheduleAppointment && !scope.pending
                                                             ? (date) => openSchedule(date, null)
                                                             : undefined
                                                     }
@@ -488,7 +512,7 @@ export default function Dashboard() {
                     {selectedLead !== null && (
                         <LeadDetailSheet
                             lead={selectedLead}
-                            canScheduleAppointment={canScheduleAppointment}
+                            canScheduleAppointment={canScheduleAppointment && !scope.pending}
                             canViewLead={canViewLead}
                             onSchedule={openSchedule}
                             onClose={() => setSelectedLead(null)}

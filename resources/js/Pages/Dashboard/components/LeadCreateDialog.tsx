@@ -11,8 +11,8 @@ import { FormDialog } from '@/Components/Forms/FormOverlay';
 import { useZodForm, serverErrorFrom } from '@/lib/forms';
 import { emptyLeadFormValues, leadFormSchema } from '@/Modules/LeadAppointment/schemas/lead';
 import { useCreateLead } from '@/Modules/LeadAppointment/hooks/useCreateLead';
-import LeadForm from '@/Pages/Leads/components/LeadForm';
-import type { LeadFormOptions } from '@/Pages/Leads/components/LeadForm';
+import LeadForm from '@/Modules/LeadAppointment/components/LeadForm';
+import type { LeadFormOptions } from '@/Modules/LeadAppointment/components/LeadForm';
 
 interface LeadCreateDialogProps {
     open: boolean;
@@ -100,7 +100,7 @@ export default function LeadCreateDialog({
                     // corrected field must not keep its old 422.
                     setFieldErrors({});
                 }}
-                onBlur={(key) => touch(key)}
+                onBlur={(key, values) => touch(key, values)}
                 showPreferredLanguage={false}
                 showCompany={false}
             />
