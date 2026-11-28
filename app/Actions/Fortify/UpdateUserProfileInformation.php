@@ -4,18 +4,28 @@ declare(strict_types=1);
 
 namespace App\Actions\Fortify;
 
+use App\Enums\SecurityEvent;
+use App\Jobs\SendSecurityAlert;
 use App\Models\User;
 use App\Rules\AllowedEmailDomain;
 use App\Rules\Username;
+use App\Support\AuthRequestContext;
 use App\Support\UserProfileInput;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
+use Shared\Domain\Ports\AuditPort;
+use Throwable;
 
 class UpdateUserProfileInformation implements UpdatesUserProfileInformation
 {
+    public function __construct(
+        private readonly AuditPort $audit,
+    ) {}
+
     /**
      * Validate and update the given user's profile information.
      *
@@ -29,6 +39,9 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
     public function update(User $user, array $input): void
     {
         $input = $this->normalise($input);
+
+        $previousEmail = (string) $user->email;
+        $emailChanged = Str::lower((string) ($input['email'] ?? '')) !== $previousEmail;
 
         $rules = [
             'first_name' => ['required', 'string', 'max:255'],
@@ -65,12 +78,21 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             $rules['name'] = ['required', 'string', 'max:255'];
         }
 
+        /*
+         * E-mail is the password-reset channel. Changing it from a hijacked
+         * session must require the current password, or the attacker can move
+         * the account to their own inbox and reset the password.
+         */
+        if ($emailChanged) {
+            $rules['current_password'] = ['required', 'string', 'current_password:web'];
+        }
+
         $validated = Validator::make($input, $rules)->validateWithBag('updateProfileInformation');
 
-        unset($validated['name']);
+        unset($validated['name'], $validated['current_password']);
         $validated['email'] = Str::lower($validated['email']);
 
-        $emailChanged = $validated['email'] !== $user->email;
+        $emailChanged = $validated['email'] !== $previousEmail;
 
         /*
          * `forceFill()` is typed by Larastan as accepting only a map of known
@@ -87,10 +109,64 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             $user->setAttribute('email_verified_at', null);
         }
 
-        $user->save();
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException) {
+            // The unique validator is a TOCTOU check; the database constraint is
+            // the authority. Surface the race as a form error, not a 500.
+            throw ValidationException::withMessages([
+                'email' => 'That email or username is already in use.',
+            ])->errorBag('updateProfileInformation');
+        }
+
+        $changed = array_values(array_diff(
+            array_keys($user->getChanges()),
+            ['updated_at'],
+        ));
+
+        if ($changed !== []) {
+            $this->auditSafely('user.profile.updated', $user, ['changed' => $changed]);
+        }
 
         if ($emailChanged) {
+            $this->auditSafely('user.email.changed', $user, ['changed' => ['email']]);
+            $this->alertOldAddress($previousEmail, $user);
+
             $user->sendEmailVerificationNotification();
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $properties
+     */
+    private function auditSafely(string $event, User $user, array $properties): void
+    {
+        try {
+            $this->audit->log(
+                $event,
+                $user,
+                [...$properties, ...AuthRequestContext::properties()],
+                $user,
+                'auth',
+            );
+        } catch (Throwable $exception) {
+            // The profile write is already committed; an audit outage must not
+            // turn a successful save into a 500.
+            report($exception);
+        }
+    }
+
+    private function alertOldAddress(string $previousEmail, User $user): void
+    {
+        try {
+            SendSecurityAlert::dispatch(
+                $previousEmail,
+                $user->name,
+                SecurityEvent::EmailChanged,
+                ['new_email' => (string) $user->email],
+            )->onQueue('emails');
+        } catch (Throwable $exception) {
+            report($exception);
         }
     }
 

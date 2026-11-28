@@ -190,7 +190,12 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('otp-send', function (Request $request) {
             $email = Str::lower((string) $request->input('email'));
 
-            return Limit::perMinute(3)->by($email.'|'.$request->ip());
+            return [
+                Limit::perMinute(3)->by($email.'|'.$request->ip()),
+                // Per-IP ceiling: the email+IP key alone lets one host cycle
+                // through addresses and turn the endpoint into a mail bomb.
+                Limit::perMinute(10)->by('otp-send-ip:'.$request->ip()),
+            ];
         });
 
         RateLimiter::for('otp-verify', function (Request $request) {

@@ -11,7 +11,15 @@ import { isGender, profileAddressShape, profileIdentityShape } from './profileFi
  * the admin and self-service screens cannot drift apart.
  */
 
-export const profileDetailsSchema = z.object(profileIdentityShape);
+/**
+ * Self-service identity form. `current_password` is only required by the
+ * server when the e-mail changes; it is optional here so the unchanged-email
+ * save stays frictionless.
+ */
+export const profileDetailsSchema = z.object({
+    ...profileIdentityShape,
+    current_password: z.string().max(255).optional(),
+});
 
 export const profileAddressSchema = z.object(profileAddressShape);
 
@@ -54,6 +62,7 @@ export function toProfileDetailsForm(
         phone: user?.phone ?? '',
         date_of_birth: user?.date_of_birth ?? '',
         gender: genderFrom(user?.gender ?? null),
+        current_password: '',
     };
 }
 

@@ -11,11 +11,13 @@ use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Transport\ResendTransport;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\QueueBusy;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Resend\Client as ResendClient;
@@ -113,6 +115,18 @@ class AppServiceProvider extends ServiceProvider
                 'connection' => $event->connectionName,
                 'queue' => $event->queue,
                 'size' => $event->size,
+            ]);
+        });
+
+        // A failed credential-mail job is security-relevant: the alert or
+        // reset link never arrived. Log the job class, queue and exception
+        // class only — never the serialized payload, which can contain PII.
+        Queue::failing(static function (JobFailed $event): void {
+            Log::critical('queue.job_failed', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job->getQueue(),
+                'job' => $event->job->resolveName(),
+                'exception' => $event->exception::class,
             ]);
         });
 

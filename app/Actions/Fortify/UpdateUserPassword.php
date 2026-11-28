@@ -8,6 +8,7 @@ use App\Enums\SecurityEvent;
 use App\Jobs\SendSecurityAlert;
 use App\Models\User;
 use App\Support\AuthRequestContext;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,17 @@ class UpdateUserPassword implements UpdatesUserPasswords
             'password' => Hash::make($input['password']),
             'must_change_password' => false,
         ])->save();
+
+        /*
+         * A password change is a credential rotation: every API token and
+         * every other web session must stop working. `logoutOtherDevices`
+         * rotates the remember token and marks the current session with the
+         * new password hash so the user who made the change stays signed in;
+         * `AuthenticateSession` then evicts every session still carrying the
+         * old hash.
+         */
+        $user->tokens()->delete();
+        Auth::logoutOtherDevices($input['password']);
 
         $context = AuthRequestContext::properties();
 

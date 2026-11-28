@@ -22,6 +22,7 @@ enum SecurityEvent: string
     case EmailChanged = 'email.changed';
     case PasskeyRegistered = 'passkey.registered';
     case PasskeyDeleted = 'passkey.deleted';
+    case FactorsRevoked = 'auth.factors_revoked';
 
     public function subject(): string
     {
@@ -34,6 +35,7 @@ enum SecurityEvent: string
             self::EmailChanged => 'Your AquaShield sign-in email was changed',
             self::PasskeyRegistered => 'A passkey was added to your AquaShield account',
             self::PasskeyDeleted => 'A passkey was removed from your AquaShield account',
+            self::FactorsRevoked => 'Your sign-in factors were reset',
         };
     }
 
@@ -48,6 +50,7 @@ enum SecurityEvent: string
             self::EmailChanged => 'Sign-in email changed',
             self::PasskeyRegistered => 'Passkey added',
             self::PasskeyDeleted => 'Passkey removed',
+            self::FactorsRevoked => 'Sign-in factors reset',
         };
     }
 
@@ -62,13 +65,14 @@ enum SecurityEvent: string
             self::EmailChanged => 'The email address used to sign in to your AquaShield account was changed. If you did not authorize this change, contact support immediately.',
             self::PasskeyRegistered => 'A passkey can now sign in to your account without a password. If you did not add it, remove it in Settings → Security and change your password.',
             self::PasskeyDeleted => 'A passkey can no longer sign in to your account. If you did not remove it, add a new passkey and change your password.',
+            self::FactorsRevoked => 'As part of a password reset, your passkeys were removed and your authenticator app was disabled. Set them up again in Settings → Security.',
         };
     }
 
     public function severity(): string
     {
         return match ($this) {
-            self::TwoFactorDisabled, self::AccountLocked, self::EmailChanged, self::PasskeyDeleted => 'warning',
+            self::TwoFactorDisabled, self::AccountLocked, self::EmailChanged, self::PasskeyDeleted, self::FactorsRevoked => 'warning',
             default => 'info',
         };
     }

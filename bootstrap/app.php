@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Http\Middleware\EnforceIdleSession;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\ThrottleAuthRoutes;
 use Illuminate\Foundation\Application;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
@@ -74,6 +76,14 @@ return Application::configure(basePath: dirname(__DIR__))
             // Account suspension is immediate: an existing session is
             // terminated before the page is built, not on the next login.
             EnsureAccountIsActive::class,
+            // Fortify owns the password-confirm/change/reset routes, so their
+            // rate limits are applied by route name here rather than in a route
+            // file.
+            ThrottleAuthRoutes::class,
+            // Invalidates every other web session when the password hash
+            // changes, including with Redis/array sessions where the reset
+            // action cannot delete session rows directly.
+            AuthenticateSession::class,
             HandleInertiaRequests::class,
         ]);
         $middleware->alias([

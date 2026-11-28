@@ -132,6 +132,29 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Staff e-mail domain policy
+    |--------------------------------------------------------------------------
+    |
+    | Empty values fall back to the defaults in App\Rules\AllowedEmailDomain,
+    | which include the company domain and the consumer providers the product
+    | intentionally accepts. Override the lists in a deployment without editing
+    | code; set AUTH_ALLOWED_EMAIL_DOMAINS to a comma-separated list.
+    |
+    */
+
+    'email_domains' => [
+        'allowed' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('AUTH_ALLOWED_EMAIL_DOMAINS', '')),
+        ))),
+        'blocked' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('AUTH_BLOCKED_EMAIL_DOMAINS', '')),
+        ))),
+    ],
+
     'hardening' => [
         'lockout' => [
             'max_attempts' => (int) env('AUTH_MAX_FAILED_ATTEMPTS', 5),

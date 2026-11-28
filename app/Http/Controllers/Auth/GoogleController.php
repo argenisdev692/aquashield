@@ -6,13 +6,19 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AccountAccess;
+use App\Support\AccountLockout;
+use GuzzleHttp\Client;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
 use Laravel\Socialite\Two\User as SocialiteUser;
+use Shared\Domain\Ports\AuditPort;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirectResponse;
 use Throwable;
 
@@ -34,17 +40,33 @@ use Throwable;
  * 3. Accounts with 2FA enabled never bypass the challenge: the same session
  *    hand-off Fortify's own login uses (`login.id`) routes them through
  *    /two-factor-challenge instead of straight into the session.
+ * 4. Google is a sign-in transport for already-registered staff with a
+ *    verified local e-mail. Unknown Google identities are refused; there is no
+ *    auto-provisioning, and a Google-verified address never promotes an
+ *    unverified local row.
+ * 5. Google is not an exception to the account lifecycle or the durable
+ *    password lockout; both are checked before the session is created.
  */
 class GoogleController extends Controller
 {
+    public function __construct(
+        private readonly AuditPort $audit,
+    ) {}
+
     /**
      * Send the visitor to Google's consent screen. Socialite stores the
      * `state` in the session here; the callback refuses anything else.
      */
     public function redirect(): SymfonyRedirectResponse
     {
+        $driver = Socialite::driver('google');
+
+        if ($driver instanceof AbstractProvider) {
+            $driver->setHttpClient($this->httpClient());
+        }
+
         /** @var SymfonyRedirectResponse $response */
-        $response = Socialite::driver('google')->redirect();
+        $response = $driver->redirect();
 
         return $response;
     }
@@ -55,8 +77,14 @@ class GoogleController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         try {
+            $driver = Socialite::driver('google');
+
+            if ($driver instanceof AbstractProvider) {
+                $driver->setHttpClient($this->httpClient());
+            }
+
             /** @var SocialiteUser $googleUser */
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = $driver->user();
         } catch (Throwable $exception) {
             // Invalid state, denied consent, or a failed token exchange all
             // land here. Log it; the visitor gets one neutral message.
@@ -83,33 +111,47 @@ class GoogleController extends Controller
         $user = User::query()->where('google_id', $googleId)->first()
             ?? User::query()->where('email', $email)->first();
 
-        if ($user === null) {
-            [$firstName, $lastName] = $this->splitName(
-                (string) $googleUser->getName(),
-                $email,
-            );
+        $linked = false;
 
-            $user = User::create([
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $email,
-                // A random secret: this account signs in via Google. If the
-                // owner ever wants a password, the reset flow sets one.
-                'password' => Str::password(32),
-                'google_id' => $googleId,
-            ]);
-        } elseif ($user->google_id === null) {
-            $user->update(['google_id' => $googleId]);
-        } elseif ($user->google_id !== $googleId) {
-            // The address resolves to a different Google identity — never
-            // re-link silently; that is exactly the takeover case.
+        // Google is a sign-in transport for already-registered staff. There is
+        // no auto-provisioning: an unknown Google identity is refused, and a
+        // known address linked to a different Google subject is never re-linked.
+        if ($user === null) {
             return $this->signInFailed();
         }
 
-        // A Google-verified address is authoritative, including for an
-        // existing local account that had not confirmed its email yet.
+        if ($user->google_id !== null && $user->google_id !== $googleId) {
+            return $this->signInFailed();
+        }
+
+        // Google is a separate credential, but the account lifecycle and the
+        // durable lockout are account-wide. Without these checks, Google is a
+        // way around a password lock or a suspension.
+        try {
+            AccountAccess::assertCanSignIn($user);
+        } catch (ValidationException) {
+            return $this->signInFailed();
+        }
+
+        if (AccountLockout::active($user)) {
+            return $this->signInFailed();
+        }
+
+        // The local account must already have proved ownership of its address.
+        // A Google-verified address does NOT promote an unverified local row:
+        // the account owner may have registered with an address they do not
+        // control. Verification happens through the app's own email flow.
         if (! $user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
+            return $this->signInFailed();
+        }
+
+        if ($user->google_id === null) {
+            $user->update(['google_id' => $googleId]);
+            $linked = true;
+        }
+
+        if ($linked) {
+            $this->auditAccountLink($user);
         }
 
         if ($user->two_factor_secret !== null
@@ -129,19 +171,32 @@ class GoogleController extends Controller
     }
 
     /**
-     * Split the single Google display name into the canonical first/last pair.
-     *
-     * @return array{0: string, 1: string|null}
+     * The OAuth token exchange and userinfo calls must not inherit Guzzle's
+     * unbounded default timeout.
      */
-    private function splitName(string $fullName, string $email): array
+    private function httpClient(): Client
     {
-        $parts = preg_split('/\s+/', trim($fullName)) ?: [];
-        $firstName = array_shift($parts) ?: Str::before($email, '@');
+        return new Client([
+            'timeout' => (float) config('services.google.timeout', 10),
+            'connect_timeout' => (float) config('services.google.connect_timeout', 5),
+        ]);
+    }
 
-        return [
-            $firstName !== '' ? $firstName : 'User',
-            $parts === [] ? null : implode(' ', $parts),
-        ];
+    private function auditAccountLink(User $user): void
+    {
+        try {
+            $this->audit->log(
+                'user.google.linked',
+                $user,
+                ['email_domain' => Str::after((string) $user->email, '@')],
+                $user,
+                'auth',
+            );
+        } catch (Throwable $exception) {
+            // The account is already linked; an audit outage must not turn a
+            // successful sign-in into a 500.
+            report($exception);
+        }
     }
 
     /**

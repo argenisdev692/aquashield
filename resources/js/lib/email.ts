@@ -25,6 +25,7 @@ export const ALLOWED_DOMAINS: string[] = [
     'zoho.com',
     'zoho.eu',
     'company.com',
+    'aquashieldrestorationusa.com',
 ];
 
 export const BLOCKED_DOMAINS: string[] = [
@@ -58,4 +59,4 @@ export const emailSchema = z
             return false;
         }
         return ALLOWED_DOMAINS.includes(domain);
-    }, 'The email domain is not allowed. Use a known provider (gmail, outlook, proton, yahoo, etc.).');
+    }, 'The email domain is not allowed. Use the company domain or a known provider.');

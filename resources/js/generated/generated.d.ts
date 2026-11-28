@@ -69,7 +69,8 @@ declare namespace App {
             | 'auth.account_locked'
             | 'email.changed'
             | 'passkey.registered'
-            | 'passkey.deleted';
+            | 'passkey.deleted'
+            | 'auth.factors_revoked';
     }
 }
 declare namespace Illuminate {

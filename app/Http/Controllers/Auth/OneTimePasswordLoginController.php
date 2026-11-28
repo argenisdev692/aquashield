@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendOneTimePasswordRequest;
 use App\Http\Requests\Auth\VerifyOneTimePasswordRequest;
 use App\Models\User;
+use App\Support\AccountLockout;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,9 +58,11 @@ final class OneTimePasswordLoginController extends Controller
         $user = User::query()->where('email', $email)->first();
 
         try {
-            // An invited or suspended account must not receive a sign-in code:
-            // the neutral response stays identical, but the code is never sent.
-            if ($user instanceof User && $user->isActive()) {
+            // An invited or suspended account must not receive a sign-in code,
+            // and neither must a password-locked one: sending the code would
+            // let the e-mail transport bypass the durable lock. The neutral
+            // response stays identical either way.
+            if ($user instanceof User && $user->isActive() && ! AccountLockout::active($user)) {
                 $user->sendOneTimePassword();
             }
         } catch (Throwable $exception) {
@@ -109,6 +112,12 @@ final class OneTimePasswordLoginController extends Controller
                 $request,
                 'This account is not active. Activate it from your invitation email or contact an administrator.',
             );
+        }
+
+        // The durable password lock is account-wide. Use the same neutral
+        // failure as an invalid code so this route is not a status oracle.
+        if (AccountLockout::active($user)) {
+            return $this->verificationFailed($request, 'That code is invalid or has expired.');
         }
 
         $result = $user->consumeOneTimePassword((string) $request->validated('code'));

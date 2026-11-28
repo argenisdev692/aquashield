@@ -21,6 +21,14 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
 
+        // Google is a sign-in transport for already-registered, locally
+        // verified staff; it never auto-provisions an account.
+
+        // OAuth token exchange/userinfo calls. Without an explicit timeout,
+        // Guzzle waits forever and a slow provider holds a PHP worker.
+        'timeout' => (int) env('GOOGLE_HTTP_TIMEOUT', 10),
+        'connect_timeout' => (int) env('GOOGLE_HTTP_CONNECT_TIMEOUT', 5),
+
         // Browser key for the Maps JavaScript API + Places API (New).
         // Restrict it by HTTP referrer in Google Cloud; never treat it as a
         // server secret, because it is delivered to the browser by design.

@@ -160,9 +160,27 @@ PROGRESSIVE".
   A forced modal is a FIDO anti-pattern (hostage modal) and is not used.
 - **Passkey mutations are audited and emailed.** `PasskeyRegistered` /
   `PasskeyDeleted` feed `AuthEventSubscriber` → `SecurityEvent` →
-  `SendSecurityAlert` → `Shared\Infrastructure\Mail\MailInterface`. The outbound
-  mailer is Resend (`MAIL_MAILER=resend`); the shared transport adds the HTTP
-  timeout and circuit breaker. No adapter is named in the auth code.
+  `SendSecurityAlert` → `Shared\Infrastructure\Mail\MailInterface`. The job
+  dispatches to the `emails` queue, which `docker/supervisord.conf` runs as a
+  dedicated worker; the outbound mailer is Resend (`MAIL_MAILER=resend`) and the
+  shared transport adds the HTTP timeout and circuit breaker. No adapter is
+  named in the auth code.
+- **Every transport enforces the same account gates.** Password, passkey,
+  authenticator, e-mail OTP and Google all call `AccountAccess` (lifecycle) and
+  `AccountLockout` (durable password lock). Google is a sign-in transport for
+  already-registered staff whose local e-mail is verified. It never
+  auto-provisions an account, and a Google-verified address does not promote an
+  unverified local row.
+- **Password changes revoke other credentials.** `UpdateUserPassword` deletes
+  every Sanctum token and calls `Auth::logoutOtherDevices()`; the
+  `AuthenticateSession` middleware evicts every other web session carrying the
+  old password hash. `ResetUserPassword` deletes tokens, revokes all passkeys
+  and disables TOTP, then relies on the same middleware for non-database session
+  stores; the owner must re-enrol after a reset.
+- **E-mail changes require the current password.** The Fortify profile action
+  adds `current_password:web` only when the address changes, audits
+  `user.email.changed`, and sends `SecurityEvent::EmailChanged` to the **old**
+  address before verification is sent to the new one.
 
 ### TOTP as a first factor
 
@@ -201,9 +219,12 @@ advertised as equivalent to a passkey.
   500: dompdf renders the whole table inside the request, so the PDF cap is
   lower on purpose. A queued export is a separate feature; the cap reports
   rather than truncates.
-- Admin-created/changed accounts are e-mail-verified by the administrator. This
-  is deliberate for an internal staff workflow; a verification wall would lock
-  the new user out of the screens they were created for.
+- Admin-created accounts use one of two onboarding paths: an invitation
+  (unverified until the signed link is consumed) or a temporary password
+  (verified, with a forced change at first sign-in). A later e-mail change
+  clears verification, queues `SendEmailVerificationJob` to the new address and
+  sends `SecurityEvent::EmailChanged` to the old one. The old "verified by the
+  administrator" wording was inaccurate and has been replaced.
 - Inertia pages are not part of this backend task. The JSON contract (`rows` +
   `total`, `filter[...]`, `sort`, `per_page`) is the DataTable kit's contract.
   The Inertia screen set now consumes the same routes; the list still exposes
@@ -253,6 +274,16 @@ advertised as equivalent to a passkey.
   the durable-lockout refusal.
 - `tests/Feature/Auth/PasswordPolicyTest.php` — 8–15 boundary on invitation
   activation and reset, self-registration disabled.
+- `tests/Feature/Auth/AuthRateLimitTest.php` — password-confirmation, password
+  change, reset-link, reset-submission and per-IP OTP ceilings.
+- `tests/Feature/Auth/SessionRevocationTest.php` — stale web session eviction,
+  API-token deletion on password change, current-session continuity.
+- `tests/Feature/Auth/AllowedEmailDomainTest.php` — company domain, consumer
+  providers, disposable-domain rejection and deployment override.
+- `tests/Feature/GoogleAuthTest.php` — registered-only sign-in, verified local
+  e-mail requirement, lockout and suspension refusal.
+- `tests/Feature/Auth/ProfileTest.php` — current-password requirement for an
+  e-mail change, old-address alert and audit row.
 - `Tests/Unit/AccessCeilingTest.php` — the ceiling, the last-active guard, the
   suspended-admin exclusion and the view-policy ceiling, called directly.
 - `Tests/Unit/UserFilterDataTest.php` — the DataTable/export query contract.

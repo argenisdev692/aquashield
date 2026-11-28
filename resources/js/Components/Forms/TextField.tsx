@@ -16,7 +16,7 @@ interface TextFieldProps {
     error?: string;
     hint?: string;
     required?: boolean;
-    type?: 'text' | 'email' | 'search' | 'tel' | 'url';
+    type?: 'text' | 'email' | 'password' | 'search' | 'tel' | 'url';
     autocomplete?: string;
     placeholder?: string;
     disabled?: boolean;

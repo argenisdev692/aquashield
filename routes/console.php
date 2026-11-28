@@ -101,8 +101,27 @@ Schedule::command('queue:prune-failed --hours=168')
     ->withoutOverlapping()
     ->onOneServer();
 
-Schedule::command('queue:monitor redis:default --max=1000')
+/*
+ * Monitor every queue a worker consumes. `emails` is the queue that carries
+ * invitations, password-set links, verification mails and security alerts; a
+ * silent backlog there is a security-monitoring failure, not just latency.
+ */
+Schedule::command('queue:monitor default,emails,heavy --max=1000')
     ->name('queue-monitor')
     ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
+// Expired Sanctum tokens and reset rows are rejected by the guards but still
+// consume storage; prune them on the same schedule as the other housekeeping.
+Schedule::command('sanctum:prune-expired --hours=24')
+    ->name('sanctum-prune-expired')
+    ->dailyAt('04:45')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::command('auth:clear-resets users')
+    ->name('auth-clear-resets')
+    ->dailyAt('04:50')
     ->withoutOverlapping()
     ->onOneServer();

@@ -89,8 +89,8 @@ EXPOSE 8080
 
 # Single-service Railway deploy: migrations run before the caches so a fresh
 # database never serves 500s on missing tables; supervisord then keeps the HTTP
-# server, a plain queue worker and the scheduler alive in the same container
-# (see docker/supervisord.conf). The worker needs a reachable queue backend
+# server, the default/emails/heavy queue workers and the scheduler alive in the
+# same container (see docker/supervisord.conf). The workers need a reachable queue backend
 # (QUEUE_CONNECTION=redis + REDIS_URL/REDIS_HOST) - without it, it exits and
 # supervisord restarts it in a crash loop. The scheduler is what actually runs
 # backup:run, backup:clean, backups:purge-quarantine, backup:monitor and

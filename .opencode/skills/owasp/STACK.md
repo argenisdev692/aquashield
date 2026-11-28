@@ -42,7 +42,7 @@ $middleware->alias([
 - Web (primary) → Laravel sessions + Inertia. CSRF via `PreventRequestForgery` (Laravel 13 name; `VerifyCsrfToken` kept only as deprecated subclass) — token + `Sec-Fetch-Site` origin check.
 - API (secondary, mobile/external) → Sanctum personal access tokens. **Opaque hashes, NOT JWT** — annotations must NOT claim `bearerFormat="JWT"`.
 - Hashing: `argon2id` in `config/hashing.php` (deliberately published — skeleton default is bcrypt).
-- `RateLimiter::for('login', …)` 5/min per IP+email (`FortifyServiceProvider`); `two-factor` + `passkeys` limiters too.
+- `RateLimiter::for('login', …)` 5/min per IP+email (`FortifyServiceProvider`); `two-factor` + `passkeys` limiters too. The Fortify-owned password-confirm/change/reset/profile routes are limited by route name in `App\Http\Middleware\ThrottleAuthRoutes` (5/min for password checks/reset requests, 10/min for profile/passkey-delete/reset submission); `otp-send` also has a 10/min per-IP ceiling.
 - Production session env: `SESSION_DRIVER=database`, `SESSION_LIFETIME=120`, `SESSION_ENCRYPT=true`, `SESSION_SECURE_COOKIE=true`, `SESSION_HTTP_ONLY=true`, `SESSION_SAME_SITE=lax`, `SESSION_DOMAIN=null`, `SESSION_COOKIE=__Host-{app}_session`. The `__Host-` prefix is rejected by browsers unless the cookie is `Secure`, `Path=/` and has **no** `Domain` attribute — that is the hardening, and it is why `SESSION_DOMAIN` must stay `null` in production.
 - Login: `$request->session()->regenerate()`. Logout: `Auth::logout()` + `invalidate()` + `regenerateToken()`. Frontend logout: `router.visit('/login')` + `queryClient.clear()`.
 - Idle timeout: sliding-expiration middleware (30 min default, `last_activity` in session).
@@ -153,6 +153,31 @@ One `AiClientInterface` implementation enforces: PII redaction, per-user rate li
 | Upload validation        | `intervention/image` re-encode                        |
 | Single LLM bridge        | `laravel/ai` v1 only                                  |
 
+### Auth hardening batch — 2026-11-28
+
+| Control                     | Evidence                                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `emails` queue worker       | `docker/supervisord.conf` `worker-emails`; `composer dev` listens `default,emails,heavy`; `queue:monitor` covers all three        |
+| Google for registered staff | No auto-provisioning; the existing local e-mail must already be verified; lockout/status parity in `GoogleController`             |
+| OTP lockout parity          | `OneTimePasswordLoginController` checks `AccountLockout` on send and verify                                                       |
+| E-mail change re-auth       | `UpdateUserProfileInformation` requires `current_password:web`, audits `user.email.changed`, alerts the old address               |
+| Password-change revocation  | `UpdateUserPassword` deletes Sanctum tokens and calls `Auth::logoutOtherDevices`; `AuthenticateSession` evicts other web sessions |
+| Password-reset factors      | `ResetUserPassword` deletes tokens, revokes all passkeys, disables TOTP and alerts the owner; the account must re-enrol           |
+| Fortify route throttles     | `App\Http\Middleware\ThrottleAuthRoutes` (confirm/change/reset/profile/passkey-delete); OTP per-IP ceiling                        |
+| Company domain accepted     | `AllowedEmailDomain` includes `aquashieldrestorationusa.com` and supports `AUTH_ALLOWED_EMAIL_DOMAINS`                            |
+
+### Open security backlog (2026-11-28)
+
+These were found by the auth audit and are **not** claimed as closed:
+
+- MFA/passkey not yet required for `SUPER_ADMIN`/`ADMIN`.
+- Password policy remains 8–15 with no compromised-password check.
+- User PII remains plaintext at rest (item 4 explicitly deferred by product
+  decision, 2026-11-28); `email` and display names are also auth/search keys.
+- Production HTTP still uses `php artisan serve` rather than PHP-FPM/Nginx or Octane.
+- PostgreSQL `sslmode` still defaults to `prefer`; set `DB_SSLMODE=require`/`verify-full`.
+- `TRUSTED_PROXIES` still defaults to `*`; set explicit edge CIDRs.
+
 ### Verified inside a sandbox that denies `.env`
 
 `.claude/settings.json` denies `Read(.env)` and `Read(.env.*)`. That is correct hardening — but the
@@ -186,11 +211,12 @@ Consequences for the gate:
 - Because PAO silences the human-readable trace, **never use "it printed no error" as evidence of
   success** — use the exit code.
 
-### Red — fix before production
+### Red — environment/config list
 
-None open as of **2026-11-26**. The previous list is closed, verified through the framework
-(`config:show session`, `doctor`); the Symfony `8.1.12` patch closed the 2026-11-25 advisories and
-`composer audit --no-dev` now runs inside `composer check`:
+The 2026-11-26 environment list is closed, verified through the framework (`config:show session`,
+`doctor`); the Symfony `8.1.12` patch closed the 2026-11-25 advisories and `composer audit --no-dev`
+now runs inside `composer check`. This does **not** close the open security backlog above — the
+auth audit’s HIGH/MEDIUM items are tracked there and in the dated review notes.
 
 | Previously listed              | Closed by                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------------- |

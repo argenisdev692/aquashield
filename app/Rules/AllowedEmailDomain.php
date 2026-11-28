@@ -39,6 +39,10 @@ final class AllowedEmailDomain implements ValidationRule
         'zoho.com',
         'zoho.eu',
         'company.com',
+        // The internal staff domain. The allowlist is used by admin create/
+        // update and by the self-service profile screen, so omitting the
+        // company domain makes every real staff account uneditable.
+        'aquashieldrestorationusa.com',
     ];
 
     /**
@@ -69,25 +73,84 @@ final class AllowedEmailDomain implements ValidationRule
             return;
         }
 
-        // Extract domain from email (no regex overhead, clean split)
-        $atPos = strrpos($value, '@');
+        $domain = self::domainOf($value);
 
-        if ($atPos === false || $atPos === 0 || $atPos === strlen($value) - 1) {
+        if ($domain === null) {
             $fail('The :attribute must contain a valid domain.');
 
             return;
         }
 
-        $domain = strtolower(substr($value, $atPos + 1));
-
-        if (in_array($domain, self::BLOCKED, true)) {
+        if (in_array($domain, self::blockedDomains(), true)) {
             $fail('The :attribute uses a temporary or blocked domain. Use a real email provider.');
 
             return;
         }
 
-        if (! in_array($domain, self::ALLOWED, true)) {
-            $fail('The :attribute domain is not allowed. Use a known provider (gmail, outlook, proton, yahoo, etc.).');
+        if (! in_array($domain, self::allowedDomains(), true)) {
+            $fail('The :attribute domain is not allowed. Use the company domain or a known provider.');
         }
+    }
+
+    /**
+     * Boolean form used by non-validator callers (Google provisioning).
+     */
+    public static function passes(string $email): bool
+    {
+        $domain = self::domainOf($email);
+
+        if ($domain === null) {
+            return false;
+        }
+
+        return ! in_array($domain, self::blockedDomains(), true)
+            && in_array($domain, self::allowedDomains(), true);
+    }
+
+    private static function domainOf(string $email): ?string
+    {
+        $atPos = strrpos($email, '@');
+
+        if ($atPos === false || $atPos === 0 || $atPos === strlen($email) - 1) {
+            return null;
+        }
+
+        return strtolower(substr($email, $atPos + 1));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function allowedDomains(): array
+    {
+        return self::configuredDomains('allowed', self::ALLOWED);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function blockedDomains(): array
+    {
+        return self::configuredDomains('blocked', self::BLOCKED);
+    }
+
+    /**
+     * @param list<string> $default
+     * @return list<string>
+     */
+    private static function configuredDomains(string $key, array $default): array
+    {
+        $configured = config('auth.email_domains.'.$key);
+
+        if (! is_array($configured) || $configured === []) {
+            return $default;
+        }
+
+        $domains = array_map(
+            static fn (mixed $domain): string => is_string($domain) ? strtolower(trim($domain)) : '',
+            $configured,
+        );
+
+        return array_values(array_unique(array_filter($domains, static fn (string $domain): bool => $domain !== '')));
     }
 }

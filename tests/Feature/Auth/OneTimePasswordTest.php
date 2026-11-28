@@ -130,6 +130,34 @@ it('refuses an expired email code', function (): void {
     $this->assertGuest();
 });
 
+it('does not send a code to a locked account', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create(['locked_until' => now()->addHour()]);
+
+    $this->post('/login/otp', ['email' => $user->email])
+        ->assertRedirect('/login/otp')
+        ->assertSessionHas('status');
+
+    Notification::assertNothingSent();
+    expect($user->oneTimePasswords()->count())->toBe(0);
+});
+
+it('refuses a valid email code while the account is locked', function (): void {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $this->post('/login/otp', ['email' => $user->email]);
+    $code = issuedOtpCode($user);
+
+    $user->forceFill(['locked_until' => now()->addHour()])->save();
+
+    $this->post('/login/otp/verify', ['code' => $code])
+        ->assertSessionHasErrors('code');
+
+    $this->assertGuest();
+});
+
 it('does not let the email code bypass a confirmed TOTP factor', function (): void {
     Notification::fake();
 

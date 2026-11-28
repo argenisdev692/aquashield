@@ -204,6 +204,8 @@ export default function Profile() {
     };
 
     const flash = statusMessage(page.props.status);
+    const emailChanged =
+        detailsForm.form.data.email.trim().toLowerCase() !== user.email.trim().toLowerCase();
     const hasAddressCoordinates =
         addressForm.form.data.latitude !== null && addressForm.form.data.longitude !== null;
 
@@ -465,6 +467,26 @@ export default function Profile() {
                                             autocomplete="email"
                                             required
                                         />
+
+                                        {emailChanged && (
+                                            <TextField
+                                                label="Current password"
+                                                name="current_password"
+                                                type="password"
+                                                value={detailsForm.form.data.current_password ?? ''}
+                                                onChange={(value) =>
+                                                    detailsForm.form.setData(
+                                                        'current_password',
+                                                        value,
+                                                    )
+                                                }
+                                                onBlur={() => detailsForm.touch('current_password')}
+                                                error={detailsForm.errors.current_password}
+                                                autocomplete="current-password"
+                                                hint="Required to change your sign-in email."
+                                                required
+                                            />
+                                        )}
 
                                         <PhoneField
                                             label="Phone"

@@ -88,6 +88,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/settings/profile', [ProfileController::class, 'edit'])
         ->name('settings.profile.edit');
     Route::post('/settings/profile/photo', [ProfilePhotoController::class, 'store'])
+        ->middleware('throttle:10,1')
         ->name('settings.profile.photo.store');
     Route::delete('/settings/profile/photo', [ProfilePhotoController::class, 'destroy'])
         ->name('settings.profile.photo.destroy');

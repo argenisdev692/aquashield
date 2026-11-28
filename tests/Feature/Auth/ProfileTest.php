@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\SecurityEvent;
+use App\Jobs\SendSecurityAlert;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -55,6 +59,7 @@ it('updates the authenticated user profile', function (): void {
         ->put('/user/profile-information', [
             'name' => 'Ada King',
             'email' => 'ada.king@gmail.com',
+            'current_password' => 'password',
         ])
         ->assertRedirect('/settings/profile')
         ->assertSessionHasNoErrors()
@@ -78,6 +83,7 @@ it('updates the canonical profile fields', function (): void {
             'last_name' => 'Hopper',
             'username' => 'ghopper',
             'email' => 'grace@gmail.com',
+            'current_password' => 'password',
             'phone' => '+15555550100',
             'date_of_birth' => '1906-12-09',
             'address' => '123 Main St',
@@ -113,6 +119,76 @@ it('updates the canonical profile fields', function (): void {
         ->and($user->latitude)->toBe(25.7743)
         ->and($user->longitude)->toBe(-80.1937)
         ->and($user->terms_and_conditions)->toBeTrue();
+});
+
+it('requires the current password to change the email', function (): void {
+    $user = User::factory()->create(['email' => 'ada@example.com']);
+
+    $this->actingAs($user)
+        ->from('/settings/profile')
+        ->put('/user/profile-information', [
+            'first_name' => 'Ada',
+            'email' => 'attacker@gmail.com',
+        ])
+        ->assertSessionHasErrorsIn('updateProfileInformation', 'current_password');
+
+    expect($user->refresh()->email)->toBe('ada@example.com');
+});
+
+it('rejects an email change with the wrong current password', function (): void {
+    $user = User::factory()->create(['email' => 'ada@example.com']);
+
+    $this->actingAs($user)
+        ->from('/settings/profile')
+        ->put('/user/profile-information', [
+            'first_name' => 'Ada',
+            'email' => 'attacker@gmail.com',
+            'current_password' => 'wrong-password',
+        ])
+        ->assertSessionHasErrorsIn('updateProfileInformation', 'current_password');
+
+    expect($user->refresh()->email)->toBe('ada@example.com');
+});
+
+it('audits an email change and alerts the old address', function (): void {
+    Queue::fake();
+
+    $user = User::factory()->create(['email' => 'old@gmail.com']);
+
+    $this->actingAs($user)
+        ->from('/settings/profile')
+        ->put('/user/profile-information', [
+            'first_name' => 'Ada',
+            'email' => 'new@gmail.com',
+            'current_password' => 'password',
+        ])
+        ->assertSessionHasNoErrors();
+
+    Queue::assertPushed(
+        SendSecurityAlert::class,
+        fn (SendSecurityAlert $job): bool => $job->email === 'old@gmail.com'
+            && $job->event === SecurityEvent::EmailChanged
+            && ($job->context['new_email'] ?? null) === 'new@gmail.com',
+    );
+
+    expect(DB::table('activity_log')
+        ->where('event', 'user.email.changed')
+        ->where('subject_id', $user->getKey())
+        ->exists())->toBeTrue();
+});
+
+it('does not require the current password when the email is unchanged', function (): void {
+    $user = User::factory()->create(['email' => 'ada@gmail.com']);
+
+    $this->actingAs($user)
+        ->from('/settings/profile')
+        ->put('/user/profile-information', [
+            'first_name' => 'Ada Updated',
+            'email' => 'ada@gmail.com',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->first_name)->toBe('Ada Updated');
 });
 
 it('ignores fields outside the profile allowlist', function (): void {
@@ -194,6 +270,7 @@ it('rejects a profile email already owned by another user', function (): void {
         ->put('/user/profile-information', [
             'name' => 'Ada Lovelace',
             'email' => $owner->email,
+            'current_password' => 'password',
         ])
         ->assertSessionHasErrorsIn('updateProfileInformation', 'email');
 });
