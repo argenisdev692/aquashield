@@ -47,6 +47,7 @@ it('returns the slim event projection for the visible window', function (): void
         ->assertJsonPath('data.0.uuid', $appointment->uuid)
         ->assertJsonPath('data.0.customer_name', trim($appointment->lead->first_name.' '.$appointment->lead->last_name))
         ->assertJsonPath('data.0.status', AppointmentStatus::Scheduled->value)
+        ->assertJsonPath('data.0.is_emergency', false)
         ->assertJsonPath('data.0.timezone', 'America/Chicago')
         ->assertJsonMissingPath('data.0.notes')
         ->assertJsonMissingPath('data.0.customer_phone');

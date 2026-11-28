@@ -100,7 +100,12 @@ mode: PROGRESSIVE
   live in `config/lead-appointment.php`; DNS/MX and catch-all checks are a
   future queue job, not a synchronous request.
 - `last_contacted_at` is a timestamp, not a full lead-to-contact event store; the
-  `lead_activities` table is the timeline.
+  `lead_activities` table is the timeline. It only moves forward, and a merge
+  recomputes it from the surviving row and the moved activities.
+- Processed Meta `lead_ingestion_events` are pruned after 30 days by the daily
+  `lead-appointment:prune-ingestion-events` command; failed jobs are pruned
+  weekly and `queue:monitor` logs `QueueBusy` at 1,000 jobs. The payload is PII,
+  so it is not retained as a permanent archive.
 - **Declared OWASP A04 deviation, dated 2026-11-25, review due 2027-05-19:**
   lead email/phone/address remain plaintext because the list search, duplicate
   detection and export rely on exact and `LIKE` predicates. Field-level

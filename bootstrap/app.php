@@ -17,6 +17,7 @@ use Modules\LeadAppointment\Domain\Exceptions\InvalidSchedulingTimezoneException
 use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
 use Modules\LeadAppointment\Domain\Exceptions\LeadHasAppointmentsException;
 use Modules\LeadAppointment\Domain\Exceptions\LeadNotFoundException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadRestoreConflictException;
 use Modules\LeadAppointment\Domain\Exceptions\PastDateSchedulingException;
 use Modules\LeadAppointment\Domain\Exceptions\SlotUnavailableException;
 use Shared\Infrastructure\Http\Middleware\AssignRequestId;
@@ -25,6 +26,18 @@ use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
+/*
+ * Trusted proxy CIDRs. The platform edge terminates TLS and sets
+ * X-Forwarded-Proto; production should set TRUSTED_PROXIES to the Railway
+ * edge ranges (comma-separated). A wildcard is the local/back-compat default:
+ * it also means a client-supplied X-Forwarded-For must be overwritten by the
+ * edge, or IP-keyed throttles can be spoofed.
+ */
+$trustedProxies = env('TRUSTED_PROXIES', '*');
+$trustedProxies = is_string($trustedProxies) && $trustedProxies !== '' && $trustedProxies !== '*'
+    ? array_values(array_filter(array_map('trim', explode(',', $trustedProxies))))
+    : '*';
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -32,7 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+    ->withMiddleware(function (Middleware $middleware) use ($trustedProxies): void {
         // Railway terminates TLS at its edge proxy and forwards the original
         // scheme in X-Forwarded-Proto. Without trusting that proxy Laravel
         // believes every request is plain HTTP, so @vite/asset() emit
@@ -40,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // CSP `'self'` no longer matches the assets (black screen). The
         // container is only reachable through the platform edge, so trusting
         // the forwarded headers is safe and survives Railway's dynamic IPs.
-        $middleware->trustProxies(at: '*');
+        $middleware->trustProxies(at: $trustedProxies);
 
         // Correlation id before any other middleware so an early failure still
         // has a request id in the log context; successful responses echo it.
@@ -83,7 +96,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json(['message' => $exception->getMessage()], 404);
         });
 
-        $exceptions->render(function (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException|InvalidStatusTransitionException|InvalidSchedulingTimezoneException|AvailabilityConflictException|LeadHasAppointmentsException $exception, Request $request) {
+        $exceptions->render(function (SlotUnavailableException|PastDateSchedulingException|CapacityExceededException|InvalidStatusTransitionException|InvalidSchedulingTimezoneException|AvailabilityConflictException|LeadHasAppointmentsException|LeadRestoreConflictException $exception, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }

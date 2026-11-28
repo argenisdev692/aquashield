@@ -34,7 +34,12 @@ enum AppointmentStatus: string
         };
     }
 
-    /** Statuses that block a technician's slot. */
+    /**
+     * Statuses that occupy the lead's active visit slot. A cancelled,
+     * completed or no-show visit does not block a new visit for the same lead;
+     * capacity is counted separately by the repository (completed and no-show
+     * still consume the day's capacity).
+     */
     public function isActive(): bool
     {
         return ! in_array($this, [self::Completed, self::NoShow, self::Cancelled], true);

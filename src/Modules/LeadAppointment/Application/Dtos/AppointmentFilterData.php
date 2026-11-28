@@ -56,7 +56,7 @@ final class AppointmentFilterData extends SoftDeleteFilterData
             'region' => ['nullable', 'string', 'in:'.implode(',', array_column(Region::cases(), 'value'))],
             'sort_field' => ['required', 'string', 'in:'.implode(',', self::SORTABLE)],
             'sort_order' => ['required', 'integer', 'in:-1,1'],
-            'page' => ['required', 'integer', 'min:1'],
+            'page' => ['required', 'integer', 'min:1', 'max:10000'],
             'per_page' => ['required', 'integer', 'min:1', 'max:100'],
         ];
     }

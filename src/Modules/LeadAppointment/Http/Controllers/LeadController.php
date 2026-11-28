@@ -24,6 +24,7 @@ use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\Exceptions\InvalidStatusTransitionException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadRestoreConflictException;
 use Modules\LeadAppointment\Http\Requests\LogLeadActivityRequest;
 use Modules\LeadAppointment\Http\Requests\MergeLeadRequest;
 use Modules\LeadAppointment\Http\Requests\StoreLeadRequest;
@@ -237,7 +238,15 @@ final readonly class LeadController
 
     public function restore(Request $request, string $uuid): JsonResponse|RedirectResponse
     {
-        $lead = $this->leadWriter->restore($uuid);
+        try {
+            $lead = $this->leadWriter->restore($uuid);
+        } catch (LeadRestoreConflictException $exception) {
+            if ($request->wantsJson()) {
+                throw $exception;
+            }
+
+            return back()->withErrors(['lead' => $exception->getMessage()]);
+        }
 
         if ($request->wantsJson()) {
             return response()->json($lead);

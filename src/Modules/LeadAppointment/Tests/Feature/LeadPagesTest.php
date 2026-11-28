@@ -9,6 +9,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Modules\Users\Enums\UserStatus;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -48,6 +49,18 @@ it('renders the leads index with the first page and the filter catalog', functio
             ->has('options.regions', 3)
             ->has('options.owners', 1)
         );
+});
+
+it('excludes suspended users from the assignable owner list', function (): void {
+    User::factory()->create([
+        'status' => UserStatus::Suspended,
+        'suspended_at' => now(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get('/leads/create')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('options.owners', 1));
 });
 
 it('renders the pipeline board grouped by stage', function (): void {

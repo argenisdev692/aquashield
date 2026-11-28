@@ -6,6 +6,7 @@ namespace Modules\LeadAppointment\Infrastructure\Mail;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Modules\Users\Enums\UserStatus;
 use Shared\Domain\Enums\Role;
 use Shared\Infrastructure\Company\CompanyProfile;
 
@@ -64,6 +65,7 @@ final readonly class OfficeMailRecipients
     private static function adminEmails(): array
     {
         $emails = User::query()
+            ->where('status', UserStatus::Active->value)
             ->whereHas('roles', static fn (Builder $query): Builder => $query->where('name', self::ADMIN_ROLE))
             ->whereNotNull('email')
             ->orderBy('id')

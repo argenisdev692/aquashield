@@ -196,13 +196,13 @@ final class Lead extends Model
             ->when($filters->search !== null && $filters->search !== '', function (Builder $q) use ($filters): void {
                 $term = '%'.addcslashes($filters->search ?? '', '\\%_').'%';
                 $q->where(function (Builder $w) use ($term): void {
-                    $w->where('first_name', 'like', $term)
-                        ->orWhere('last_name', 'like', $term)
-                        ->orWhere('company_name', 'like', $term)
-                        ->orWhere('email', 'like', $term)
-                        ->orWhere('phone', 'like', $term)
-                        ->orWhere('address', 'like', $term)
-                        ->orWhere('city', 'like', $term);
+                    $w->whereLike('first_name', $term)
+                        ->orWhereLike('last_name', $term)
+                        ->orWhereLike('company_name', $term)
+                        ->orWhereLike('email', $term)
+                        ->orWhereLike('phone', $term)
+                        ->orWhereLike('address', $term)
+                        ->orWhereLike('city', $term);
                 });
             })
             ->when($filters->pipelineStatus !== null, fn (Builder $q): Builder => $q->where('status', $filters->pipelineStatus))
@@ -271,7 +271,10 @@ final class Lead extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'owner_id', 'is_emergency', 'is_spam', 'last_contacted_at', 'converted_at', 'duplicate_of_id'])
+            ->logOnly([
+                'status', 'owner_id', 'is_emergency', 'is_spam', 'last_contacted_at', 'converted_at',
+                'duplicate_of_id', 'inspection_date', 'inspection_time', 'inspection_status',
+            ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('lead');

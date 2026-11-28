@@ -11,6 +11,7 @@ const event = (overrides: Partial<CalendarEvent> = {}): CalendarEvent => ({
     status: 'scheduled',
     kind: 'inspection',
     region: 'houston',
+    is_emergency: false,
     ...overrides,
 });
 

@@ -508,7 +508,7 @@ final readonly class EloquentAvailabilityRepository implements AvailabilityReade
             : '%'.addcslashes($filters->search, '\\%_').'%';
 
         return AvailabilityException::query()
-            ->when($search !== null, fn (Builder $query): Builder => $query->where('reason', 'like', $search))
+            ->when($search !== null, fn (Builder $query): Builder => $query->whereLike('reason', $search))
             ->when($filters->availability === 'open', fn (Builder $query): Builder => $query->where('is_available', true))
             ->when($filters->availability === 'closed', fn (Builder $query): Builder => $query->where('is_available', false))
             ->when($filters->source !== null, fn (Builder $query): Builder => $query->where('source', $filters->source))

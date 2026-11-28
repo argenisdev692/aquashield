@@ -65,6 +65,7 @@ function emailAppointment(): AppointmentData
         addressLine: '123 Main St, Houston, TX, 77002',
         kind: 'inspection',
         status: 'scheduled',
+        isEmergency: false,
         startsAt: '2026-12-07T16:00:00+00:00',
         endsAt: '2026-12-07T17:00:00+00:00',
         startsAtLocal: '2026-12-07T10:00:00-06:00',

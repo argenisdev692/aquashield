@@ -45,11 +45,7 @@ final readonly class AvailabilityExceptionExportController
     {
         $filters = AvailabilityExceptionFilterFactory::fromRequest($request);
         $rowCount = $this->availability->countExceptions($filters);
-        $limit = ExportLimit::for($format);
-
-        if ($rowCount > $limit) {
-            abort(422, "The export is limited to {$limit} rows for {$format}. Narrow the filters.");
-        }
+        ExportLimit::ensureWithin($rowCount, $format);
 
         $this->audit->log('availability_exception.exported', null, [
             'format' => $format,

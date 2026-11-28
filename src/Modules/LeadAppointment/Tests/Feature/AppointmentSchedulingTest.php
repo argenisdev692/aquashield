@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Modules\LeadAppointment\Domain\Enums\AppointmentKind;
 use Modules\LeadAppointment\Domain\Enums\AppointmentStatus;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
@@ -164,7 +165,7 @@ it('persists emergency status through delete restore and reschedule', function (
         'starts_at' => $this->date->setTime(18, 0)->format('Y-m-d H:i'),
         'duration_minutes' => 60,
         'is_emergency' => true,
-    ])->assertCreated();
+    ])->assertCreated()->assertJsonPath('is_emergency', true);
     $appointment = Appointment::query()->where('uuid', $created->json('uuid'))->firstOrFail();
 
     expect($appointment->is_emergency)->toBeTrue();
@@ -325,6 +326,59 @@ it('cancels an appointment and frees the status', function (): void {
     $this->actingAs($this->admin)
         ->postJson('/appointments/'.$created->json('uuid').'/cancel', ['reason' => 'Duplicate'])
         ->assertUnprocessable();
+});
+
+it('allows a replacement inspection after the first one is cancelled', function (): void {
+    $lead = LeadAppointmentFixtures::lead();
+
+    $first = $this->actingAs($this->admin)->postJson('/appointments', appointmentPayload(
+        $lead->uuid,
+        $this->date->format('Y-m-d H:i'),
+    ))->assertCreated();
+
+    $this->actingAs($this->admin)
+        ->postJson('/appointments/'.$first->json('uuid').'/cancel', ['reason' => 'Weather'])
+        ->assertOk();
+
+    $this->actingAs($this->admin)->postJson('/appointments', appointmentPayload(
+        $lead->uuid,
+        $this->date->format('Y-m-d H:i'),
+    ))->assertCreated()->assertJsonPath('status', AppointmentStatus::Scheduled->value);
+
+    expect($lead->refresh()->status)->toBe(LeadStatus::InspectionScheduled)
+        ->and(Appointment::query()->where('lead_id', $lead->id)->count())->toBe(2);
+});
+
+it('allows a re-inspection after the previous visit is completed', function (): void {
+    $lead = LeadAppointmentFixtures::lead();
+
+    $first = $this->actingAs($this->admin)->postJson('/appointments', appointmentPayload(
+        $lead->uuid,
+        $this->date->format('Y-m-d H:i'),
+    ))->assertCreated();
+
+    $this->actingAs($this->admin)->postJson('/appointments/'.$first->json('uuid').'/confirm')->assertOk();
+    $this->actingAs($this->admin)->postJson('/appointments/'.$first->json('uuid').'/complete')->assertOk();
+
+    $this->actingAs($this->admin)->postJson('/appointments', appointmentPayload(
+        $lead->uuid,
+        $this->date->addWeek()->format('Y-m-d H:i'),
+    ))->assertCreated();
+
+    expect(Appointment::query()->where('lead_id', $lead->id)->count())->toBe(2);
+});
+
+it('does not advance the lead for a non-inspection visit kind', function (): void {
+    $lead = LeadAppointmentFixtures::lead();
+
+    $this->actingAs($this->admin)->postJson('/appointments', [
+        'lead_uuid' => $lead->uuid,
+        'kind' => AppointmentKind::FollowUp->value,
+        'starts_at' => $this->date->format('Y-m-d H:i'),
+        'duration_minutes' => 60,
+    ])->assertCreated()->assertJsonPath('kind', AppointmentKind::FollowUp->value);
+
+    expect($lead->refresh()->status)->toBe(LeadStatus::New);
 });
 
 it('answers 401 to a guest and 403 without CREATE_APPOINTMENT', function (): void {

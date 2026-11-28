@@ -26,11 +26,7 @@ final readonly class LeadExportController
     {
         $filters = LeadFilterFactory::fromRequest($request);
         $rowCount = $this->repository->count($filters);
-        $limit = ExportLimit::for($format);
-
-        if ($rowCount > $limit) {
-            abort(422, "The export is limited to {$limit} rows for {$format}. Narrow the filters.");
-        }
+        ExportLimit::ensureWithin($rowCount, $format);
 
         // Non-PII filter summary only; never the search term itself.
         $this->audit->log('lead.exported', null, [

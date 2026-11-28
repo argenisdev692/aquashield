@@ -82,3 +82,27 @@ Schedule::command('lead-appointment:sync-holidays')
     ->withoutOverlapping(60)
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/lead-appointment-holidays.log'));
+
+// Meta ingestion payloads contain PII; processed rows are not a permanent
+// archive. Keep a short forensic window and prune the rest.
+Schedule::command('lead-appointment:prune-ingestion-events --days=30')
+    ->name('lead-appointment-prune-ingestion')
+    ->timezone('America/Chicago')
+    ->dailyAt('03:15')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/lead-appointment-prune-ingestion.log'));
+
+// Failed jobs can contain serialized mailables with lead PII. Prune them
+// weekly; queue:monitor emits QueueBusy, which AppServiceProvider logs.
+Schedule::command('queue:prune-failed --hours=168')
+    ->name('queue-prune-failed')
+    ->weeklyOn(1, '05:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::command('queue:monitor redis:default --max=1000')
+    ->name('queue-monitor')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

@@ -8,8 +8,8 @@
 appointment screens and the real dashboard (period-scoped lead columns, KPI
 sparklines and appointments) are live. The availability screen set (month grid,
 weekly hours, day exceptions and their CSV/XLSX/PDF export) is live too.
-**Last verified:** 2026-11-27 · full backend suite 955 tests / 4,392 assertions.
-`doctor` passes on 2026-11-25 (25 diagnostics, 0 failed, 1 skipped); the known
+**Last verified:** 2026-11-28 · full backend suite 971 tests / 4,446 assertions.
+`doctor` passes on 2026-11-28 (25 diagnostics, 0 failed, 1 skipped); the known
 Windows autoload timeout is excluded by the gate (see §11).
 
 This document is the review entry point. It states what the module owns, what it
@@ -44,8 +44,8 @@ before opening the 180+ files.
 | Admin API v1      | 44    | `auth:sanctum` + `permission:*`      |
 | Console commands  | 1     | Scheduler                            |
 | Database tables   | 7     | —                                    |
-| Domain events     | 8     | —                                    |
-| Listeners         | 6     | Mail and Google Calendar adapters    |
+| Domain events     | 6     | —                                    |
+| Listeners         | 9     | Mail and Google Calendar adapters    |
 
 The web surface is now dual-transport: `GET /leads` and `GET /leads/{uuid}`
 answer JSON for the DataTable/API and Inertia for the React pages, while
@@ -59,7 +59,10 @@ and `GET/POST /availability-rules`, and the month grid reads
 `GET /availability/calendar`; the pages live at `/availability`,
 `/availability/create` and `/availability/{uuid}/edit`, and their writes are
 Inertia redirects. Both read the same repositories, so the table, the month grid
-and the export cannot disagree about a day.
+and the export cannot disagree about a day. The envelope is intentionally
+different: the DataTable endpoints return `{rows,total,page,per_page}`, while
+the calendar/mobile resource returns `{data:[...]}`; the transports are not
+interchangeable.
 
 ### Admin roles and permissions
 
@@ -141,20 +144,20 @@ document is test-covered by then. The de-escalation condition is in
 
 Measured on 2026-11-25, excluding `vendor/` and `node_modules/`:
 
-| Measure                 |                                              Value |
-| ----------------------- | -------------------------------------------------: |
-| PHP files in the module |                                            **218** |
-| Production PHP files    |                                            **187** |
-| Production PHP lines    |                                          **9,612** |
-| Test files              |                                             **29** |
-| Test lines              |                                          **2,851** |
-| Average production file |                                      **~51 lines** |
-| Actions                 |                                             **11** |
-| DTOs                    |                                             **36** |
-| FormRequests            |                                             **13** |
-| Ports                   |                                             **11** |
-| Query objects           | **2** (`CalendarFeedQuery`, `DashboardStatsQuery`) |
-| Migrations              |       **15** (7 create + 8 alters and lock tables) |
+| Measure                 |                                               Value |
+| ----------------------- | --------------------------------------------------: |
+| PHP files in the module |                                             **218** |
+| Production PHP files    |                                             **187** |
+| Production PHP lines    |                                           **9,612** |
+| Test files              |                                              **30** |
+| Test lines              |                                          **2,851+** |
+| Average production file |                                       **~51 lines** |
+| Actions                 |                                              **11** |
+| DTOs                    |                                              **36** |
+| FormRequests            |                                              **13** |
+| Ports                   |                                              **11** |
+| Query objects           |  **2** (`CalendarFeedQuery`, `DashboardStatsQuery`) |
+| Migrations              | **16** (7 create + 9 alters, lock and index tables) |
 
 The file count is high; the line count is not. This is a wide, shallow module:
 many small classes with one reason to change, not a few large classes with many.
@@ -265,6 +268,8 @@ daily cap is even checked. The values live in
   rejected, so a legitimate business inbox can be reviewed.
 - `consent_text_version` falls back to `SMS_CONSENT_VERSION` when the form omits
   it. Send the hidden version when the disclosure text is versioned.
+- `is_emergency` is **not** accepted from the public form. It is a staff triage
+  decision; the appointment-level emergency bypass remains staff-controlled.
 
 ## 7. No service catalog in this phase
 
@@ -348,14 +353,14 @@ Pint --blade --test      clean
 PHPStan level 5          0 errors
 tsc --noEmit             clean
 Vite build               green
-Full backend suite     955 tests / 4,392 assertions
+Full backend suite     971 tests / 4,446 assertions
 Architecture tests       51 tests / 274 assertions
 SavedViews tests         10 tests / 67 assertions
 Composer audit           clean
 doctor                   green: 25 diagnostics, 0 failed, 1 skipped
 ```
 
-The last full Pest run was 955 tests / 4,392 assertions (`phpunit.xml` sets
+The last full Pest run was 971 tests / 4,446 assertions (`phpunit.xml` sets
 `memory_limit=1G` for the test process). `doctor` passes on 2026-11-27; the Windows
 \`Composer autoload works\` timeout is documented in `.opencode/rules/rules.md`
 and is not

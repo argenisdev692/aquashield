@@ -30,7 +30,7 @@ If a skill covers the task, read it first. No exceptions.
 
 **What exists today:** `src/Modules/` holds six modules — `AccessControl`, `ActivityLog`, `CompanyData` and
 `Users` (FLAT), plus `Backups` and `LeadAppointment` (PROGRESSIVE) — each with its own `ARCHITECTURE.md` and tests. The architecture suite in
-`tests/Architecture/` runs against them (51 tests green on 2026-11-27), and
+`tests/Architecture/` runs against them (51 tests green on 2026-11-28), and
 `resources/js/generated/generated.d.ts` is populated. `src/Shared/` is populated. Never claim a
 module, screen or DTO exists because a rule above names it — check the disk.
 
@@ -399,7 +399,7 @@ deleting any symbol, route, or `implements` always does.
 
 **Never report a module complete on a partial run.** If a step fails, say so with the real output.
 
-### Known gate state — verified 2026-11-25
+### Known gate state — verified 2026-11-28
 
 | Step                                         | State                                                                                                                                              |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -407,7 +407,7 @@ deleting any symbol, route, or `implements` always does.
 | `build`                                      | green — Vite 8.3.8; the `Welcome` chunk (1.09 MB) triggers the >500 kB warning                                                                     |
 | `analyse` (PHPStan L5)                       | green — **0 errors**                                                                                                                               |
 | `pint:test`                                  | green                                                                                                                                              |
-| `php artisan test`                           | green — **826 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
+| `php artisan test`                           | green — **971 passed, 0 skipped**; `phpunit.xml` sets the test process to `memory_limit=1G` because the full suite exceeds the Windows CLI default |
 | `doctor`                                     | green — 25 diagnostics, 0 failed, 1 skipped, 3 notices; `composer audit --no-dev` is clean (Symfony 8.1.12) and runs inside `composer check`       |
 
 What that means for you:

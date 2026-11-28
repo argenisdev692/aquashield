@@ -25,6 +25,7 @@ final class AppointmentData extends Data
         public string $addressLine,
         public string $kind,
         public string $status,
+        public bool $isEmergency,
         public string $startsAt,
         public string $endsAt,
         public string $startsAtLocal,

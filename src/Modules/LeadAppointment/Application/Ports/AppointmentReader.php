@@ -34,12 +34,6 @@ interface AppointmentReader
         ?string $excludeUuid = null,
     ): array;
 
-    public function dailyCountForDay(
-        CarbonImmutable $dayStart,
-        CarbonImmutable $dayEnd,
-        ?string $excludeUuid = null,
-    ): int;
-
     /**
      * @return list<AppointmentData>
      */

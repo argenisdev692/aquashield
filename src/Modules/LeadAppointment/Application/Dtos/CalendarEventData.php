@@ -29,5 +29,6 @@ final class CalendarEventData extends Data
         public string $status,
         public string $kind,
         public string $region,
+        public bool $isEmergency,
     ) {}
 }

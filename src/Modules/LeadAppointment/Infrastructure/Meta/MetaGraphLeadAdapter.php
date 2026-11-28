@@ -94,9 +94,9 @@ final readonly class MetaGraphLeadAdapter implements LeadSourceGateway
             function () use ($url, $token): array {
                 $response = Http::timeout(10)
                     ->retry(3, 100, throw: false)
+                    ->withToken($token)
                     ->get($url, [
                         'fields' => 'id,created_time,field_data,ad_id,form_id,campaign_id,adset_id,page_id',
-                        'access_token' => $token,
                     ]);
 
                 if ($response->failed()) {

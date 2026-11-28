@@ -63,6 +63,12 @@ it('rejects invalid create input with 422', function (): void {
         ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'phone']);
 });
 
+it('rejects an out-of-range page number', function (): void {
+    $this->actingAs($this->admin)
+        ->getJson('/leads?page=10001')
+        ->assertUnprocessable();
+});
+
 it('creates, lists and shows a lead without exposing the internal id', function (): void {
     $created = $this->actingAs($this->admin)->postJson('/leads', [
         'first_name' => 'Ada',
@@ -96,6 +102,21 @@ it('creates, lists and shows a lead without exposing the internal id', function 
         'uuid' => $uuid,
         'created_by' => $this->admin->id,
     ]);
+});
+
+it('matches lead search case-insensitively', function (): void {
+    Lead::factory()->create([
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@example.com',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->getJson('/leads?search=ada')
+        ->assertOk()
+        ->assertJsonPath('total', 1);
 });
 
 it('title-cases lead names and rejects digits or more than 50 characters', function (): void {
@@ -234,6 +255,35 @@ it('logs a contact activity and updates the last contact timestamp', function ()
     expect($lead->refresh()->last_contacted_at)->not->toBeNull();
 });
 
+it('keeps the newest contact timestamp when an older activity is logged', function (): void {
+    $lead = Lead::factory()->create();
+    $recent = now()->subHour();
+    $older = now()->subDays(2);
+
+    $this->actingAs($this->admin)->postJson('/leads/'.$lead->uuid.'/activities', [
+        'type' => 'call',
+        'occurred_at' => $recent->toIso8601String(),
+    ])->assertCreated();
+
+    $this->actingAs($this->admin)->postJson('/leads/'.$lead->uuid.'/activities', [
+        'type' => 'note',
+        'occurred_at' => $older->toIso8601String(),
+    ])->assertCreated();
+
+    expect($lead->refresh()->last_contacted_at?->timestamp)->toBe($recent->timestamp);
+});
+
+it('recomputes the target last contact when a newer duplicate is merged', function (): void {
+    $target = Lead::factory()->create(['last_contacted_at' => now()->subDays(2)]);
+    $duplicate = Lead::factory()->create(['last_contacted_at' => now()->subHour()]);
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/'.$target->uuid.'/merge', ['duplicate_uuid' => $duplicate->uuid])
+        ->assertOk();
+
+    expect($target->refresh()->last_contacted_at?->timestamp)->toBe($duplicate->last_contacted_at?->timestamp);
+});
+
 it('merges a duplicate into the target lead and soft-deletes it', function (): void {
     $target = Lead::factory()->create(['region' => 'houston', 'state' => 'TX']);
     $duplicate = Lead::factory()->create(['region' => 'houston', 'state' => 'TX']);
@@ -270,6 +320,61 @@ it('blocks merging leads that have appointments', function (): void {
 
     expect($duplicate->refresh()->trashed())->toBeFalse()
         ->and($appointment->refresh()->lead_id)->toBe($duplicate->id);
+});
+
+it('refuses to restore a lead whose external id was recaptured', function (): void {
+    $old = Lead::factory()->create([
+        'external_source' => 'meta',
+        'external_id' => 'leadgen-1',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+    $old->delete();
+
+    Lead::factory()->create([
+        'external_source' => 'meta',
+        'external_id' => 'leadgen-1',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->patchJson('/leads/'.$old->uuid.'/restore')
+        ->assertUnprocessable();
+
+    expect($old->refresh()->trashed())->toBeTrue();
+});
+
+it('rolls back a bulk restore when one external id collides', function (): void {
+    $first = Lead::factory()->create([
+        'external_source' => 'meta',
+        'external_id' => 'leadgen-2',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+    $second = Lead::factory()->create([
+        'external_source' => 'meta',
+        'external_id' => 'leadgen-3',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+
+    $first->delete();
+    $second->delete();
+
+    Lead::factory()->create([
+        'external_source' => 'meta',
+        'external_id' => 'leadgen-2',
+        'region' => 'houston',
+        'state' => 'TX',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->postJson('/leads/bulk-restore', ['uuids' => [$second->uuid, $first->uuid]])
+        ->assertUnprocessable();
+
+    expect($first->refresh()->trashed())->toBeTrue()
+        ->and($second->refresh()->trashed())->toBeTrue();
 });
 
 it('rejects a self-merge and a trashed duplicate with 422', function (): void {

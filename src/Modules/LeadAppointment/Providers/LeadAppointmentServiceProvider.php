@@ -31,6 +31,7 @@ use Modules\LeadAppointment\Domain\Ports\HolidayProvider;
 use Modules\LeadAppointment\Domain\Ports\HolidayScheduleWriter;
 use Modules\LeadAppointment\Domain\Services\EmailSpamGuard;
 use Modules\LeadAppointment\Domain\Services\SpamGuard;
+use Modules\LeadAppointment\Infrastructure\Console\Commands\PruneLeadIngestionEventsCommand;
 use Modules\LeadAppointment\Infrastructure\Console\Commands\SyncUsHolidaysCommand;
 use Modules\LeadAppointment\Infrastructure\GoogleCalendar\SpatieCalendarSyncAdapter;
 use Modules\LeadAppointment\Infrastructure\Holidays\UsFederalHolidayProvider;
@@ -125,7 +126,7 @@ final class LeadAppointmentServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
         $this->loadRoutesFrom(__DIR__.'/../Routes/api_v1.php');
         $this->loadMigrationsFrom(__DIR__.'/../Infrastructure/Persistence/Migrations');
-        $this->commands([SyncUsHolidaysCommand::class]);
+        $this->commands([SyncUsHolidaysCommand::class, PruneLeadIngestionEventsCommand::class]);
 
         User::resolveRelationUsing(
             'ownedLeads',

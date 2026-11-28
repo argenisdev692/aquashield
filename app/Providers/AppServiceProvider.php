@@ -6,11 +6,15 @@ namespace App\Providers;
 
 use App\Listeners\AuthEventSubscriber;
 use App\Listeners\GuardDestructiveCommandsOnRemoteDatabase;
+use App\Models\User;
 use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Transport\ResendTransport;
+use Illuminate\Queue\Events\QueueBusy;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +25,7 @@ use Resend\Transporters\HttpTransporter;
 use Resend\ValueObjects\ApiKey;
 use Resend\ValueObjects\Transporter\BaseUri;
 use Resend\ValueObjects\Transporter\Headers;
+use Shared\Domain\Enums\Role;
 use Shared\Infrastructure\Mail\CircuitBreakerTransport;
 use Shared\Infrastructure\Resilience\CircuitBreaker\CircuitBreakerInterface;
 use Symfony\Component\Mailer\Transport\TransportInterface;
@@ -96,6 +101,20 @@ class AppServiceProvider extends ServiceProvider
         // and Fortify events. The subscriber is the only place that knows the
         // event-to-activity mapping.
         Event::subscribe(AuthEventSubscriber::class);
+
+        // Scramble's RestrictedDocsAccess allows local or a `viewApiDocs`
+        // gate. Production docs are therefore closed unless a super admin is
+        // signed in; define the gate so the operator retains a controlled path.
+        Gate::define('viewApiDocs', static fn (User $user): bool => $user->hasRole(Role::SuperAdmin->value));
+
+        // queue:monitor dispatches this event when a queue exceeds --max.
+        Event::listen(QueueBusy::class, static function (QueueBusy $event): void {
+            Log::warning('queue.busy', [
+                'connection' => $event->connectionName,
+                'queue' => $event->queue,
+                'size' => $event->size,
+            ]);
+        });
 
         // A local shell must not wipe a hosted database just because .env
         // points at it.

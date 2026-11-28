@@ -677,25 +677,6 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "An error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview."
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
-                                }
-                            }
-                        }
-                    },
                     "429": {
                         "description": "Too many requests",
                         "content": {
@@ -2044,25 +2025,6 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "An error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview."
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
-                                }
-                            }
-                        }
-                    },
                     "429": {
                         "description": "Too many requests",
                         "content": {
@@ -3190,25 +3152,6 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "An error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "description": "Error overview."
-                                        }
-                                    },
-                                    "required": [
-                                        "message"
-                                    ]
-                                }
-                            }
-                        }
-                    },
                     "429": {
                         "description": "Too many requests",
                         "content": {
@@ -3597,6 +3540,9 @@
                     "status": {
                         "type": "string"
                     },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
                     "starts_at": {
                         "type": "string"
                     },
@@ -3659,6 +3605,7 @@
                     "address_line",
                     "kind",
                     "status",
+                    "is_emergency",
                     "starts_at",
                     "ends_at",
                     "starts_at_local",
@@ -4084,6 +4031,9 @@
                     },
                     "region": {
                         "type": "string"
+                    },
+                    "is_emergency": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -4094,7 +4044,8 @@
                     "timezone",
                     "status",
                     "kind",
-                    "region"
+                    "region",
+                    "is_emergency"
                 ],
                 "title": "CalendarEventData"
             },
@@ -5075,6 +5026,9 @@
                     "status": {
                         "type": "string"
                     },
+                    "is_emergency": {
+                        "type": "boolean"
+                    },
                     "starts_at": {
                         "type": "string"
                     },
@@ -5137,6 +5091,7 @@
                     "address_line",
                     "kind",
                     "status",
+                    "is_emergency",
                     "starts_at",
                     "ends_at",
                     "starts_at_local",
@@ -5617,11 +5572,9 @@
                             "null"
                         ]
                     },
-                    "is_emergency": {
-                        "type": "boolean"
-                    },
                     "sms_consent": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "`is_emergency` is deliberately not accepted from the public form:\nstaff decide the emergency flag after triage."
                     },
                     "consent_text_version": {
                         "type": [

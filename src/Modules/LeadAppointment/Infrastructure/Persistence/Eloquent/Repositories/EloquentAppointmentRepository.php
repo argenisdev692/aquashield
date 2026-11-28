@@ -55,7 +55,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
                 'lead:id,uuid,first_name,last_name,email,phone,address,address_2,city,state,zip_code',
             ])
             ->select([
-                'id', 'uuid', 'lead_id', 'kind', 'status',
+                'id', 'uuid', 'lead_id', 'kind', 'status', 'is_emergency',
                 'starts_at', 'ends_at', 'timezone', 'previous_starts_at', 'previous_ends_at',
                 'region', 'google_event_id', 'cancel_reason', 'notes', 'created_at', 'deleted_at',
             ])
@@ -89,10 +89,12 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             throw new \InvalidArgumentException('A start time is required to schedule an appointment.');
         }
 
-        return DB::transaction(function () use ($data, $createdBy): AppointmentData {
+        $appointment = DB::transaction(function () use ($data, $createdBy): Appointment {
             $this->calendarLock->acquire();
 
-            $lead = Lead::query()->where('uuid', $data->leadUuid)->lockForUpdate()->first();
+            // lockForNoKeyUpdate() avoids PostgreSQL's FK key-share blocking
+            // while this transaction inserts the appointment child row.
+            $lead = Lead::query()->where('uuid', $data->leadUuid)->lockForNoKeyUpdate()->first();
 
             if ($lead === null) {
                 throw new LeadNotFoundException;
@@ -108,8 +110,25 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             $startsAt = CarbonImmutable::parse($data->startsAt, $timezone)->utc();
             $endsAt = $startsAt->addMinutes($duration);
 
-            $this->transitions->assertLead($lead->status, LeadStatus::InspectionScheduled);
             $this->assertBookingAllowed($startsAt, $endsAt, $timezone, null, $data->isEmergency);
+
+            $advancesLead = $data->kind === AppointmentKind::Inspection;
+
+            if ($advancesLead) {
+                $hasActiveInspection = Appointment::query()
+                    ->where('lead_id', $lead->id)
+                    ->where('kind', AppointmentKind::Inspection->value)
+                    ->whereIn('status', $this->activeStatusValues())
+                    ->exists();
+
+                if ($hasActiveInspection) {
+                    throw InvalidStatusTransitionException::for($lead->status->value, 'inspection_scheduled');
+                }
+
+                if ($lead->status !== LeadStatus::InspectionScheduled) {
+                    $this->transitions->assertLead($lead->status, LeadStatus::InspectionScheduled);
+                }
+            }
 
             $appointment = Appointment::query()->create([
                 'lead_id' => $lead->id,
@@ -124,19 +143,23 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
                 'created_by' => $createdBy,
             ]);
 
-            $lead->status = LeadStatus::InspectionScheduled;
-            $lead->save();
+            if ($advancesLead) {
+                $lead->status = LeadStatus::InspectionScheduled;
+                $lead->save();
+            }
 
-            return $this->find($appointment->uuid)
-                ?? throw new \RuntimeException('Appointment was not persisted.');
+            return $appointment;
         });
+
+        return $this->find($appointment->uuid)
+            ?? throw new \RuntimeException('Appointment was not persisted.');
     }
 
     public function reschedule(
         string $uuid,
         RescheduleAppointmentData $data,
     ): AppointmentData {
-        return DB::transaction(function () use ($uuid, $data): AppointmentData {
+        $appointment = DB::transaction(function () use ($uuid, $data): Appointment {
             $this->calendarLock->acquire();
 
             $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->first();
@@ -172,9 +195,11 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             $appointment->notes = trim(($appointment->notes ?? '')."\nRescheduled: ".$data->reason);
             $appointment->save();
 
-            return $this->find($appointment->uuid)
-                ?? throw new \RuntimeException('Appointment was not persisted.');
+            return $appointment;
         });
+
+        return $this->find($appointment->uuid)
+            ?? throw new \RuntimeException('Appointment was not persisted.');
     }
 
     public function updateStatus(
@@ -182,7 +207,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
         AppointmentStatus $status,
         ?string $reason = null,
     ): AppointmentData {
-        return DB::transaction(function () use ($uuid, $status, $reason): AppointmentData {
+        $appointment = DB::transaction(function () use ($uuid, $status, $reason): Appointment {
             $this->calendarLock->acquire();
 
             $appointment = Appointment::query()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
@@ -200,9 +225,11 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
             $appointment->save();
 
-            return $this->find($appointment->uuid)
-                ?? throw new \RuntimeException('Appointment was not persisted.');
+            return $appointment;
         });
+
+        return $this->find($appointment->uuid)
+            ?? throw new \RuntimeException('Appointment was not persisted.');
     }
 
     /**
@@ -225,19 +252,6 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             ))
             ->values()
             ->all();
-    }
-
-    public function dailyCountForDay(
-        CarbonImmutable $dayStart,
-        CarbonImmutable $dayEnd,
-        ?string $excludeUuid = null,
-    ): int {
-        return Appointment::query()
-            ->where('starts_at', '<', $dayEnd)
-            ->where('ends_at', '>', $dayStart)
-            ->whereNotIn('status', $this->inactiveStatuses())
-            ->when($excludeUuid !== null, fn ($query) => $query->where('uuid', '!=', $excludeUuid))
-            ->count();
     }
 
     /**
@@ -276,7 +290,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             ->where('starts_at', '<=', $to->utc())
             ->when($region !== null, fn ($query) => $query->where('region', $region))
             ->orderBy('starts_at')
-            ->get(['id', 'uuid', 'lead_id', 'starts_at', 'timezone', 'status', 'kind', 'region'])
+            ->get(['id', 'uuid', 'lead_id', 'starts_at', 'timezone', 'status', 'kind', 'region', 'is_emergency'])
             ->map(function (Appointment $appointment): CalendarEventData {
                 $name = trim($appointment->lead->first_name.' '.$appointment->lead->last_name);
 
@@ -289,6 +303,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
                     status: $appointment->status->value,
                     kind: $appointment->kind->value,
                     region: $appointment->region->value,
+                    isEmergency: $appointment->is_emergency,
                 );
             })
             ->values()
@@ -342,7 +357,16 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
     public function setGoogleEventId(string $uuid, ?string $eventId): void
     {
-        Appointment::query()->where('uuid', $uuid)->update(['google_event_id' => $eventId]);
+        $appointment = Appointment::query()->where('uuid', $uuid)->first();
+
+        if ($appointment === null) {
+            return;
+        }
+
+        // Model save, not a query-builder update: LogsActivity listens to
+        // Eloquent events, and google_event_id is in the audit allowlist.
+        $appointment->google_event_id = $eventId;
+        $appointment->save();
     }
 
     public function delete(string $uuid): void
@@ -363,7 +387,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
 
     public function restore(string $uuid): AppointmentData
     {
-        return DB::transaction(function () use ($uuid): AppointmentData {
+        $appointment = DB::transaction(function () use ($uuid): Appointment {
             $this->calendarLock->acquire();
 
             $appointment = Appointment::onlyTrashed()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
@@ -381,9 +405,11 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             $appointment->restore();
             $this->events->dispatch(new AppointmentRestored($appointment->uuid));
 
-            return $this->find($appointment->uuid)
-                ?? throw new \RuntimeException('Appointment was not restored.');
+            return $appointment;
         });
+
+        return $this->find($appointment->uuid)
+            ?? throw new \RuntimeException('Appointment was not restored.');
     }
 
     /**
@@ -504,6 +530,20 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
         return [AppointmentStatus::Cancelled->value];
     }
 
+    /**
+     * @return list<string>
+     */
+    private function activeStatusValues(): array
+    {
+        return array_values(array_map(
+            static fn (AppointmentStatus $status): string => $status->value,
+            array_filter(
+                AppointmentStatus::cases(),
+                static fn (AppointmentStatus $status): bool => $status->isActive(),
+            ),
+        ));
+    }
+
     private function toData(Appointment $appointment): AppointmentData
     {
         $lead = $appointment->lead;
@@ -524,6 +564,7 @@ final readonly class EloquentAppointmentRepository implements AppointmentReader,
             addressLine: $address,
             kind: $appointment->kind->value,
             status: $appointment->status->value,
+            isEmergency: $appointment->is_emergency,
             startsAt: $appointment->starts_at->utc()->toIso8601String(),
             endsAt: $appointment->ends_at->utc()->toIso8601String(),
             startsAtLocal: $appointment->starts_at->setTimezone($appointment->timezone)->toIso8601String(),

@@ -26,11 +26,7 @@ final readonly class AppointmentExportController
     {
         $filters = AppointmentFilterFactory::fromRequest($request);
         $rowCount = $this->repository->count($filters);
-        $limit = ExportLimit::for($format);
-
-        if ($rowCount > $limit) {
-            abort(422, "The export is limited to {$limit} rows for {$format}. Narrow the filters.");
-        }
+        ExportLimit::ensureWithin($rowCount, $format);
 
         $this->audit->log('appointment.exported', null, [
             'format' => $format,

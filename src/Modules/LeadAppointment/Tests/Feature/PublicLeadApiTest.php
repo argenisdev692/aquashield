@@ -117,6 +117,20 @@ it('rejects a client-supplied source', function (): void {
     expect(Lead::query()->firstOrFail()->source->value)->toBe('website');
 });
 
+it('ignores a client-supplied emergency flag', function (): void {
+    $response = $this->postJson('/api/leads', [
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada-emergency@aquashieldrestorationusa.com',
+        'region' => 'houston',
+        'is_emergency' => true,
+    ])->assertCreated();
+
+    $lead = Lead::query()->where('uuid', $response->json('reference'))->firstOrFail();
+
+    expect($lead->is_emergency)->toBeFalse();
+});
+
 it('rejects placeholder and disposable email domains', function (): void {
     foreach (['ada@example.com', 'ada@company.com', 'ada@mailinator.com'] as $email) {
         $this->postJson('/api/leads', [

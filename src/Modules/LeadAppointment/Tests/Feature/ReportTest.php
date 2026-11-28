@@ -35,6 +35,35 @@ it('rejects a report window larger than the configured maximum', function (): vo
         ->assertUnprocessable();
 });
 
+it('reports a per-source first-contact average, not one global value', function (): void {
+    $createdAt = now()->subHour();
+
+    Lead::factory()->create([
+        'source' => 'website',
+        'created_at' => $createdAt,
+        'last_contacted_at' => $createdAt->copy()->addMinutes(10),
+    ]);
+
+    Lead::factory()->create([
+        'source' => 'meta',
+        'created_at' => $createdAt,
+        'last_contacted_at' => $createdAt->copy()->addMinutes(30),
+    ]);
+
+    $response = $this->actingAs($this->admin)
+        ->getJson('/reports/lead-sources?'.http_build_query([
+            'from' => now()->subDay()->toDateString(),
+            'to' => now()->addDay()->toDateString(),
+        ]))
+        ->assertOk();
+
+    $rows = collect($response->json('rows'))->keyBy('source');
+
+    expect($rows['website']['average_first_contact_minutes'])->toBe(10)
+        ->and($rows['meta']['average_first_contact_minutes'])->toBe(30)
+        ->and($response->json('average_first_contact_minutes'))->toBe(20);
+});
+
 it('reports active leads and excludes soft-deleted ones', function (): void {
     Lead::factory()->create();
 

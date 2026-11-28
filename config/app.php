@@ -71,6 +71,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated proxy CIDRs trusted for X-Forwarded-* headers. `*` keeps
+    | the historical Railway behaviour; production should narrow it and/or
+    | ensure the edge overwrites an inbound X-Forwarded-For.
+    |
+    */
+    'trusted_proxies' => env('TRUSTED_PROXIES', '*'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

@@ -7,6 +7,7 @@ namespace Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Repositori
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\LeadAppointment\Application\Dtos\AssignableOwnerData;
 use Modules\LeadAppointment\Application\Dtos\CaptureLeadData;
@@ -27,20 +28,20 @@ use Modules\LeadAppointment\Domain\Enums\LeadSource;
 use Modules\LeadAppointment\Domain\Enums\LeadStatus;
 use Modules\LeadAppointment\Domain\Enums\Region;
 use Modules\LeadAppointment\Domain\Exceptions\LeadHasAppointmentsException;
+use Modules\LeadAppointment\Domain\Exceptions\LeadRestoreConflictException;
 use Modules\LeadAppointment\Domain\Services\StatusTransition;
 use Modules\LeadAppointment\Domain\ValueObjects\DateWindow;
 use Modules\LeadAppointment\Domain\ValueObjects\DuplicateCandidate;
 use Modules\LeadAppointment\Domain\ValueObjects\PhoneNumber;
 use Modules\LeadAppointment\Domain\ValueObjects\SpamAssessment;
-use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\CalendarLock;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Appointment;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\Lead;
 use Modules\LeadAppointment\Infrastructure\Persistence\Eloquent\Models\LeadActivity;
+use Modules\Users\Enums\UserStatus;
 
 final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 {
     public function __construct(
-        private CalendarLock $calendarLock,
         private StatusTransition $transitions,
     ) {}
 
@@ -89,6 +90,10 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
                 ->when($window !== null, fn ($query) => $query->whereBetween('created_at', [$window->start->utc(), $window->end->utc()]))
                 ->when($region !== null, fn ($query) => $query->where('region', $region))
                 ->when($source !== null, fn ($query) => $query->where('source', $source))
+                ->select([
+                    'id', 'uuid', 'first_name', 'last_name', 'phone', 'city', 'state', 'region',
+                    'source', 'status', 'is_emergency', 'is_spam', 'last_contacted_at', 'created_at',
+                ])
                 ->orderByDesc('created_at')
                 ->with('latestAppointment:id,lead_id,starts_at,ends_at,timezone,status')
                 ->limit($perStage)
@@ -212,6 +217,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
     public function assignableOwners(): array
     {
         return User::query()
+            ->where('status', UserStatus::Active->value)
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->limit(500)
@@ -369,10 +375,8 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
         ?LogLeadActivityData $activity = null,
         ?int $actorId = null,
     ): LeadData {
-        return DB::transaction(function () use ($uuid, $status, $inspectionDate, $inspectionTime, $inspectionStatus, $activity, $actorId): LeadData {
-            $this->calendarLock->acquire();
-
-            $lead = Lead::query()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
+        $lead = DB::transaction(function () use ($uuid, $status, $inspectionDate, $inspectionTime, $inspectionStatus, $activity, $actorId): Lead {
+            $lead = Lead::query()->where('uuid', $uuid)->lockForNoKeyUpdate()->firstOrFail();
 
             if ($lead->status !== $status) {
                 $this->transitions->assertLead($lead->status, $status);
@@ -402,8 +406,10 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
                 $this->createActivity($lead, $activity, $actorId);
             }
 
-            return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
+            return $lead;
         });
+
+        return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
     }
 
     public function logActivity(string $leadUuid, LogLeadActivityData $data, ?int $userId): LeadActivityData
@@ -430,8 +436,10 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
             'occurred_at' => $occurredAt,
         ]);
 
-        $lead->last_contacted_at = $occurredAt;
-        $lead->save();
+        if ($lead->last_contacted_at === null || $occurredAt->greaterThan($lead->last_contacted_at)) {
+            $lead->last_contacted_at = $occurredAt;
+            $lead->save();
+        }
 
         return $activity;
     }
@@ -471,7 +479,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
                 }
 
                 if ($address !== '') {
-                    $query->orWhere('address', 'like', '%'.addcslashes($address, '\\%_').'%');
+                    $query->orWhereLike('address', '%'.addcslashes($address, '\\%_').'%');
                 }
             })
             ->limit(20)
@@ -491,11 +499,17 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 
     public function merge(string $targetUuid, string $duplicateUuid): LeadData
     {
-        return DB::transaction(function () use ($targetUuid, $duplicateUuid): LeadData {
-            $this->calendarLock->acquire();
+        $target = DB::transaction(function () use ($targetUuid, $duplicateUuid): Lead {
+            $lockOrder = [$targetUuid, $duplicateUuid];
+            sort($lockOrder);
+            $locked = [];
 
-            $target = Lead::query()->where('uuid', $targetUuid)->lockForUpdate()->firstOrFail();
-            $duplicate = Lead::query()->where('uuid', $duplicateUuid)->lockForUpdate()->firstOrFail();
+            foreach ($lockOrder as $uuid) {
+                $locked[$uuid] = Lead::query()->where('uuid', $uuid)->lockForNoKeyUpdate()->firstOrFail();
+            }
+
+            $target = $locked[$targetUuid];
+            $duplicate = $locked[$duplicateUuid];
 
             if (Appointment::query()->whereIn('lead_id', [$target->id, $duplicate->id])->exists()) {
                 throw new LeadHasAppointmentsException;
@@ -507,16 +521,36 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
             $duplicate->save();
             $duplicate->delete();
 
-            return $this->find($target->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
+            $latestActivityAt = LeadActivity::query()->where('lead_id', $target->id)->max('occurred_at');
+            $latest = $target->last_contacted_at;
+
+            if ($duplicate->last_contacted_at !== null && ($latest === null || $duplicate->last_contacted_at->greaterThan($latest))) {
+                $latest = $duplicate->last_contacted_at;
+            }
+
+            if ($latestActivityAt !== null) {
+                $activityAt = CarbonImmutable::parse($latestActivityAt);
+
+                if ($latest === null || $activityAt->greaterThan($latest)) {
+                    $latest = $activityAt;
+                }
+            }
+
+            if ($latest !== null) {
+                $target->last_contacted_at = $latest;
+                $target->save();
+            }
+
+            return $target;
         });
+
+        return $this->find($target->uuid) ?? throw new \RuntimeException('Lead was not persisted.');
     }
 
     public function delete(string $uuid): void
     {
         DB::transaction(function () use ($uuid): void {
-            $this->calendarLock->acquire();
-
-            $lead = Lead::query()->where('uuid', $uuid)->lockForUpdate()->first();
+            $lead = Lead::query()->where('uuid', $uuid)->lockForNoKeyUpdate()->first();
 
             if ($lead === null) {
                 return;
@@ -532,8 +566,16 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 
     public function restore(string $uuid): LeadData
     {
-        $lead = Lead::onlyTrashed()->where('uuid', $uuid)->firstOrFail();
-        $lead->restore();
+        try {
+            $lead = DB::transaction(function () use ($uuid): Lead {
+                $lead = Lead::onlyTrashed()->where('uuid', $uuid)->lockForUpdate()->firstOrFail();
+                $lead->restore();
+
+                return $lead;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw LeadRestoreConflictException::forExternalId();
+        }
 
         return $this->find($lead->uuid) ?? throw new \RuntimeException('Lead was not restored.');
     }
@@ -544,9 +586,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
     public function bulkDelete(array $uuids): void
     {
         DB::transaction(function () use ($uuids): void {
-            $this->calendarLock->acquire();
-
-            $leads = Lead::query()->whereIn('uuid', $uuids)->orderBy('id')->lockForUpdate()->get();
+            $leads = Lead::query()->whereIn('uuid', $uuids)->orderBy('id')->lockForNoKeyUpdate()->get();
 
             if ($leads->isEmpty()) {
                 return;
@@ -567,9 +607,17 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
      */
     public function bulkRestore(array $uuids): void
     {
-        Lead::onlyTrashed()->whereIn('uuid', $uuids)->get()->each(
-            static fn (Lead $lead) => $lead->restore(),
-        );
+        try {
+            DB::transaction(function () use ($uuids): void {
+                $leads = Lead::onlyTrashed()->whereIn('uuid', $uuids)->orderBy('id')->lockForUpdate()->get();
+
+                foreach ($leads as $lead) {
+                    $lead->restore();
+                }
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw LeadRestoreConflictException::forBulk();
+        }
     }
 
     public function count(LeadFilterData $filters): int
@@ -613,19 +661,32 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
             ->get()
             ->map(static fn (object $row): array => (array) $row);
 
-        $totalMinutes = 0;
-        $contacted = 0;
+        $totals = [];
+        $counts = [];
+        $overallTotal = 0.0;
+        $overallCount = 0;
 
         foreach (Lead::query()
-            ->select(['created_at', 'last_contacted_at'])
+            ->select(['source', 'created_at', 'last_contacted_at'])
             ->whereNotNull('last_contacted_at')
             ->whereBetween('created_at', [$start, $end])
             ->cursor() as $lead) {
-            $totalMinutes += $lead->created_at->diffInMinutes($lead->last_contacted_at);
-            $contacted++;
+            $source = $lead->source->value;
+            $minutes = $lead->created_at->diffInMinutes($lead->last_contacted_at);
+
+            $totals[$source] = ($totals[$source] ?? 0.0) + $minutes;
+            $counts[$source] = ($counts[$source] ?? 0) + 1;
+            $overallTotal += $minutes;
+            $overallCount++;
         }
 
-        $average = $contacted > 0 ? (int) round($totalMinutes / $contacted) : null;
+        $averages = [];
+
+        foreach ($counts as $source => $count) {
+            $averages[$source] = (int) round($totals[$source] / $count);
+        }
+
+        $average = $overallCount > 0 ? (int) round($overallTotal / $overallCount) : null;
 
         // One aggregate for every source instead of one COUNT per source row.
         // The join keeps the same scope as the per-source whereHas it replaces.
@@ -638,7 +699,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
             ->groupBy('leads.source')
             ->pluck('aggregate', 'source');
 
-        $reportRows = $rows->map(function (array $row) use ($appointmentCounts, $average): LeadSourceReportRowData {
+        $reportRows = $rows->map(function (array $row) use ($appointmentCounts, $averages): LeadSourceReportRowData {
             $source = (string) $row['source'];
             $appointments = (int) ($appointmentCounts[$source] ?? 0);
             $leads = (int) $row['leads'];
@@ -651,7 +712,7 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
                 appointments: $appointments,
                 won: $won,
                 conversionRate: $leads > 0 ? round($won / $leads, 4) : 0.0,
-                averageFirstContactMinutes: $average,
+                averageFirstContactMinutes: $averages[$source] ?? null,
             );
         })->values()->all();
 
@@ -671,7 +732,10 @@ final readonly class EloquentLeadRepository implements LeadReader, LeadWriter
 
         $appointment = $lead->latestAppointment;
         $inspection = $appointment?->starts_at->setTimezone($appointment->timezone);
-        $registeredAt = $lead->created_at?->setTimezone($lead->region?->timezone() ?? config('app.timezone'));
+        $registeredAt = $lead->created_at?->setTimezone(
+            $lead->region?->timezone()
+            ?? Region::from((string) config('lead-appointment.default_region', Region::Houston->value))->timezone(),
+        );
 
         $inspectionDate = $inspection?->toDateString() ?? $lead->inspection_date?->toDateString();
         $inspectionTime = $inspection?->format('H:i')

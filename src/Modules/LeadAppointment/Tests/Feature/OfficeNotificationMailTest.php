@@ -11,6 +11,7 @@ use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeEvent;
 use Modules\LeadAppointment\Infrastructure\Mail\AppointmentOfficeMail;
 use Modules\LeadAppointment\Infrastructure\Mail\NewLeadMail;
 use Modules\LeadAppointment\Tests\Support\LeadAppointmentFixtures;
+use Modules\Users\Enums\UserStatus;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -98,6 +99,26 @@ it('cc every admin role mailbox and never duplicates the company address', funct
             && $mail->hasCc('admin@aquashieldrestorationusa.com')
             && $mail->hasCc('supervisor@aquashieldrestorationusa.com')
             && ! $mail->hasCc('office@aquashieldrestorationusa.com');
+    });
+});
+
+it('omits a suspended admin from the office cc list', function (): void {
+    $suspended = officeNotificationAdmin('suspended@aquashieldrestorationusa.com');
+    $suspended->forceFill([
+        'status' => UserStatus::Suspended,
+        'suspended_at' => now(),
+    ])->save();
+
+    $this->postJson('/api/leads', [
+        'first_name' => 'Ada',
+        'last_name' => 'Lovelace',
+        'email' => 'ada@aquashieldrestorationusa.com',
+        'phone' => '(713) 555-0199',
+        'region' => 'houston',
+    ])->assertCreated();
+
+    Mail::assertQueued(NewLeadMail::class, function (NewLeadMail $mail): bool {
+        return ! $mail->hasCc('suspended@aquashieldrestorationusa.com');
     });
 });
 

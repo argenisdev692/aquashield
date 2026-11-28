@@ -32,6 +32,8 @@ it('encodes the external id before it reaches the Graph path', function (): void
     (new MetaGraphLeadAdapter($breaker))->fetch('12/34?x=1');
 
     Http::assertSent(static function (Request $request): bool {
-        return str_contains($request->url(), '/v27.0/12%2F34%3Fx%3D1');
+        return str_contains($request->url(), '/v27.0/12%2F34%3Fx%3D1')
+            && $request->hasHeader('Authorization', 'Bearer test-token')
+            && ! str_contains($request->url(), 'access_token=');
     });
 });

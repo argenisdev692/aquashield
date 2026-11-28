@@ -394,6 +394,7 @@ declare namespace Modules {
                     address_line: string;
                     kind: string;
                     status: string;
+                    is_emergency: boolean;
                     starts_at: string;
                     ends_at: string;
                     starts_at_local: string;
@@ -492,6 +493,7 @@ declare namespace Modules {
                     status: string;
                     kind: string;
                     region: string;
+                    is_emergency: boolean;
                 };
                 export type CalendarEventsData = {
                     data: Modules.LeadAppointment.Application.Dtos.CalendarEventData[];

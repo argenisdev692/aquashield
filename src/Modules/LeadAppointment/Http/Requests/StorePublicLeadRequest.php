@@ -57,7 +57,8 @@ final class StorePublicLeadRequest extends FormRequest
             'insurance_property' => ['sometimes', 'boolean'],
             'message' => ['nullable', 'string', 'max:5000'],
             'intent_to_claim' => ['nullable', 'boolean'],
-            'is_emergency' => ['sometimes', 'boolean'],
+            // `is_emergency` is deliberately not accepted from the public form:
+            // staff decide the emergency flag after triage.
             'sms_consent' => ['sometimes', 'boolean'],
             'consent_text_version' => ['nullable', 'string', 'max:20', 'required_if:sms_consent,true'],
             'preferred_language' => ['nullable', 'string', 'in:en,es'],

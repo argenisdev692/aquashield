@@ -99,12 +99,12 @@ final class Appointment extends Model
             ->when($filters->search !== null && $filters->search !== '', function (Builder $q) use ($filters): void {
                 $term = '%'.addcslashes($filters->search ?? '', '\\%_').'%';
                 $q->where(function (Builder $w) use ($term): void {
-                    $w->where('notes', 'like', $term)
+                    $w->whereLike('notes', $term)
                         ->orWhereHas('lead', function (Builder $lead) use ($term): void {
-                            $lead->where('first_name', 'like', $term)
-                                ->orWhere('last_name', 'like', $term)
-                                ->orWhere('email', 'like', $term)
-                                ->orWhere('phone', 'like', $term);
+                            $lead->whereLike('first_name', $term)
+                                ->orWhereLike('last_name', $term)
+                                ->orWhereLike('email', $term)
+                                ->orWhereLike('phone', $term);
                         });
                 });
             })
